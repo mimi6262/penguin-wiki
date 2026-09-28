@@ -12,24 +12,72 @@
 </head>
 <body>
 <header id="site-header"></header>
+
 <main>
-  <div class="container narrow stack">
-    <div class="stack" style="gap: 12px">
-      <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>패치노트</h1></div>
-      <span class="subtitle">서버 업데이트 소식</span>
+  <div class="container narrow stack" style="gap: 22px">
+    <div class="row-between">
+      <div class="stack" style="gap: 12px">
+        <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>패치노트</h1></div>
+        <span class="subtitle">서버 업데이트 소식</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center">
+        <a class="btn sm secondary" data-auth="editor" hidden href="admin/index.html#patch">패치노트 관리</a>
+      </div>
     </div>
-    <div class="notice-box">
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
-      2차 작업에서 열립니다. 카테고리 배지 + ㆍ 항목 양식으로 표시됩니다.
-    </div>
+    <div class="filter-row" id="filters"></div>
+    <div class="stack" id="list" style="gap: 16px"><div class="loading">불러오는 중입니다</div></div>
   </div>
 </main>
+
 <footer id="site-footer"></footer>
+
 <script type="module">
-  import { renderHeader, renderFooter } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, fmtDate } from './assets/js/ui.js';
   renderHeader('patch');
   renderFooter();
-  try { const { watchAuth } = await import('./assets/js/auth.js'); watchAuth(); } catch (e) { console.warn(e); }
+  try {
+    const { watchAuth } = await import('./assets/js/auth.js');
+    const editor = await watchAuth();
+    import('./assets/js/popups.js');
+    const C = await import('./assets/js/content.js');
+    const [cats, notes] = await Promise.all([C.listCategories(), C.listPatchNotes({ editorView: !!editor })]);
+    const list = $('#list'), filters = $('#filters');
+    let active = '';
+
+    filters.innerHTML = `<button type="button" class="btn sm dark" data-cat="">전체</button>` +
+      cats.map((c) => `<button type="button" class="btn sm ghost" data-cat="${esc(c.name)}"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</button>`).join('');
+    filters.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cat]'); if (!b) return;
+      active = b.dataset.cat;
+      filters.querySelectorAll('[data-cat]').forEach((x) => { x.className = `btn sm ${x === b ? 'dark' : 'ghost'}`; });
+      draw();
+    });
+
+    function draw() {
+      const shown = notes.filter((n) => !active || (n.categories || []).includes(active));
+      if (!shown.length) { list.innerHTML = '<div class="notice-box">아직 등록된 패치노트가 없습니다.</div>'; return; }
+      let lastMonth = '';
+      list.innerHTML = shown.map((n) => {
+        const month = (n.date || '').slice(0, 7);
+        const sep = month !== lastMonth ? `<div class="pn-month">${month.replace('-', '년 ')}월</div>` : '';
+        lastMonth = month;
+        const [y, m, d] = (n.date || '').split('-');
+        return `${sep}
+          <article class="card plain pn-card${n.status !== 'published' ? ' draft' : ''}">
+            <header class="pn-head">
+              <div class="pn-badges">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}${n.status !== 'published' ? '<span class="tag gray">임시저장</span>' : ''}</div>
+              <h2>${esc(n.title || (n.categories || []).join(', '))}</h2>
+              <time datetime="${esc(n.date)}">${y}년 ${Number(m)}월 ${Number(d)}일</time>
+            </header>
+            <div class="pn-body">${C.renderPatchBody(n.body, cats)}</div>
+          </article>`;
+      }).join('');
+    }
+    draw();
+  } catch (e) {
+    console.warn(e);
+    $('#list').innerHTML = '<div class="notice-box">패치노트를 불러오지 못했습니다.</div>';
+  }
 </script>
 </body>
 </html>

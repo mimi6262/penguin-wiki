@@ -51,6 +51,12 @@
       </div>
     </section>
 
+    <section class="card plain home-patch" id="home-patch" hidden>
+      <span class="tag accent" style="flex-shrink: 0">패치노트</span>
+      <div class="list" id="home-patch-list"></div>
+      <a href="patch.html" style="font-size: 13px; text-decoration: none; flex-shrink: 0">더 보기</a>
+    </section>
+
     <section class="stack" style="gap: 20px">
       <div class="section-head">
         <div class="title"><span class="seal" aria-hidden="true"></span><h2>서버 가이드</h2></div>
@@ -110,6 +116,7 @@
     const { watchAuth } = await import('./assets/js/auth.js');
     const { listSections } = await import('./assets/js/pages.js');
     watchAuth();
+    import('./assets/js/popups.js');
 
     // 사이트 설정
     const snap = await getDoc(doc(db, 'settings', 'site'));
@@ -143,6 +150,15 @@
           <p>${esc(x.desc || '')}</p>
         </a>`).join('')
       : '<div class="loading">아직 등록된 가이드가 없습니다. 관리 화면에서 섹션을 추가해 주세요.</div>';
+    // 최신 패치노트 2건
+    try {
+      const { listPatchNotes } = await import('./assets/js/content.js');
+      const notes = await listPatchNotes({ max: 2 });
+      if (notes.length) {
+        $('#home-patch-list').innerHTML = notes.map((n) => `<a class="item" href="patch.html"><span class="d">${esc(n.date)}</span><span class="t">${esc(n.title || (n.categories || []).join(', '))}</span></a>`).join('');
+        $('#home-patch').hidden = false;
+      }
+    } catch (e) { console.warn('patch strip', e); }
   } catch (e) {
     console.warn(e);
     $('#guide-cards').innerHTML = '<div class="loading">가이드 목록을 불러오지 못했습니다.</div>';

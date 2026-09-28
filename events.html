@@ -12,24 +12,100 @@
 </head>
 <body>
 <header id="site-header"></header>
+
 <main>
-  <div class="container narrow stack">
-    <div class="stack" style="gap: 12px">
-      <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>이벤트</h1></div>
-      <span class="subtitle">진행 중 · 상시 · 예정 · 종료</span>
+  <div class="container narrow stack" style="gap: 22px">
+    <div class="row-between">
+      <div class="stack" style="gap: 12px">
+        <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>이벤트</h1></div>
+        <span class="subtitle">하트를 누른 이벤트만 알림으로 받을 수 있습니다. 하트가 없으면 진행 중인 이벤트 전부 알려 드립니다.</span>
+      </div>
+      <a class="btn sm secondary" data-auth="editor" hidden href="admin/index.html#events">이벤트 관리</a>
     </div>
-    <div class="notice-box">
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
-      2차 작업에서 열립니다. 하트로 관심 이벤트를 지정하면 팝업 알림을 받습니다.
+
+    <div class="row-between" style="padding-bottom: 16px; border-bottom: 1px solid var(--line)">
+      <div role="tablist" aria-label="이벤트 상태" class="filter-row" id="tabs">
+        <button type="button" role="tab" class="btn sm dark" data-status="active">진행 중</button>
+        <button type="button" role="tab" class="btn sm ghost" data-status="always">상시</button>
+        <button type="button" role="tab" class="btn sm ghost" data-status="upcoming">예정</button>
+        <button type="button" role="tab" class="btn sm ghost" data-status="ended">종료</button>
+      </div>
+      <span class="pill-info" style="background: var(--card)">
+        <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        한국 시간 기준
+      </span>
     </div>
+
+    <div class="card plain table" id="list"><div class="loading" style="padding: 20px">불러오는 중입니다</div></div>
   </div>
 </main>
+
 <footer id="site-footer"></footer>
+
 <script type="module">
-  import { renderHeader, renderFooter } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, toast } from './assets/js/ui.js';
   renderHeader('events');
   renderFooter();
-  try { const { watchAuth } = await import('./assets/js/auth.js'); watchAuth(); } catch (e) { console.warn(e); }
+  const HEART = (on) => `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="${on ? 'var(--accent)' : 'none'}" stroke="${on ? 'var(--accent)' : '#A6957A'}" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9z"/></svg>`;
+  try {
+    const { watchAuth } = await import('./assets/js/auth.js');
+    watchAuth();
+    import('./assets/js/popups.js');
+    const C = await import('./assets/js/content.js');
+    const T = await import('./assets/js/time.js');
+    const events = await C.listEvents();
+    const list = $('#list');
+    let status = 'active';
+    let hearts = new Set(C.getHearts());
+    const BADGE = { active: 'fill', always: 'green', upcoming: 'blue', ended: 'gray' };
+
+    $('#tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-status]'); if (!b) return;
+      status = b.dataset.status;
+      $('#tabs').querySelectorAll('[data-status]').forEach((x) => { x.className = `btn sm ${x === b ? 'dark' : 'ghost'}`; x.setAttribute('aria-selected', String(x === b)); });
+      draw();
+    });
+
+    function draw() {
+      const now = new Date();
+      const shown = events.map((ev) => ({ ...ev, st: T.eventStatus(ev, now) })).filter((ev) => ev.st === status);
+      if (!shown.length) { list.innerHTML = `<div class="empty">${T.STATUS_LABEL[status]} 이벤트가 없습니다.</div>`; return; }
+      list.innerHTML = shown.map((ev) => {
+        const on = hearts.has(ev.id);
+        const link = ev.link ? (ev.link.startsWith('http') ? ev.link : ev.link) : '';
+        const title = link ? `<a href="${esc(link)}" ${link.startsWith('http') ? 'target="_blank" rel="noopener"' : ''} style="text-decoration:none; color:inherit">${esc(ev.name)}</a>` : `<span>${esc(ev.name)}</span>`;
+        return `
+          <div class="tr ev-row" style="grid-template-columns: 76px minmax(0,1fr) 170px 44px" data-id="${ev.id}">
+            <span><span class="tag ${BADGE[ev.st]}">${T.STATUS_LABEL[ev.st]}</span></span>
+            <div class="stack" style="gap: 4px; min-width: 0">
+              <div style="font-size: 15px">${title}</div>
+              <div class="sub" style="font-size: 12px; color: var(--muted)">${esc(T.eventPeriodText(ev))}${ev.note ? ` · ${esc(ev.note)}` : ''}</div>
+            </div>
+            <span style="font-size: 12px; color: var(--muted)" data-remaining>${esc(T.eventRemainingText(ev, now))}</span>
+            ${ev.st === 'ended' ? '<span></span>' : `<button type="button" class="icon-btn heart${on ? ' on' : ''}" data-heart="${ev.id}" aria-pressed="${on}" aria-label="${on ? '관심 이벤트 해제' : '관심 이벤트 등록'}" style="width: 40px; height: 40px; border-color: ${on ? 'var(--accent)' : 'var(--line)'}">${HEART(on)}</button>`}
+          </div>`;
+      }).join('');
+    }
+    list.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-heart]'); if (!b) return;
+      const on = C.toggleHeart(b.dataset.heart);
+      hearts = new Set(C.getHearts());
+      toast(on ? '관심 이벤트로 등록했습니다. 진행 중일 때 알림으로 알려 드립니다' : '관심 이벤트에서 뺐습니다');
+      draw();
+    });
+    draw();
+    // 남은 시간 갱신 (1분마다 텍스트, 진행 중 탭은 1초)
+    setInterval(() => {
+      const now = new Date();
+      list.querySelectorAll('.ev-row').forEach((row) => {
+        const ev = events.find((x) => x.id === row.dataset.id);
+        if (ev) row.querySelector('[data-remaining]').textContent = T.eventRemainingText(ev, now);
+      });
+    }, 1000);
+  } catch (e) {
+    console.warn(e);
+    $('#list').innerHTML = '<div class="empty">이벤트를 불러오지 못했습니다.</div>';
+  }
 </script>
 </body>
 </html>

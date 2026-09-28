@@ -29,7 +29,7 @@
   import { renderHeader, renderFooter } from './assets/js/ui.js';
   renderHeader('prices');
   renderFooter();
-  try { const { watchAuth } = await import('./assets/js/auth.js'); watchAuth(); } catch (e) { console.warn(e); }
+  try { const { watchAuth } = await import('./assets/js/auth.js'); watchAuth(); import('./assets/js/popups.js'); } catch (e) { console.warn(e); }
 </script>
 </body>
 </html>

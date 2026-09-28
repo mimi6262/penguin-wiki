@@ -8,15 +8,17 @@
 ```
 index.html          홈
 guide.html          가이드 문서 (?p=슬러그, ?s=섹션id, ?q=검색어)
-patch.html          패치노트 (2차)
-events.html         이벤트 (2차)
-commands.html       명령어 (2차)
+patch.html          패치노트 (카테고리 배지 + ㆍ 항목 양식)
+events.html         이벤트 (진행 중 · 상시 · 예정 · 종료, 하트로 관심 지정)
+commands.html       명령어 (분류 탭 · 검색 · 복사 버튼)
 prices.html         시세 (3차)
 admin/login.html    관리자 로그인
-admin/index.html    관리 (#docs 문서 · #settings 사이트 설정 · #editors 편집자 · #history 이력)
+admin/index.html    관리 (#docs 문서 · #settings 사이트 설정 · #events 이벤트 · #patch 패치노트 · #popups 알림 · #commands 명령어 · #editors 편집자 · #history 이력)
+admin/panels2.js    관리 2차 패널 (이벤트 · 패치노트 · 알림 · 명령어)
 admin/editor.html   문서 편집기 (?p=슬러그)
 assets/css/site.css 공통 스타일 (시안 v1 "한지와 먹")
 assets/js/          ui.js(헤더·푸터) firebase.js(초기화) auth.js(로그인·역할) pages.js(문서) markdown.js(렌더링)
+                    content.js(패치노트·이벤트·명령어·팝업 데이터) time.js(KST 시간) popups.js(하단 알림)
 firestore.rules     Firestore 보안 규칙
 ```
 
@@ -33,7 +35,7 @@ firestore.rules     Firestore 보안 규칙
    - Firestore → 컬렉션 `editors` → 문서 ID를 그 UID로 → 필드 `name`(문자열), `email`(문자열), `role` = `admin`
    - 이후 편집자 추가는 관리 화면 → 편집자 관리에서 처리됩니다.
 7. **색인**: 처음 목록을 열 때 콘솔에 "index 필요" 링크가 뜨면 그 링크를 눌러 색인을 만들어 주세요.
-   (`pages`: public + order, `pageVersions`: pageId + savedAt, `editLogs`/`loginLogs`: at)
+   (`pages`: public + order, `pageVersions`: pageId + savedAt, `patchNotes`: status + date, `editLogs`/`loginLogs`: at)
 
 ## 문서 작성 규칙 (마크다운)
 
@@ -47,6 +49,24 @@ firestore.rules     Firestore 보안 규칙
 - 임시저장: 편집자만 보는 초안(draft). 유저에게는 이전 게시본이 그대로 보입니다.
 - 게시: 게시본 교체 + 이전 게시본을 이력(pageVersions)에 보관. 이력에서 되돌리기 가능.
 - 공개 토글: 끄면 유저에게 숨겨집니다(편집자에게는 "비공개" 표시).
+
+## 이벤트 · 알림 규칙
+
+- 이벤트 상태: 진행 중 / 상시(매일 시간대 반복) / 예정 / 종료. 시각은 전부 한국 시간(KST)으로 저장·표시.
+- 하트: 유저 브라우저에 저장(로그인 없음). 하트가 없으면 진행 중 이벤트 전부, 있으면 누른 것만 팝업.
+- 팝업: 이벤트별 "팝업 알림 노출"이 켜진 것만. 닫으면 그날은 재노출 없음. 최대 3개.
+- 마인리스트 알림: 관리 → 알림 설정에서 시간대·링크·문구. 추천하기/닫기 후 다음 날 재노출.
+
+## 패치노트 양식
+
+```
+[신규]
+ㆍ추가된 내용
+  ㆍ하위 항목 (두 칸 들여쓰기)
+[기타]
+ㆍ수정된 문제. `/명령어` 와 **강조** 사용 가능
+```
+제목을 비우면 카테고리 이름을 이어 붙여 자동 생성됩니다. 카테고리 색은 관리 → 패치노트 관리에서 지정합니다.
 
 ## 커스텀 도메인 연결 (구입 후)
 

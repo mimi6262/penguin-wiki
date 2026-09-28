@@ -65,6 +65,7 @@
     const { renderMarkdown, decorate } = await import('./assets/js/markdown.js');
 
     const editor = await watchAuth();
+    import('./assets/js/popups.js');
     const [sections, pages] = await Promise.all([listSections(), listPages({ editorView: !!editor })]);
     const { tree, orphans } = buildTree(sections, pages);
     const flat = flatten(tree, orphans);

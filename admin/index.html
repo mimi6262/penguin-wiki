@@ -21,10 +21,11 @@
       <span class="label">관리</span>
       <a href="#docs" data-tab="docs">문서 관리</a>
       <a href="#settings" data-tab="settings">사이트 설정</a>
-      <a href="#events" data-tab="events">이벤트 관리 <span class="soon">2차</span></a>
-      <a href="#patch" data-tab="patch">패치노트 관리 <span class="soon">2차</span></a>
-      <a href="#popups" data-tab="popups">알림 설정 <span class="soon">2차</span></a>
-      <a href="#data" data-tab="data">명령어 · 시세 데이터 <span class="soon">2·3차</span></a>
+      <a href="#events" data-tab="events">이벤트 관리</a>
+      <a href="#patch" data-tab="patch">패치노트 관리</a>
+      <a href="#popups" data-tab="popups">알림 설정</a>
+      <a href="#commands" data-tab="commands">명령어 관리</a>
+      <a href="#prices" data-tab="prices">시세 데이터 <span class="soon">3차</span></a>
       <hr>
       <a href="#editors" data-tab="editors" data-auth="admin" hidden>편집자 관리</a>
       <a href="#history" data-tab="history">접속 · 수정 이력</a>
@@ -349,7 +350,7 @@
       </div>` : ''}`;
   }
 
-  const SOON = (t) => head(t) + '<div class="notice-box">2차 작업에서 만들어지는 화면입니다. 시안 v1의 관리 화면 구성을 따릅니다.</div>';
+  const SOON = (t) => head(t) + '<div class="notice-box">3차 작업에서 만들어지는 화면입니다. 운영자 쪽 데이터가 준비되면 연결합니다.</div>';
 
   function route() {
     const h = (location.hash || '#docs').slice(1);
@@ -359,7 +360,13 @@
     if (tab === 'settings') return renderSettings();
     if (tab === 'editors') return renderEditors();
     if (tab === 'history') return renderHistory(arg ? decodeURIComponent(arg) : null);
-    freshPanel(); return void (panel.innerHTML = SOON({ events: '이벤트 관리', patch: '패치노트 관리', popups: '알림 설정', data: '명령어 · 시세 데이터' }[tab] || '관리'));
+    if (['events', 'patch', 'popups', 'commands'].includes(tab)) {
+      return import('./panels2.js').then((m) => {
+        const ctx = { head, me, isAdmin, freshPanel: () => freshPanel() };
+        return ({ events: m.renderEvents, patch: m.renderPatch, popups: m.renderPopups, commands: m.renderCommands })[tab](ctx);
+      }).catch((e) => { console.error(e); freshPanel(); panel.innerHTML = head('오류') + '<div class="notice-box">화면을 불러오지 못했습니다. 새로고침해 주세요.</div>'; });
+    }
+    freshPanel(); return void (panel.innerHTML = SOON({ prices: '시세 데이터' }[tab] || '관리'));
   }
   window.addEventListener('hashchange', route);
   route();
