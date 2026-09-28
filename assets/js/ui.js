@@ -108,6 +108,20 @@ export function renderFooter(extra = {}) {
     </div>`;
 }
 
+// 스크롤 리빌: .reveal 요소가 화면에 들어오면 .in 을 붙여 CSS transition 으로 등장 (한 번만)
+// 나중에 추가된 요소가 있으면 initReveal()을 다시 호출하면 됩니다. 움직임 줄이기 설정이면 즉시 표시.
+let revealIO = null;
+export function initReveal(root = document) {
+  const els = $$('.reveal:not(.in)', root);
+  if (!els.length) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('in')); return; }
+  revealIO ||= new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  els.forEach((el) => revealIO.observe(el));
+}
+
 // 간단 토스트 (하단 우측)
 export function toast(message, { timeout = 2600 } = {}) {
   let stack = $('#toast-stack');

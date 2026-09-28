@@ -51,28 +51,28 @@
       </div>
     </section>
 
-    <section class="card plain home-patch" id="home-patch" hidden>
+    <section class="card plain home-patch reveal" id="home-patch" hidden>
       <span class="tag accent" style="flex-shrink: 0">패치노트</span>
       <div class="list" id="home-patch-list"></div>
       <a href="patch.html" style="font-size: 13px; text-decoration: none; flex-shrink: 0">더 보기</a>
     </section>
 
     <section class="stack" style="gap: 20px">
-      <div class="section-head">
+      <div class="section-head reveal">
         <div class="title"><span class="seal" aria-hidden="true"></span><h2>서버 가이드</h2></div>
         <a href="guide.html" style="font-size: 14px; text-decoration: none">전체 보기</a>
       </div>
-      <div class="card-grid" id="guide-cards">
+      <div class="tile-grid" id="guide-cards">
         <div class="loading">가이드를 불러오는 중입니다</div>
       </div>
     </section>
 
     <section class="stack" style="gap: 20px">
-      <div class="section-head">
+      <div class="section-head reveal">
         <div class="title"><span class="seal" aria-hidden="true"></span><h2>커뮤니티</h2></div>
       </div>
       <div class="community">
-        <div class="card item">
+        <div class="card item reveal">
           <span class="icon" aria-hidden="true">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3A5A78" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H8l-4 3v-4.5A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg>
           </span>
@@ -82,7 +82,7 @@
           </div>
           <a class="btn" id="btn-discord" href="#" target="_blank" rel="noopener" style="background: #3A5A78; color: #FBF7EF">참여하기</a>
         </div>
-        <div class="card item">
+        <div class="card item reveal" style="--i: 1">
           <span class="icon" aria-hidden="true">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>
           </span>
@@ -101,9 +101,10 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, esc, copyText, toast } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, copyText, toast, initReveal } from './assets/js/ui.js';
   renderHeader('home');
   renderFooter();
+  initReveal();
 
   $('#copy-address').addEventListener('click', () => {
     const v = $('#server-address').textContent.trim();
@@ -139,24 +140,22 @@
     }
     renderFooter(s.business || {});
 
-    // 가이드 카드: 최상위 섹션 + 그 안의 문서 몇 개
+    // 가이드 타일: 최상위 섹션 이름 + 한 줄 설명 + 문서 수 (섹션이 많아도 가지런히)
     const [allSections, pages] = await Promise.all([listSections(), listPages().catch(() => [])]);
     const { tree } = buildTree(allSections, pages);
     const grid = $('#guide-cards');
-    const cards = tree.slice(0, 8);
-    grid.innerHTML = cards.length
-      ? cards.map((t) => {
-        const docs = [...t.pages, ...t.children.flatMap((c) => c.pages)];
-        const link = `guide.html?s=${encodeURIComponent(t.section.id)}`;
+    grid.innerHTML = tree.length
+      ? tree.map((t, i) => {
+        const n = t.pages.length + t.children.reduce((a, c) => a + c.pages.length, 0);
         return `
-        <div class="card guide-card">
-          <a class="head" href="${link}"><h3>${esc(t.section.name)}</h3></a>
+        <a class="card plain g-tile reveal" style="--i: ${i}" href="guide.html?s=${encodeURIComponent(t.section.id)}">
+          <div class="row"><h3>${esc(t.section.name)}</h3>${n ? `<span class="n">문서 ${n}</span>` : ''}</div>
           ${t.section.desc ? `<p>${esc(t.section.desc)}</p>` : ''}
-          <div class="docs">${docs.slice(0, 4).map((p) => `<a href="guide.html?p=${encodeURIComponent(p.id)}">${esc(p.title)}</a>`).join('')}</div>
-          <a class="more" href="${link}">${docs.length > 4 ? `문서 ${docs.length}개 전체 보기` : '섹션 열기'} ›</a>
-        </div>`;
+          <span class="arrow" aria-hidden="true">열어보기 ›</span>
+        </a>`;
       }).join('')
       : '<div class="loading">아직 등록된 가이드가 없습니다. 관리 화면에서 섹션을 추가해 주세요.</div>';
+    initReveal(grid);
     // 최신 패치노트 2건
     try {
       const { listPatchNotes } = await import('./assets/js/content.js');
@@ -164,6 +163,7 @@
       if (notes.length) {
         $('#home-patch-list').innerHTML = notes.map((n) => `<a class="item" href="patch.html"><span class="d">${esc(n.date)}</span><span class="t">${esc(n.title || (n.categories || []).join(', '))}</span></a>`).join('');
         $('#home-patch').hidden = false;
+        initReveal();
       }
     } catch (e) { console.warn('patch strip', e); }
   } catch (e) {
