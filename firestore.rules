@@ -38,6 +38,14 @@ service cloud.firestore {
     // 3차: 시세 — 읽기 공개, 쓰기는 편집자(운영자 스크립트는 서비스 계정으로 규칙을 우회)
     match /prices/{id} { allow read: if true; allow write: if isEditor(); }
 
+    // 문서 이미지: 편집기에서 올린 그림(압축된 data URL, 1MB 미만). 읽기 공개, 편집자만 올리고 지움
+    match /images/{id} {
+      allow read: if true;
+      allow create: if isEditor() && request.resource.data.data is string && request.resource.data.data.size() < 1000000;
+      allow delete: if isEditor();
+      allow update: if false;
+    }
+
     // 편집자 명단: 편집자는 읽기, 운영자만 쓰기
     match /editors/{uid} {
       allow read: if isEditor();

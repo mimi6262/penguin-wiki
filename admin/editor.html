@@ -53,8 +53,9 @@
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
           <button type="button" class="tool" data-insert="[링크 이름](https://)" aria-label="링크">
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>
-          <button type="button" class="tool" data-insert="![설명](이미지 주소)" aria-label="이미지">
+          <button type="button" class="tool" id="tool-image" aria-label="이미지 올리기" title="이미지 올리기 (붙여넣기 · 끌어다 놓기도 됩니다)">
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></button>
+          <input type="file" id="image-file" accept="image/*" multiple hidden>
           <button type="button" class="tool" data-insert="| 항목 | 값 | 비고 |&#10;| --- | --- | --- |&#10;|  |  |  |" aria-label="표">
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M10 4v16"/></svg></button>
           <button type="button" class="tool" data-wrap="`" data-default="/명령어" aria-label="명령어 코드">
@@ -68,7 +69,10 @@
 > [!안내] 안내 상자는 이렇게 씁니다.
 
 - 목록
-- `/명령어` 는 클릭 복사 칩이 됩니다"></textarea>
+- `/명령어` 는 클릭 복사 칩이 됩니다
+
+이미지는 툴바의 그림 버튼으로 올리거나, 여기에 붙여넣기(Ctrl+V) · 끌어다 놓기 하면 됩니다.
+외부 이미지는 ![설명](https://주소) 로 넣습니다."></textarea>
       </div>
       <div class="card plain pane">
         <div class="pane-head"><span class="lbl">미리보기</span><span style="margin-left: auto; letter-spacing: 0; color: #8A7D66">유저에게 보이는 모습</span></div>
@@ -97,7 +101,7 @@
   const me = await requireEditor();
   if (!me) throw new Error('redirect');
   const P = await import('../assets/js/pages.js');
-  const { renderMarkdown } = await import('../assets/js/markdown.js');
+  const { renderMarkdown, resolveImages } = await import('../assets/js/markdown.js');
 
   const el = {
     title: $('#title'), md: $('#md'), preview: $('#preview'), section: $('#section'), order: $('#order'),
@@ -140,7 +144,7 @@
   el.pub.addEventListener('click', () => setPublic(!el.pub.classList.contains('on')));
   el.pub.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); el.pub.click(); } });
 
-  function render() { el.preview.innerHTML = renderMarkdown(el.md.value) || '<p style="color:#8A7D66">왼쪽에 내용을 입력하면 여기에 미리보기가 나타납니다.</p>'; }
+  function render() { el.preview.innerHTML = renderMarkdown(el.md.value) || '<p style="color:#8A7D66">왼쪽에 내용을 입력하면 여기에 미리보기가 나타납니다.</p>'; resolveImages(el.preview); }
   let timer;
   el.md.addEventListener('input', () => { dirty = true; clearTimeout(timer); timer = setTimeout(render, 150); });
   el.title.addEventListener('input', () => {
@@ -163,9 +167,79 @@
     ta.setSelectionRange(cs, ce); ta.focus(); dirty = true; render();
   });
 
+  // ---- 이미지 올리기: 브라우저에서 줄여서(긴 변 1600px, WebP) Firestore images/{id} 에 저장하고 ![설명](img:ID) 를 끼워 넣습니다
+  const { db, collection, addDoc, serverTimestamp } = await import('../assets/js/firebase.js');
+  const MAX_DATA = 900 * 1024; // Firestore 문서 1MiB 제한 안쪽
+  async function compressImage(file) {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(file));
+    let scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    let q = 0.85;
+    const canvas = document.createElement('canvas');
+    // WebP 인코딩이 안 되는 브라우저(구형 Safari)는 JPEG로
+    canvas.width = 2; canvas.height = 2;
+    const type = canvas.toDataURL('image/webp').startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
+    for (let i = 0; i < 12; i++) {
+      const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (type === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(bmp, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL(type, q);
+      if (dataUrl.length <= MAX_DATA) return { dataUrl, w, h };
+      if (q > 0.55) q -= 0.1; else scale *= 0.75;
+    }
+    throw new Error('이미지를 충분히 줄이지 못했습니다');
+  }
+  function insertAtCursor(text) {
+    const ta = el.md, s = ta.selectionStart, t = ta.selectionEnd, v = ta.value;
+    const ins = (s > 0 && v[s - 1] !== '\n' ? '\n' : '') + text + '\n';
+    ta.value = v.slice(0, s) + ins + v.slice(t);
+    ta.setSelectionRange(s + ins.length, s + ins.length); ta.focus(); dirty = true; render();
+  }
+  let uploading = 0;
+  async function uploadImages(files) {
+    const list = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
+    if (!list.length) return;
+    for (const file of list) {
+      if (file.size > 20 * 1024 * 1024) { toast(`${file.name}: 20MB 이하만 올릴 수 있습니다`); continue; }
+      const marker = `![올리는 중… ${file.name.replace(/[\[\]()]/g, '')}]()`;
+      insertAtCursor(marker);
+      if (!uploading) el.status.dataset.keep = el.status.textContent;
+      uploading++; el.status.textContent = `이미지 올리는 중 (${uploading})`;
+      try {
+        const { dataUrl, w, h } = await compressImage(file);
+        const ref = await addDoc(collection(db, 'images'), {
+          data: dataUrl, name: file.name, w, h, bytes: dataUrl.length, by: me.name, pageId: slug || el.slug.value || '', createdAt: serverTimestamp(),
+        });
+        const alt = file.name.replace(/\.[^.]+$/, '').replace(/[\[\]]/g, '');
+        el.md.value = el.md.value.replace(marker, `![${alt}](img:${ref.id})`);
+      } catch (err) {
+        console.error(err);
+        el.md.value = el.md.value.replace(marker + '\n', '').replace(marker, '');
+        toast(`${file.name}: 올리지 못했습니다 (${err.message || err})`);
+      } finally {
+        uploading--; el.status.textContent = uploading ? `이미지 올리는 중 (${uploading})` : (el.status.dataset.keep || '');
+        dirty = true; render();
+      }
+    }
+  }
+  $('#tool-image').addEventListener('click', () => $('#image-file').click());
+  $('#image-file').addEventListener('change', (e) => { uploadImages(e.target.files); e.target.value = ''; });
+  el.md.addEventListener('paste', (e) => {
+    const files = Array.from(e.clipboardData?.files || []).filter((f) => f.type.startsWith('image/'));
+    if (files.length) { e.preventDefault(); uploadImages(files); }
+  });
+  el.md.addEventListener('dragover', (e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); el.md.classList.add('drop'); } });
+  el.md.addEventListener('dragleave', () => el.md.classList.remove('drop'));
+  el.md.addEventListener('drop', (e) => {
+    el.md.classList.remove('drop');
+    if (e.dataTransfer?.files?.length) { e.preventDefault(); uploadImages(e.dataTransfer.files); }
+  });
+
   function collect() {
     const title = el.title.value.trim();
     const id = (existing ? existing.id : el.slug.value.trim()) || P.slugFromTitle(title);
+    if (uploading) { toast('이미지를 아직 올리는 중입니다. 잠시 후 저장해 주세요'); return null; }
     if (!title) { toast('제목을 입력해 주세요'); return null; }
     if (!/^[\p{L}\p{N}-]+$/u.test(id)) { toast('주소(슬러그)는 글자, 숫자, 하이픈만 쓸 수 있습니다'); return null; }
     return { id, title, sectionId: el.section.value || null, order: Number(el.order.value) || 0, markdown: el.md.value, public: el.pub.classList.contains('on') };

@@ -21,7 +21,7 @@
       <div class="copy">
         <span class="pill-info" id="season-tag" style="align-self: flex-start">[시즌 태그]</span>
         <h1>펭귄서버</h1>
-        <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px">[서버 한 줄 소개]</p>
+        <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px; white-space: pre-line">[서버 한 줄 소개]</p>
         <div class="info-pills">
           <div class="info-pill" id="online-pill" hidden>
             <span class="dot" aria-hidden="true"></span>
@@ -114,7 +114,7 @@
   try {
     const { db, doc, getDoc } = await import('./assets/js/firebase.js');
     const { watchAuth } = await import('./assets/js/auth.js');
-    const { listSections } = await import('./assets/js/pages.js');
+    const { listSections, listPages, buildTree } = await import('./assets/js/pages.js');
     watchAuth();
     import('./assets/js/popups.js');
 
@@ -139,16 +139,23 @@
     }
     renderFooter(s.business || {});
 
-    // 가이드 카드: 최상위 섹션
-    const sections = (await listSections()).filter((x) => !x.parentId).slice(0, 8);
+    // 가이드 카드: 최상위 섹션 + 그 안의 문서 몇 개
+    const [allSections, pages] = await Promise.all([listSections(), listPages().catch(() => [])]);
+    const { tree } = buildTree(allSections, pages);
     const grid = $('#guide-cards');
-    grid.innerHTML = sections.length
-      ? sections.map((x) => `
-        <a class="card guide-card" href="guide.html?s=${encodeURIComponent(x.id)}">
-          <span class="icon" aria-hidden="true">${esc((x.icon || x.name).slice(0, 1))}</span>
-          <h3>${esc(x.name)}</h3>
-          <p>${esc(x.desc || '')}</p>
-        </a>`).join('')
+    const cards = tree.slice(0, 8);
+    grid.innerHTML = cards.length
+      ? cards.map((t) => {
+        const docs = [...t.pages, ...t.children.flatMap((c) => c.pages)];
+        const link = `guide.html?s=${encodeURIComponent(t.section.id)}`;
+        return `
+        <div class="card guide-card">
+          <a class="head" href="${link}"><h3>${esc(t.section.name)}</h3></a>
+          ${t.section.desc ? `<p>${esc(t.section.desc)}</p>` : ''}
+          <div class="docs">${docs.slice(0, 4).map((p) => `<a href="guide.html?p=${encodeURIComponent(p.id)}">${esc(p.title)}</a>`).join('')}</div>
+          <a class="more" href="${link}">${docs.length > 4 ? `문서 ${docs.length}개 전체 보기` : '섹션 열기'} ›</a>
+        </div>`;
+      }).join('')
       : '<div class="loading">아직 등록된 가이드가 없습니다. 관리 화면에서 섹션을 추가해 주세요.</div>';
     // 최신 패치노트 2건
     try {

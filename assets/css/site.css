@@ -165,11 +165,19 @@ main { flex-grow: 1; }
 .info-pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
 .info-pill.has-btn { padding-right: 8px; }
 .card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
-.guide-card { display: flex; flex-direction: column; gap: 12px; padding: 22px 22px 24px; text-decoration: none; color: inherit; }
-.guide-card:hover { border-color: var(--wood); color: inherit; }
-.guide-card .icon { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 50%; font-family: var(--font-head); font-size: 20px; color: var(--wood); }
+.guide-card { display: flex; flex-direction: column; gap: 10px; padding: 20px 22px 18px; color: inherit; }
+.guide-card:hover { border-color: var(--wood); }
+.guide-card .head { text-decoration: none; color: inherit; }
+.guide-card .head:hover h3 { color: var(--accent); }
 .guide-card h3 { font-size: 20px; }
 .guide-card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.guide-card .docs { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line-faint); }
+.guide-card .docs a { display: block; position: relative; padding-left: 14px; line-height: 26px; font-size: 13px; color: var(--wood-dark); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guide-card .docs a::before { content: ""; position: absolute; left: 0; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
+.guide-card .docs a:hover { color: var(--accent); }
+.guide-card .docs a:hover::before { background: var(--accent); }
+.guide-card .more { margin-top: auto; padding-top: 6px; font-size: 12px; color: var(--muted); text-decoration: none; }
+.guide-card .more:hover { color: var(--wood-dark); }
 .community { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .community .item { display: flex; align-items: center; gap: 24px; padding: 28px 30px; border-radius: 20px; outline-offset: -6px; }
 .community .icon { display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 72px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 50%; flex-shrink: 0; }
@@ -178,7 +186,10 @@ main { flex-grow: 1; }
 .community .grow { flex-grow: 1; min-width: 0; }
 
 /* ---------- 가이드 문서 ---------- */
-.guide-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr) 210px; gap: 40px; align-items: start; }
+/* 가이드는 본문 폭을 넉넉히: 넓은 컨테이너 + 목차 폭 축소 */
+.container.guide-layout { max-width: 1480px; }
+.guide-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr) 190px; gap: 36px; align-items: start; }
+.guide-layout > article { min-width: 0; max-width: 960px; }
 .tree { display: flex; flex-direction: column; gap: 2px; padding: 20px 16px; position: sticky; top: 16px; }
 .tree .head { display: flex; align-items: center; gap: 8px; padding: 4px 8px 12px; border-bottom: 1px solid var(--line-faint); margin-bottom: 6px; font-family: var(--font-head); font-size: 18px; }
 .tree .sec { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border-radius: var(--radius-pill); font-size: 14px; color: var(--wood-dark); cursor: pointer; user-select: none; }
@@ -224,7 +235,9 @@ main { flex-grow: 1; }
 .prose p { margin: 0 0 14px; }
 .prose ul, .prose ol { margin: 0 0 14px; padding-left: 22px; }
 .prose li { margin: 4px 0; }
-.prose img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); }
+.prose img { max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+.prose img[data-pw-img]:not([src]) { display: block; width: 100%; max-width: 480px; height: 120px; background: var(--cream); border-style: dashed; }
+.prose img[data-pw-img].missing { width: auto; height: auto; min-height: 0; padding: 12px 16px; font-size: 13px; color: var(--muted); }
 .prose code { font-family: var(--font-mono); font-size: 13px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 6px; padding: 1px 7px; }
 .prose pre { background: var(--cream); border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; overflow: auto; }
 .prose pre code { background: none; border: 0; padding: 0; }
@@ -278,6 +291,9 @@ main { flex-grow: 1; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: transparent; border: 1px solid var(--line); border-radius: 50%; cursor: pointer; }
 .icon-btn:hover { background: var(--cream); }
 .icon-btn.danger { color: var(--accent); }
+.icon-btn.move { width: 24px; height: 24px; font-size: 9px; color: var(--wood); }
+.icon-btn[disabled] { opacity: 0.3; cursor: default; }
+.icon-btn[disabled]:hover { background: transparent; }
 .form-card { display: flex; flex-direction: column; gap: 14px; padding: 22px 22px 24px; border: 1px solid var(--accent); }
 .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .form-row.cat-row { grid-template-columns: minmax(120px, 1fr) 120px 84px; }
@@ -295,6 +311,7 @@ main { flex-grow: 1; }
 .tool { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: transparent; border: 0; border-radius: 50%; cursor: pointer; font-size: 13px; color: var(--wood-dark); letter-spacing: 0; }
 .tool:hover { background: var(--card); }
 .editor-textarea { flex-grow: 1; width: 100%; border: 0; outline: none; resize: none; padding: 18px 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.7; background: var(--card); color: var(--ink); min-height: 500px; }
+.editor-textarea.drop { background: var(--cream); box-shadow: inset 0 0 0 2px var(--wood); }
 .pane .prose { padding: 20px 24px; flex-grow: 1; overflow: auto; }
 .editor-bottom { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 20px; border-radius: var(--radius-pill); font-size: 13px; color: var(--label); }
 .editor-bottom .input { height: 34px; background: var(--cream); border-color: var(--line-soft); font-size: 13px; }

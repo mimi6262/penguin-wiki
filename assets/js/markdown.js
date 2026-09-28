@@ -31,13 +31,19 @@ function transformCommands(html) {
     `<code class="cmd" data-cmd="${cmd}" title="클릭하면 복사됩니다">${cmd}${COPY_ICON}</code>`);
 }
 
-export function renderMarkdown(md) {
-  const raw = marked.parse(md || '');
-  const html = transformCommands(transformCallouts(raw));
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['data-cmd', 'target'] });
+// 업로드 이미지: ![설명](img:문서ID) → Firestore images/{id} 의 data URL 로 나중에 채움 (resolveImages)
+function transformUploadedImages(md) {
+  return (md || '').replace(/!\[([^\]]*)\]\(img:([A-Za-z0-9_-]{1,40})\)/g, (m, alt, id) =>
+    `<img data-pw-img="${id}" alt="${esc(alt)}">`);
 }
 
-// 렌더된 컨테이너에 목차 id 부여 + 목차 목록 반환
+export function renderMarkdown(md) {
+  const raw = marked.parse(transformUploadedImages(md));
+  const html = transformCommands(transformCallouts(raw));
+  return DOMPurify.sanitize(html, { ADD_ATTR: ['data-cmd', 'data-pw-img', 'target'] });
+}
+
+// 렌더된 컨테이너에 목차 id 부여 + 목차 목록 반환 (업로드 이미지도 여기서 채웁니다)
 export function decorate(container) {
   const used = new Set();
   const toc = [];
@@ -50,7 +56,25 @@ export function decorate(container) {
     a.target = '_blank';
     a.rel = 'noopener';
   });
+  resolveImages(container);
   return toc;
+}
+
+// images/{id} 를 읽어 <img data-pw-img> 에 src 를 넣습니다. 같은 세션에서는 한 번만 읽습니다.
+const imageCache = new Map();
+export async function resolveImages(container) {
+  const imgs = Array.from(container.querySelectorAll('img[data-pw-img]:not([src])'));
+  if (!imgs.length) return;
+  const { db, doc, getDoc } = await import('./firebase.js');
+  await Promise.all(imgs.map(async (img) => {
+    const id = img.getAttribute('data-pw-img');
+    if (!imageCache.has(id)) {
+      imageCache.set(id, getDoc(doc(db, 'images', id)).then((s) => (s.exists() ? s.data().data : null)).catch(() => null));
+    }
+    const data = await imageCache.get(id);
+    if (data) img.src = data;
+    else { img.classList.add('missing'); img.alt = img.alt || '이미지를 찾을 수 없습니다'; }
+  }));
 }
 
 document.addEventListener('click', (e) => {

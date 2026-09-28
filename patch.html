@@ -63,9 +63,9 @@
         lastMonth = month;
         const [y, m, d] = (n.date || '').split('-');
         return `${sep}
-          <article class="card plain pn-card${n.status !== 'published' ? ' draft' : ''}">
+          <article class="card plain pn-card${n.status !== 'published' || n.scheduled ? ' draft' : ''}">
             <header class="pn-head">
-              <div class="pn-badges">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}${n.status !== 'published' ? '<span class="tag gray">임시저장</span>' : ''}</div>
+              <div class="pn-badges">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}${n.status !== 'published' ? '<span class="tag gray">임시저장</span>' : n.scheduled ? '<span class="tag blue">예약 게시 · 유저에게는 해당 날짜부터 보임</span>' : ''}</div>
               <h2>${esc(n.title || (n.categories || []).join(', '))}</h2>
               <time datetime="${esc(n.date)}">${y}년 ${Number(m)}월 ${Number(d)}일</time>
             </header>

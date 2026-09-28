@@ -148,7 +148,8 @@ export async function renderPatch(ctx) {
   panel.innerHTML = head('패치노트 관리') + '<div class="loading">불러오는 중</div>';
   const [cats, notes] = await Promise.all([C.listCategories(), C.listPatchNotes({ editorView: true })]);
   panel = ctx.freshPanel();
-  panel.innerHTML = head('패치노트 관리', `게시 ${notes.filter((n) => n.status === 'published').length} · 임시저장 ${notes.filter((n) => n.status !== 'published').length}`, '<button type="button" class="btn primary" id="pn-new">새 패치노트</button>') + `
+  const nPub = notes.filter((n) => n.status === 'published' && !n.scheduled).length, nSch = notes.filter((n) => n.scheduled).length, nDraft = notes.filter((n) => n.status !== 'published').length;
+  panel.innerHTML = head('패치노트 관리', `게시 ${nPub}${nSch ? ` · 예약 ${nSch}` : ''} · 임시저장 ${nDraft}`, '<button type="button" class="btn primary" id="pn-new">새 패치노트</button>') + `
     <div class="admin-split">
       <div class="stack" style="gap: 20px">
         <div class="card plain pad stack" style="gap: 14px">
@@ -180,7 +181,7 @@ export async function renderPatch(ctx) {
               <span style="font-size: 13px; color: var(--muted)">${esc(n.date)}</span>
               <span title="${esc(n.title || '')}">${esc(n.title || (n.categories || []).join(', '))}</span>
               <div style="display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}</div>
-              <span>${n.status === 'published' ? '<span class="tag green">게시</span>' : '<span class="tag gray">임시</span>'}</span>
+              <span>${n.status !== 'published' ? '<span class="tag gray">임시</span>' : n.scheduled ? '<span class="tag blue" title="날짜가 되면 유저에게 보입니다">예약</span>' : '<span class="tag green">게시</span>'}</span>
               <div class="actions">
                 <button type="button" class="icon-btn" data-edit="${n.id}" aria-label="편집">${EDIT}</button>
                 <button type="button" class="icon-btn danger" data-del="${n.id}" aria-label="삭제">${TRASH}</button>
@@ -192,7 +193,7 @@ export async function renderPatch(ctx) {
         <div class="row-between"><h2 style="font-size: 20px" id="pn-form-title">새 패치노트</h2><button type="button" class="btn xs ghost" id="pn-reset">새로</button></div>
         <input type="hidden" id="pn-id">
         <div class="stack" style="gap: 12px">
-          ${F('pn-date', '날짜', T.todayKST(), { type: 'date' })}
+          ${F('pn-date', '날짜 <span style="color:var(--muted)">(미래 날짜로 게시하면 그날 0시(KST)부터 유저에게 보입니다)</span>', T.todayKST(), { type: 'date' })}
           ${F('pn-title', '제목 (비우면 카테고리로 자동)', '', { ph: '자동 생성' })}
         </div>
         <div class="field">
@@ -253,7 +254,8 @@ export async function renderPatch(ctx) {
   const save = async (status) => {
     const d = collect(status); if (!d) return;
     await C.savePatchNote(f('pn-id').value || null, d, me.name);
-    toast(status === 'published' ? '게시했습니다' : '임시저장했습니다'); renderPatch(ctx);
+    const scheduled = status === 'published' && d.date > T.todayKST();
+    toast(status !== 'published' ? '임시저장했습니다' : scheduled ? `${d.date}부터 보이도록 예약했습니다` : '게시했습니다'); renderPatch(ctx);
   };
   f('pn-draft').addEventListener('click', () => save('draft'));
   f('pn-publish').addEventListener('click', () => save('published'));

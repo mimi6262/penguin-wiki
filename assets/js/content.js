@@ -4,6 +4,7 @@ import {
   query, where, orderBy, limit, serverTimestamp,
 } from './firebase.js';
 import { esc } from './ui.js';
+import { todayKST } from './time.js';
 
 const rows = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 const stamp = (by) => ({ updatedAt: serverTimestamp(), updatedBy: by });
@@ -23,9 +24,13 @@ export async function deleteCategory(id) { await deleteDoc(doc(db, 'patchCategor
 // ---------- 패치노트 ----------
 // patchNotes/{id}: { date 'YYYY-MM-DD', title, body, categories: [name], status: 'published'|'draft' }
 // 복합 색인이 필요 없도록 조건만 걸고 날짜 정렬은 브라우저에서 합니다.
+// 게시 상태여도 날짜가 미래(KST)면 예약 게시: 유저에게는 그 날짜가 되어야 보이고, 편집자에게는 scheduled 표시로 보입니다.
+export const isScheduled = (n, today = todayKST()) => n.status === 'published' && String(n.date || '') > today;
 export async function listPatchNotes({ editorView = false, max = 100 } = {}) {
   const col = collection(db, 'patchNotes');
-  const list = rows(await getDocs(editorView ? col : query(col, where('status', '==', 'published'))));
+  const today = todayKST();
+  let list = rows(await getDocs(editorView ? col : query(col, where('status', '==', 'published'))));
+  list = editorView ? list.map((n) => ({ ...n, scheduled: isScheduled(n, today) })) : list.filter((n) => !isScheduled(n, today));
   return list.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt?.toMillis?.() || 0).localeCompare(String(a.createdAt?.toMillis?.() || 0))).slice(0, max);
 }
 export async function savePatchNote(id, data, by) {
