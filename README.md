@@ -35,8 +35,7 @@ firestore.rules     Firestore 보안 규칙
    - Authentication → Users → 사용자 추가 (이메일 + 비밀번호) → 만들어진 사용자의 **UID** 복사
    - Firestore → 컬렉션 `editors` → 문서 ID를 그 UID로 → 필드 `name`(문자열), `email`(문자열), `role` = `admin`
    - 이후 편집자 추가는 관리 화면 → 편집자 관리에서 처리됩니다.
-7. **색인**: 처음 목록을 열 때 콘솔에 "index 필요" 링크가 뜨면 그 링크를 눌러 색인을 만들어 주세요.
-   (`pages`: public + order, `pageVersions`: pageId + savedAt, `patchNotes`: status + date, `editLogs`/`loginLogs`: at)
+7. **색인**: 별도 복합 색인이 필요 없도록 조회를 단순하게 두었습니다. 그래도 콘솔에 "index 필요" 링크가 뜨면 그 링크를 눌러 만들어 주세요.
 
 ## 문서 작성 규칙 (마크다운)
 

@@ -24,11 +24,11 @@ export async function deleteSection(id) {
 
 // ---------- 문서 ----------
 // pages/{slug}: { slug, title, sectionId, order, markdown(게시본), draft(임시), public, updatedAt, updatedBy, createdAt }
+// 복합 색인이 필요 없도록 조건만 걸고 정렬은 브라우저에서 합니다.
 export async function listPages({ editorView = false } = {}) {
   const col = collection(db, 'pages');
-  const q = editorView ? query(col, orderBy('order')) : query(col, where('public', '==', true), orderBy('order'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const snap = await getDocs(editorView ? col : query(col, where('public', '==', true)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.title || '').localeCompare(String(b.title || ''), 'ko'));
 }
 export async function getPage(slug) {
   const snap = await getDoc(doc(db, 'pages', slug));
@@ -81,8 +81,9 @@ export async function deletePage(slug, by, title) {
 }
 
 export async function listVersions(slug) {
-  const snap = await getDocs(query(collection(db, 'pageVersions'), where('pageId', '==', slug), orderBy('savedAt', 'desc')));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const snap = await getDocs(query(collection(db, 'pageVersions'), where('pageId', '==', slug)));
+  const ms = (v) => (v.savedAt?.toMillis ? v.savedAt.toMillis() : 0);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b) - ms(a));
 }
 
 // ---------- 수정 이력 ----------

@@ -22,12 +22,11 @@ export async function deleteCategory(id) { await deleteDoc(doc(db, 'patchCategor
 
 // ---------- 패치노트 ----------
 // patchNotes/{id}: { date 'YYYY-MM-DD', title, body, categories: [name], status: 'published'|'draft' }
+// 복합 색인이 필요 없도록 조건만 걸고 날짜 정렬은 브라우저에서 합니다.
 export async function listPatchNotes({ editorView = false, max = 100 } = {}) {
   const col = collection(db, 'patchNotes');
-  const q = editorView
-    ? query(col, orderBy('date', 'desc'), limit(max))
-    : query(col, where('status', '==', 'published'), orderBy('date', 'desc'), limit(max));
-  return rows(await getDocs(q));
+  const list = rows(await getDocs(editorView ? col : query(col, where('status', '==', 'published'))));
+  return list.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt?.toMillis?.() || 0).localeCompare(String(a.createdAt?.toMillis?.() || 0))).slice(0, max);
 }
 export async function savePatchNote(id, data, by) {
   const payload = { ...data, ...stamp(by) };
