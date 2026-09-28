@@ -52,7 +52,7 @@
   $('#admin').hidden = false;
 
   const {
-    db, doc, getDoc, setDoc, getDocs, collection, query, orderBy, limit, where, serverTimestamp, updateDoc, deleteDoc,
+    db, doc, getDoc, setDoc, getDocs, addDoc, collection, query, orderBy, limit, where, serverTimestamp, updateDoc, deleteDoc, writeBatch,
   } = await import('../assets/js/firebase.js');
   const P = await import('../assets/js/pages.js');
   const { renderMarkdown } = await import('../assets/js/markdown.js');
@@ -119,6 +119,14 @@
             <div class="thead" style="grid-template-columns: minmax(0,1fr) 140px 104px 112px 104px"><span>문서</span><span>섹션</span><span>상태</span><span>수정</span><span></span></div>
             ${pageRows}
           </div>
+          <form class="card plain form-card" id="import-form" style="border-color: var(--line)">
+            <div class="row-between" style="gap: 8px 16px"><h2 style="font-size: 20px">문서 일괄 가져오기</h2><button type="button" class="btn xs secondary" id="import-sample">이전 위키(깃북) 글 불러오기</button></div>
+            <textarea class="textarea" id="import-text" style="min-height: 140px; font-family: var(--font-mono); font-size: 12px" placeholder='{"sections":[{"name":"시작 가이드","order":10,"desc":"홈 카드 설명","icon":"시","children":[{"name":"어부","order":10}]}],
+ "pages":[{"slug":"how-to-join","title":"접속 방법","section":"시작 가이드","subsection":"","order":10,"markdown":"## 소제목\n본문"}]}'></textarea>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer"><input type="checkbox" id="import-overwrite"> 같은 슬러그의 문서가 이미 있으면 덮어쓰기 (끄면 건너뜀)</label>
+            <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">섹션은 이름이 같으면 재사용하고 없으면 새로 만듭니다. 문서는 전부 <b>공개</b> 상태로 들어가며, 덮어쓴 문서의 이전 게시본은 이력에 남지 않습니다. 형식은 README 참고.</div>
+            <div style="display: flex; gap: 8px; align-items: center"><button type="submit" class="btn primary">가져오기</button><span class="subtitle" style="font-size: 12px" id="import-status"></span></div>
+          </form>
         </div>
         <form class="card plain form-card" id="sec-form">
           <div class="row-between"><h2 style="font-size: 20px" id="sec-form-title">섹션 추가</h2><button type="button" class="btn xs ghost" id="sec-reset" hidden>새로</button></div>
@@ -155,6 +163,76 @@
       });
       toast('저장했습니다'); renderDocs();
     });
+
+    // ---- 일괄 가져오기 ----
+    $('#import-sample').addEventListener('click', async () => {
+      try {
+        const r = await fetch('../data/seed-guide.json', { cache: 'no-store' });
+        if (!r.ok) throw new Error(r.status);
+        $('#import-text').value = await r.text();
+        toast('불러왔습니다. "가져오기"를 누르면 저장됩니다');
+      } catch (err) { toast('샘플 파일을 불러오지 못했습니다'); console.warn(err); }
+    });
+    $('#import-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      let data;
+      try { data = JSON.parse($('#import-text').value); } catch { return toast('JSON 형식이 아닙니다'); }
+      const secIn = Array.isArray(data.sections) ? data.sections : [];
+      const pgIn = (Array.isArray(data.pages) ? data.pages : []).filter((p) => p && p.slug && p.title);
+      if (!secIn.length && !pgIn.length) return toast('가져올 내용이 없습니다');
+      if (!confirm(`섹션 ${secIn.length}개, 문서 ${pgIn.length}개를 가져올까요?`)) return;
+      const st = $('#import-status');
+      const overwrite = $('#import-overwrite').checked;
+      const btn = e.submitter; if (btn) btn.disabled = true;
+      try {
+        // 1) 섹션: 이름(+상위)으로 찾고 없으면 생성
+        st.textContent = '섹션 확인 중';
+        const secs = await P.listSections();
+        const find = (name, parentId) => secs.find((s) => s.name === name && (s.parentId || null) === (parentId || null));
+        const ensure = async (name, parentId, extra = {}) => {
+          const hit = find(name, parentId);
+          if (hit) return hit.id;
+          const order = extra.order ?? (secs.filter((s) => (s.parentId || null) === (parentId || null)).length + 1) * 10;
+          const id = await P.saveSection(null, { name, order, parentId: parentId || null, desc: extra.desc || '', icon: extra.icon || '' });
+          secs.push({ id, name, order, parentId: parentId || null });
+          return id;
+        };
+        for (const s of secIn) {
+          if (!s || !s.name) continue;
+          const pid = await ensure(s.name, null, s);
+          for (const c of s.children || []) if (c && c.name) await ensure(c.name, pid, c);
+        }
+        // 2) 문서: 400개씩 배치 저장
+        const existing = new Set((await P.listPages({ editorView: true })).map((p) => p.id));
+        let saved = 0, skipped = 0;
+        for (let i = 0; i < pgIn.length; i += 400) {
+          const batch = writeBatch(db);
+          for (const p of pgIn.slice(i, i + 400)) {
+            const slug = String(p.slug).trim();
+            if (existing.has(slug) && !overwrite) { skipped++; continue; }
+            const top = p.section ? await ensure(p.section, null) : null;
+            const sectionId = p.subsection && top ? await ensure(p.subsection, top) : top;
+            const payload = {
+              slug, title: String(p.title), sectionId: sectionId || null, order: Number(p.order) || 0,
+              markdown: String(p.markdown || ''), draft: '', public: true, lastSummary: '일괄 가져오기',
+              publishedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: me.name,
+            };
+            if (!existing.has(slug)) payload.createdAt = serverTimestamp();
+            batch.set(doc(db, 'pages', slug), payload, { merge: true });
+            saved++;
+          }
+          st.textContent = `${Math.min(i + 400, pgIn.length)}/${pgIn.length} 저장 중`;
+          await batch.commit();
+        }
+        try { await addDoc(collection(db, 'editLogs'), { action: 'import', title: `문서 ${saved}개`, summary: skipped ? `건너뜀 ${skipped}` : '', by: me.name, at: serverTimestamp() }); } catch {}
+        toast(`문서 ${saved}개를 가져왔습니다${skipped ? ` (이미 있어 건너뜀 ${skipped}개)` : ''}`);
+        renderDocs();
+      } catch (err) {
+        console.error(err); st.textContent = ''; toast('가져오기에 실패했습니다: ' + (err.message || err));
+        if (btn) btn.disabled = false;
+      }
+    });
+
     panel.addEventListener('click', async (e) => {
       const es = e.target.closest('[data-edit-sec]'); if (es) return fillSec(sections.find((s) => s.id === es.dataset.editSec));
       const ds = e.target.closest('[data-del-sec]');
@@ -324,7 +402,7 @@
       getDocs(query(collection(db, 'editLogs'), orderBy('at', 'desc'), limit(50))),
       isAdmin ? getDocs(query(collection(db, 'loginLogs'), orderBy('at', 'desc'), limit(50))) : Promise.resolve({ docs: [] }),
     ]);
-    const ACTION = { publish: '게시', draft: '임시저장', create: '생성', delete: '삭제', show: '공개', hide: '비공개' };
+    const ACTION = { publish: '게시', draft: '임시저장', create: '생성', delete: '삭제', show: '공개', hide: '비공개', import: '가져오기' };
     panel.innerHTML = head('접속 · 수정 이력', '최근 50건') + `
       <h2 style="font-size: 20px">수정 이력</h2>
       <div class="card plain table" style="--tmin: 560px">
@@ -333,7 +411,7 @@
           <div class="tr" style="grid-template-columns: 130px 80px minmax(0,1fr) 110px; min-height: 44px">
             <span style="font-size:12px">${fmtDate(x.at, true)}</span>
             <span class="tag ${x.action === 'publish' ? 'green' : x.action === 'delete' ? 'accent' : ''}">${ACTION[x.action] || x.action}</span>
-            <span title="${esc(x.summary || '')}"><a href="#history:${encodeURIComponent(x.pageId)}" style="text-decoration:none">${esc(x.title || x.pageId)}</a>${x.summary ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(x.summary)}</span>` : ''}</span>
+            <span title="${esc(x.summary || '')}">${x.pageId ? `<a href="#history:${encodeURIComponent(x.pageId)}" style="text-decoration:none">${esc(x.title || x.pageId)}</a>` : esc(x.title || '')}${x.summary ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(x.summary)}</span>` : ''}</span>
             <span style="font-size:13px">${esc(x.by || '')}</span>
           </div>`; }).join('') || '<div class="empty">아직 기록이 없습니다.</div>'}
       </div>

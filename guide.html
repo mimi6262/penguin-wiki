@@ -135,7 +135,8 @@
         + (parent ? `<span aria-hidden="true">›</span><span>${esc(parent.name)}</span>` : '')
         + (sec ? `<span aria-hidden="true">›</span><span>${esc(sec.name)}</span>` : '')
         + `<span aria-hidden="true">›</span><span class="cur">${esc(current.title)}</span>`;
-      $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.updatedAt)}</span>${current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
+      // 작성자는 편집자에게만 표시 (유저에게는 최종 수정일만)
+      $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.updatedAt)}</span>${editor && current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
       content.innerHTML = renderMarkdown(current.markdown || current.draft || '');
       const toc = decorate(content);
       if (toc.length) {
