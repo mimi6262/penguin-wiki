@@ -25,16 +25,23 @@ export async function renderEvents(ctx) {
   const withStatus = events.map((ev) => ({ ...ev, st: T.eventStatus(ev, now) })).sort((a, b) => T.STATUS_ORDER[a.st] - T.STATUS_ORDER[b.st]);
   const count = (s) => withStatus.filter((e) => e.st === s).length;
   const BADGE = { active: 'fill', always: 'green', upcoming: 'blue', ended: 'gray' };
+  // 기간은 두 줄(시작 / ~종료)로 보여 칸을 좁게 유지
+  const periodCell = (ev) => {
+    if (ev.kind === 'always') return esc(T.eventPeriodText(ev));
+    const s = ev.startAt ? T.fmtKST(ev.startAt) : '', e = ev.endAt ? T.fmtKST(ev.endAt) : '';
+    if (!s && !e) return '';
+    return `${esc(s)}<br>~ ${esc(e)}`;
+  };
 
   panel = ctx.freshPanel();
   panel.innerHTML = head('이벤트 관리', `진행 중 ${count('active')} · 상시 ${count('always')} · 예정 ${count('upcoming')} · 종료 ${count('ended')}`, '<button type="button" class="btn primary" id="ev-new">새 이벤트</button>') + `
-    <div style="display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 20px; align-items: start">
-      <div class="card plain table">
-        <div class="thead" style="grid-template-columns: minmax(0,1fr) 190px 76px 60px 72px"><span>이벤트</span><span>기간</span><span>상태</span><span>팝업</span><span></span></div>
+    <div class="admin-split">
+      <div class="card plain table" style="--tmin: 560px">
+        <div class="thead" style="grid-template-columns: minmax(0,1fr) 136px 76px 60px 72px"><span>이벤트</span><span>기간</span><span>상태</span><span>팝업</span><span></span></div>
         ${withStatus.map((ev) => `
-          <div class="tr" style="grid-template-columns: minmax(0,1fr) 190px 76px 60px 72px">
-            <span>${esc(ev.name)}</span>
-            <span style="font-size: 12px; color: var(--muted)">${esc(T.eventPeriodText(ev))}</span>
+          <div class="tr" style="grid-template-columns: minmax(0,1fr) 136px 76px 60px 72px">
+            <span title="${esc(ev.note || '')}">${esc(ev.name)}</span>
+            <span style="font-size: 12px; color: var(--muted); line-height: 1.4">${periodCell(ev)}</span>
             <span><span class="tag ${BADGE[ev.st]}">${T.STATUS_LABEL[ev.st]}</span></span>
             <span>${ev.popup ? '<span class="tag green">켜짐</span>' : '<span class="tag gray">꺼짐</span>'}</span>
             <div class="actions">
@@ -54,7 +61,7 @@ export async function renderEvents(ctx) {
           </div>
         </div>
         <div id="ev-period">
-          <div class="form-row">
+          <div class="stack" style="gap: 12px">
             ${F('ev-start', '시작 <span style="color:var(--muted)">(한국 시간)</span>', '', { type: 'datetime-local' })}
             ${F('ev-end', '종료 <span style="color:var(--muted)">(한국 시간)</span>', '', { type: 'datetime-local' })}
           </div>
@@ -69,12 +76,13 @@ export async function renderEvents(ctx) {
         ${F('ev-note', '한 줄 메모 (목록에 표시)', '', { ph: '예: 보상은 우편함으로 지급' })}
         <div class="stack" style="gap: 10px; padding: 14px 16px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 12px">
           <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; cursor: pointer">팝업 알림 노출 ${toggle(true, 'id="ev-popup"')}</label>
-          <div id="ev-popup-window" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--wood)">
-            <span>노출 시간</span>
-            <input class="input" id="ev-pstart" type="time" style="width: 110px; height: 30px; font-size: 12px; background: var(--card)">
-            <span>~</span>
-            <input class="input" id="ev-pend" type="time" style="width: 110px; height: 30px; font-size: 12px; background: var(--card)">
-            <span style="color: var(--muted)">비우면 진행 중 내내</span>
+          <div id="ev-popup-window" class="stack" style="gap: 6px; font-size: 12px; color: var(--wood)">
+            <span>노출 시간 <span style="color: var(--muted)">(비우면 진행 중인 동안 계속)</span></span>
+            <div style="display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 6px">
+              <input class="input" id="ev-pstart" type="time" style="height: 32px; padding: 0 10px; font-size: 12px; background: var(--card)">
+              <span>~</span>
+              <input class="input" id="ev-pend" type="time" style="height: 32px; padding: 0 10px; font-size: 12px; background: var(--card)">
+            </div>
           </div>
         </div>
         <div class="notice-box" style="font-size: 12px">달력에서 고른 시각은 한국 시간(KST)으로 저장되고, 해외 접속자에게도 한국 시간으로 표시됩니다.</div>
@@ -141,10 +149,10 @@ export async function renderPatch(ctx) {
   const [cats, notes] = await Promise.all([C.listCategories(), C.listPatchNotes({ editorView: true })]);
   panel = ctx.freshPanel();
   panel.innerHTML = head('패치노트 관리', `게시 ${notes.filter((n) => n.status === 'published').length} · 임시저장 ${notes.filter((n) => n.status !== 'published').length}`, '<button type="button" class="btn primary" id="pn-new">새 패치노트</button>') + `
-    <div style="display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 20px; align-items: start">
+    <div class="admin-split">
       <div class="stack" style="gap: 20px">
         <div class="card plain pad stack" style="gap: 14px">
-          <div class="row-between"><h2 style="font-size: 20px">카테고리</h2><span class="subtitle" style="font-size: 12px">본문의 [카테고리] 줄과 이름이 같으면 이 색이 붙습니다</span></div>
+          <div class="row-between" style="gap: 8px 16px"><h2 style="font-size: 20px">카테고리</h2><span class="subtitle" style="font-size: 12px">본문의 [카테고리] 줄과 이름이 같으면 이 색이 붙습니다</span></div>
           <div class="filter-row" id="cat-chips">
             ${cats.map((c) => `<button type="button" class="btn sm ghost" data-cat="${c.id}"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</button>`).join('')}
             <button type="button" class="btn sm ghost" data-cat="" style="border-style: dashed">+ 추가</button>
@@ -152,7 +160,7 @@ export async function renderPatch(ctx) {
           <form id="cat-form" class="stack" style="gap: 12px; padding: 14px 16px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 12px">
             <div class="row-between"><span style="font-size: 12px; color: var(--label); letter-spacing: 1px" id="cat-form-title">카테고리 추가</span><button type="button" class="btn xs ghost" id="cat-del" hidden style="color: var(--accent)">삭제</button></div>
             <input type="hidden" id="cat-id">
-            <div class="form-row" style="grid-template-columns: minmax(0,1fr) 120px 80px">
+            <div class="form-row cat-row">
               ${F('cat-name', '이름', '', { ph: '예: 신규' })}
               ${F('cat-color', '색상 코드', C.DEFAULT_COLORS[0], { extra: 'style="font-family: var(--font-mono)"' })}
               ${F('cat-order', '순서', (cats.length + 1) * 10, { type: 'number' })}
@@ -165,13 +173,13 @@ export async function renderPatch(ctx) {
             <button type="submit" class="btn sm dark" style="align-self: flex-start">카테고리 저장</button>
           </form>
         </div>
-        <div class="card plain table">
-          <div class="thead" style="grid-template-columns: 100px minmax(0,1fr) 220px 80px 72px"><span>날짜</span><span>제목</span><span>카테고리</span><span>상태</span><span></span></div>
+        <div class="card plain table" style="--tmin: 620px">
+          <div class="thead" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 72px"><span>날짜</span><span>제목</span><span>카테고리</span><span>상태</span><span></span></div>
           ${notes.map((n) => `
-            <div class="tr" style="grid-template-columns: 100px minmax(0,1fr) 220px 80px 72px">
+            <div class="tr" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 72px">
               <span style="font-size: 13px; color: var(--muted)">${esc(n.date)}</span>
-              <span>${esc(n.title || (n.categories || []).join(', '))}</span>
-              <div style="display: flex; gap: 4px; flex-wrap: wrap">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}</div>
+              <span title="${esc(n.title || '')}">${esc(n.title || (n.categories || []).join(', '))}</span>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}</div>
               <span>${n.status === 'published' ? '<span class="tag green">게시</span>' : '<span class="tag gray">임시</span>'}</span>
               <div class="actions">
                 <button type="button" class="icon-btn" data-edit="${n.id}" aria-label="편집">${EDIT}</button>
@@ -183,7 +191,7 @@ export async function renderPatch(ctx) {
       <form class="card plain form-card" id="pn-form">
         <div class="row-between"><h2 style="font-size: 20px" id="pn-form-title">새 패치노트</h2><button type="button" class="btn xs ghost" id="pn-reset">새로</button></div>
         <input type="hidden" id="pn-id">
-        <div class="form-row" style="grid-template-columns: 150px minmax(0,1fr)">
+        <div class="stack" style="gap: 12px">
           ${F('pn-date', '날짜', T.todayKST(), { type: 'date' })}
           ${F('pn-title', '제목 (비우면 카테고리로 자동)', '', { ph: '자동 생성' })}
         </div>
@@ -271,7 +279,7 @@ export async function renderPopups(ctx) {
   const s = await C.getPopupSettings();
   panel = ctx.freshPanel();
   panel.innerHTML = head('알림 설정', '하단 우측 팝업의 동작 규칙') + `
-    <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 20px; align-items: start">
+    <div class="admin-split even">
       <form class="card plain form-card" id="ml-form" style="border-color: var(--line)">
         <div class="row-between"><h2 style="font-size: 20px">마인리스트 추천 알림</h2>${toggle(!!s.enabled, 'id="ml-enabled"')}</div>
         <div class="form-row">${F('ml-start', '매일 노출 시작', s.start || '23:30', { type: 'time' })}${F('ml-end', '노출 종료', s.end || '23:59', { type: 'time' })}</div>
@@ -309,14 +317,14 @@ export async function renderCommands(ctx) {
   const cats = [...new Set(cmds.map((c) => c.category).filter(Boolean))];
   panel = ctx.freshPanel();
   panel.innerHTML = head('명령어 관리', `명령어 ${cmds.length}개 · 분류 ${cats.length}개`, '<button type="button" class="btn primary" id="cm-new">새 명령어</button>') + `
-    <div style="display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 20px; align-items: start">
-      <div class="card plain table">
-        <div class="thead" style="grid-template-columns: 60px 200px minmax(0,1fr) 110px 90px 72px"><span>순서</span><span>명령어</span><span>설명</span><span>분류</span><span>권한</span><span></span></div>
+    <div class="admin-split">
+      <div class="card plain table" style="--tmin: 640px">
+        <div class="thead" style="grid-template-columns: 48px minmax(0,1fr) minmax(0,1.3fr) 90px 80px 72px"><span>순서</span><span>명령어</span><span>설명</span><span>분류</span><span>권한</span><span></span></div>
         ${cmds.map((c) => `
-          <div class="tr" style="grid-template-columns: 60px 200px minmax(0,1fr) 110px 90px 72px">
+          <div class="tr" style="grid-template-columns: 48px minmax(0,1fr) minmax(0,1.3fr) 90px 80px 72px">
             <span style="color: var(--muted)">${c.order ?? 0}</span>
-            <div class="stack" style="gap: 2px; align-items: flex-start"><code class="cmd-chip">${esc(c.command)}</code>${c.aliases ? `<span style="font-size: 11px; color: var(--muted)">별칭 ${esc(c.aliases)}</span>` : ''}</div>
-            <span style="font-size: 13px">${esc(c.desc || '')}</span>
+            <div class="stack" style="gap: 2px; align-items: flex-start; padding: 8px 0"><code class="cmd-chip" title="${esc(c.command)}">${esc(c.command)}</code>${c.aliases ? `<span style="font-size: 11px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">별칭 ${esc(c.aliases)}</span>` : ''}</div>
+            <span style="font-size: 13px" title="${esc(c.desc || '')}">${esc(c.desc || '')}</span>
             <span style="font-size: 13px">${esc(c.category || '')}</span>
             <span>${c.permission ? `<span class="tag">${esc(c.permission)}</span>` : ''}</span>
             <div class="actions">
@@ -379,13 +387,13 @@ export async function renderPrices(ctx) {
   const fmtNum = (n) => Number(n).toLocaleString('ko-KR');
   panel = ctx.freshPanel();
   panel.innerHTML = head('시세 데이터', `아이템 ${items.length}개 · 분류 ${cats.length}개`) + `
-    <div style="display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 20px; align-items: start">
+    <div class="admin-split">
       <div class="stack" style="gap: 20px">
-        <div class="card plain table">
-          <div class="thead" style="grid-template-columns: minmax(0,1fr) 110px 120px 110px 100px 72px"><span>아이템</span><span>분류</span><span>현재가</span><span>전일가</span><span>갱신</span><span></span></div>
+        <div class="card plain table" style="--tmin: 640px">
+          <div class="thead" style="grid-template-columns: minmax(0,1fr) 90px 100px 90px 88px 72px"><span>아이템</span><span>분류</span><span>현재가</span><span>전일가</span><span>갱신</span><span></span></div>
           ${items.map((i) => `
-            <div class="tr" style="grid-template-columns: minmax(0,1fr) 110px 120px 110px 100px 72px; min-height: 50px">
-              <span>${esc(i.name)}${i.unit ? `<span style="font-size: 11px; color: var(--muted)"> /${esc(i.unit)}</span>` : ''}</span>
+            <div class="tr" style="grid-template-columns: minmax(0,1fr) 90px 100px 90px 88px 72px; min-height: 50px">
+              <span title="${esc(i.name)}">${esc(i.name)}${i.unit ? `<span style="font-size: 11px; color: var(--muted)"> /${esc(i.unit)}</span>` : ''}</span>
               <span style="font-size: 13px">${esc(i.category || '')}</span>
               <span>${fmtNum(i.price)}</span>
               <span style="font-size: 13px; color: var(--muted)">${i.prevPrice != null ? fmtNum(i.prevPrice) : '-'}</span>

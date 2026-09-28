@@ -32,7 +32,7 @@
       </div>
     </div>
     <div class="filter-row" id="tabs" style="padding-bottom: 16px; border-bottom: 1px solid var(--line)"></div>
-    <div class="card plain table" id="list"><div class="loading" style="padding: 20px">불러오는 중입니다</div></div>
+    <div class="card plain table" id="list" style="--tmin: 640px"><div class="loading" style="padding: 20px">불러오는 중입니다</div></div>
     <div class="notice-box" id="note" hidden></div>
   </div>
 </main>
@@ -73,7 +73,7 @@
               <code class="cmd-chip">${esc(c.command)}</code>
               ${c.aliases ? `<span style="font-size: 11px; color: var(--muted)">별칭 ${esc(c.aliases)}</span>` : ''}
             </div>
-            <span style="font-size: 14px">${esc(c.desc || '')}</span>
+            <span class="wrap" style="font-size: 14px">${esc(c.desc || '')}</span>
             <span>${c.permission ? `<span class="tag">${esc(c.permission)}</span>` : ''}</span>
             <button type="button" class="btn sm secondary" data-copy="${esc(c.command)}">${COPY} 복사</button>
           </div>`).join('');

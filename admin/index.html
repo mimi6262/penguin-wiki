@@ -31,7 +31,7 @@
       <a href="#history" data-tab="history">접속 · 수정 이력</a>
     </aside>
 
-    <section id="panel" class="stack" style="gap: 20px"></section>
+    <section id="panel" class="stack admin-main" style="gap: 20px"></section>
 
   </div>
   <div class="container" id="gate"><div class="loading">권한을 확인하는 중입니다</div></div>
@@ -84,9 +84,9 @@
     };
     const top = sections.filter((s) => !s.parentId);
     const secRows = sections.length ? sections.map((s) => `
-      <div class="tr" style="grid-template-columns: 60px minmax(0,1fr) 160px 72px">
+      <div class="tr" style="grid-template-columns: 56px minmax(0,1fr) 140px 72px">
         <span style="color:#8A7D66">${s.order ?? 0}</span>
-        <span>${s.parentId ? '<span style="color:#8A7D66">└ </span>' : ''}${esc(s.name)}${s.desc ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(s.desc)}</span>` : ''}</span>
+        <span title="${esc(s.desc || '')}">${s.parentId ? '<span style="color:#8A7D66">└ </span>' : ''}${esc(s.name)}${s.desc ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(s.desc)}</span>` : ''}</span>
         <span style="color:#8A7D66; font-size:12px">${s.parentId ? esc(sections.find((x) => x.id === s.parentId)?.name || '') : '최상위'}</span>
         <div class="actions">
           <button type="button" class="icon-btn" data-edit-sec="${s.id}" aria-label="섹션 편집">${EDIT}</button>
@@ -94,8 +94,8 @@
         </div>
       </div>`).join('') : '<div class="empty">섹션이 없습니다. 오른쪽에서 첫 섹션을 추가해 주세요.</div>';
     const pageRows = pages.length ? pages.map((p) => `
-      <div class="tr" style="grid-template-columns: minmax(0,1fr) 180px 90px 120px 110px">
-        <span><a href="../guide.html?p=${encodeURIComponent(p.id)}" style="text-decoration:none; color:inherit">${esc(p.title)}</a><span style="color:#8A7D66; font-size:12px"> /${esc(p.id)}</span></span>
+      <div class="tr" style="grid-template-columns: minmax(0,1fr) 140px 104px 112px 104px">
+        <span title="/${esc(p.id)}"><a href="../guide.html?p=${encodeURIComponent(p.id)}" style="text-decoration:none; color:inherit">${esc(p.title)}</a><span style="color:#8A7D66; font-size:12px"> /${esc(p.id)}</span></span>
         <span style="font-size:13px">${secName(p.sectionId)}</span>
         <span>${p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>'}${p.draft ? '<span class="tag" style="margin-left:4px">임시</span>' : ''}</span>
         <span style="font-size:12px; color:#8A7D66">${fmtDate(p.updatedAt, true)}</span>
@@ -109,14 +109,14 @@
       </div>`).join('') : '<div class="empty">문서가 없습니다. "새 문서"로 첫 문서를 만들어 주세요.</div>';
 
     panel.innerHTML = head('문서 관리', `섹션 ${sections.length} · 문서 ${pages.length} (공개 ${pages.filter((p) => p.public).length})`, `<a class="btn primary" href="editor.html">새 문서</a>`) + `
-      <div style="display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 20px; align-items: start">
+      <div class="admin-split">
         <div class="stack" style="gap: 20px">
-          <div class="card plain table">
-            <div class="thead" style="grid-template-columns: 60px minmax(0,1fr) 160px 72px"><span>순서</span><span>섹션</span><span>상위</span><span></span></div>
+          <div class="card plain table" style="--tmin: 480px">
+            <div class="thead" style="grid-template-columns: 56px minmax(0,1fr) 140px 72px"><span>순서</span><span>섹션</span><span>상위</span><span></span></div>
             ${secRows}
           </div>
-          <div class="card plain table">
-            <div class="thead" style="grid-template-columns: minmax(0,1fr) 180px 90px 120px 110px"><span>문서</span><span>섹션</span><span>상태</span><span>수정</span><span></span></div>
+          <div class="card plain table" style="--tmin: 660px">
+            <div class="thead" style="grid-template-columns: minmax(0,1fr) 140px 104px 112px 104px"><span>문서</span><span>섹션</span><span>상태</span><span>수정</span><span></span></div>
             ${pageRows}
           </div>
         </div>
@@ -222,13 +222,13 @@
     const snap = await getDocs(collection(db, 'editors'));
     const list = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
     panel.innerHTML = head('편집자 관리', `편집자 ${list.length}명`) + `
-      <div style="display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 20px; align-items: start">
-        <div class="card plain table">
-          <div class="thead" style="grid-template-columns: minmax(0,1fr) 200px 90px 72px"><span>이름</span><span>이메일</span><span>역할</span><span></span></div>
+      <div class="admin-split">
+        <div class="card plain table" style="--tmin: 600px">
+          <div class="thead" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 72px"><span>이름</span><span>이메일</span><span>역할</span><span></span></div>
           ${list.map((u) => `
-            <div class="tr" style="grid-template-columns: minmax(0,1fr) 200px 90px 72px">
-              <span>${esc(u.name || '')}<span style="color:#8A7D66; font-size:11px; display:block">${esc(u.uid)}</span></span>
-              <span style="font-size:13px">${esc(u.email || '')}</span>
+            <div class="tr" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 72px">
+              <span title="${esc(u.uid)}">${esc(u.name || '')}<span style="color:#8A7D66; font-size:11px; display:block; overflow:hidden; text-overflow:ellipsis">${esc(u.uid)}</span></span>
+              <span style="font-size:13px" title="${esc(u.email || '')}">${esc(u.email || '')}</span>
               <span>${u.role === 'admin' ? '<span class="tag fill">운영자</span>' : '<span class="tag">가이드</span>'}</span>
               <div class="actions">
                 <button type="button" class="icon-btn" data-role="${u.uid}" data-cur="${u.role}" aria-label="역할 전환" title="역할 전환">${EDIT}</button>
@@ -289,15 +289,15 @@
       const versions = await P.listVersions(slug);
       const page = await P.getPage(slug);
       versionsHtml = `
-        <div class="card plain table">
-          <div class="thead" style="grid-template-columns: 150px minmax(0,1fr) 120px 150px"><span>저장 시각</span><span>변경 요약</span><span>작성자</span><span></span></div>
-          <div class="tr" style="grid-template-columns: 150px minmax(0,1fr) 120px 150px; background:#F8F1E3">
-            <span style="font-size:12px">${fmtDate(page?.publishedAt, true)}</span><span><span class="tag green">현재 게시본</span> ${esc(page?.lastSummary || '')}</span><span style="font-size:13px">${esc(page?.updatedBy || '')}</span><span></span>
+        <div class="card plain table" style="--tmin: 620px">
+          <div class="thead" style="grid-template-columns: 130px minmax(0,1fr) 110px 150px"><span>저장 시각</span><span>변경 요약</span><span>작성자</span><span></span></div>
+          <div class="tr" style="grid-template-columns: 130px minmax(0,1fr) 110px 150px; background:#F8F1E3">
+            <span style="font-size:12px">${fmtDate(page?.publishedAt, true)}</span><span title="${esc(page?.lastSummary || '')}"><span class="tag green">현재 게시본</span> ${esc(page?.lastSummary || '')}</span><span style="font-size:13px">${esc(page?.updatedBy || '')}</span><span></span>
           </div>
           ${versions.map((v) => `
-            <div class="tr" style="grid-template-columns: 150px minmax(0,1fr) 120px 150px">
+            <div class="tr" style="grid-template-columns: 130px minmax(0,1fr) 110px 150px">
               <span style="font-size:12px">${fmtDate(v.savedAt, true)}</span>
-              <span>${esc(v.summary || '(요약 없음)')}</span>
+              <span title="${esc(v.summary || '')}">${esc(v.summary || '(요약 없음)')}</span>
               <span style="font-size:13px">${esc(v.savedBy || '')}</span>
               <div class="actions"><button type="button" class="btn xs ghost" data-preview="${v.id}">보기</button><button type="button" class="btn xs secondary" data-restore="${v.id}">되돌리기</button></div>
             </div>`).join('') || '<div class="empty">이전 버전이 없습니다.</div>'}
@@ -327,25 +327,25 @@
     const ACTION = { publish: '게시', draft: '임시저장', create: '생성', delete: '삭제', show: '공개', hide: '비공개' };
     panel.innerHTML = head('접속 · 수정 이력', '최근 50건') + `
       <h2 style="font-size: 20px">수정 이력</h2>
-      <div class="card plain table">
-        <div class="thead" style="grid-template-columns: 150px 90px minmax(0,1fr) 120px"><span>시각</span><span>동작</span><span>문서</span><span>편집자</span></div>
+      <div class="card plain table" style="--tmin: 560px">
+        <div class="thead" style="grid-template-columns: 130px 80px minmax(0,1fr) 110px"><span>시각</span><span>동작</span><span>문서</span><span>편집자</span></div>
         ${edits.docs.map((d) => { const x = d.data(); return `
-          <div class="tr" style="grid-template-columns: 150px 90px minmax(0,1fr) 120px; min-height: 44px">
+          <div class="tr" style="grid-template-columns: 130px 80px minmax(0,1fr) 110px; min-height: 44px">
             <span style="font-size:12px">${fmtDate(x.at, true)}</span>
             <span class="tag ${x.action === 'publish' ? 'green' : x.action === 'delete' ? 'accent' : ''}">${ACTION[x.action] || x.action}</span>
-            <span><a href="#history:${encodeURIComponent(x.pageId)}" style="text-decoration:none">${esc(x.title || x.pageId)}</a>${x.summary ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(x.summary)}</span>` : ''}</span>
+            <span title="${esc(x.summary || '')}"><a href="#history:${encodeURIComponent(x.pageId)}" style="text-decoration:none">${esc(x.title || x.pageId)}</a>${x.summary ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(x.summary)}</span>` : ''}</span>
             <span style="font-size:13px">${esc(x.by || '')}</span>
           </div>`; }).join('') || '<div class="empty">아직 기록이 없습니다.</div>'}
       </div>
       ${isAdmin ? `
       <h2 style="font-size: 20px; margin-top: 8px">접속 이력</h2>
-      <div class="card plain table">
-        <div class="thead" style="grid-template-columns: 150px 140px 90px minmax(0,1fr)"><span>시각</span><span>이름</span><span>역할</span><span>접속 환경</span></div>
+      <div class="card plain table" style="--tmin: 560px">
+        <div class="thead" style="grid-template-columns: 130px 120px 80px minmax(0,1fr)"><span>시각</span><span>이름</span><span>역할</span><span>접속 환경</span></div>
         ${logins.docs.map((d) => { const x = d.data(); return `
-          <div class="tr" style="grid-template-columns: 150px 140px 90px minmax(0,1fr); min-height: 44px">
+          <div class="tr" style="grid-template-columns: 130px 120px 80px minmax(0,1fr); min-height: 44px">
             <span style="font-size:12px">${fmtDate(x.at, true)}</span><span>${esc(x.name || '')}</span>
             <span>${x.role === 'admin' ? '<span class="tag fill">운영자</span>' : '<span class="tag">가이드</span>'}</span>
-            <span style="font-size:12px; color:#8A7D66; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(x.ua || '')}</span>
+            <span style="font-size:12px; color:#8A7D66" title="${esc(x.ua || '')}">${esc(x.ua || '')}</span>
           </div>`; }).join('') || '<div class="empty">아직 기록이 없습니다.</div>'}
       </div>` : ''}`;
   }

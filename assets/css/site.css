@@ -244,7 +244,14 @@ main { flex-grow: 1; }
 .prose .cmd svg { width: 12px; height: 12px; }
 
 /* ---------- 관리 ---------- */
-.admin-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 32px; align-items: start; }
+/* 관리 화면은 표가 많아 공개 페이지보다 넓게 씁니다 */
+.container.admin-layout { max-width: 1480px; }
+.admin-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 28px; align-items: start; }
+.admin-main { min-width: 0; container-type: inline-size; }
+/* 표 + 오른쪽 입력 폼 두 단 배치. 자리가 모자라면 한 단으로 내려갑니다 (아래 @container) */
+.admin-split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.admin-split.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.admin-split > * { min-width: 0; }
 .admin-nav { display: flex; flex-direction: column; gap: 4px; padding: 16px 12px; position: sticky; top: 16px; }
 .admin-nav .label { font-size: 12px; color: var(--label); letter-spacing: 1px; padding: 4px 12px 10px; }
 .admin-nav a, .admin-nav button { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border-radius: var(--radius-pill); text-decoration: none; color: var(--wood-dark); font-size: 14px; background: transparent; border: 0; cursor: pointer; text-align: left; width: 100%; }
@@ -252,19 +259,28 @@ main { flex-grow: 1; }
 .admin-nav [aria-current="page"] { background: var(--cream); }
 .admin-nav .soon { margin-left: auto; font-size: 11px; color: var(--muted); }
 .admin-nav hr { border: 0; border-top: 1px solid var(--line-faint); margin: 8px 6px; }
-.table { display: flex; flex-direction: column; overflow: hidden; }
-.table .thead, .table .tr { display: grid; gap: 12px; align-items: center; padding: 0 20px; }
+/* 표: 칸이 모자라도 글자를 한 자씩 꺾지 않습니다.
+   - 각 표는 --tmin(최소 폭)을 갖고, 그보다 좁아지면 표 안에서 가로 스크롤
+   - 글자 칸은 한 줄 + 말줄임(…), 여러 줄이 필요한 칸은 .wrap */
+.table { display: flex; flex-direction: column; overflow: hidden; overflow-x: auto; }
+.table .thead, .table .tr { display: grid; gap: 12px; align-items: center; padding: 0 20px; min-width: var(--tmin, 0); }
 .table .thead { height: 42px; background: var(--cream); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--label); letter-spacing: 1px; }
 .table .tr { min-height: 56px; border-bottom: 1px solid var(--line-faint); font-size: 14px; }
 .table .tr:last-child { border-bottom: 0; }
 .table .tr:hover { background: #F8F1E3; }
-.table .actions { display: flex; gap: 4px; }
+.table .thead > *, .table .tr > * { min-width: 0; }
+.table .thead > span, .table .tr > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table .tr > span.wrap { white-space: normal; }
+.table .tr > .tag { justify-self: start; }
+.table .cmd-chip { display: block; max-width: 100%; line-height: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table .actions { display: flex; gap: 4px; flex-shrink: 0; }
 .table .empty { padding: 28px 20px; color: var(--muted); font-size: 14px; text-align: center; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: transparent; border: 1px solid var(--line); border-radius: 50%; cursor: pointer; }
 .icon-btn:hover { background: var(--cream); }
 .icon-btn.danger { color: var(--accent); }
 .form-card { display: flex; flex-direction: column; gap: 14px; padding: 22px 22px 24px; border: 1px solid var(--accent); }
 .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-row.cat-row { grid-template-columns: minmax(120px, 1fr) 120px 84px; }
 
 /* ---------- 편집기 ---------- */
 .editor-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -327,7 +343,11 @@ main { flex-grow: 1; }
   .guide-layout { grid-template-columns: 1fr; }
   .tree, .toc { position: static; }
   .toc { display: none; }
-  .admin-layout { grid-template-columns: 1fr; }
+  .admin-layout { grid-template-columns: 1fr; gap: 20px; }
+  .admin-nav { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 12px; }
+  .admin-nav .label, .admin-nav hr { display: none; }
+  .admin-nav a, .admin-nav button { width: auto; height: 36px; padding: 0 14px; font-size: 13px; background: var(--cream); }
+  .admin-nav a[aria-current="page"], .admin-nav a[aria-current="page"]:hover { background: var(--wood-dark); color: var(--cream); }
   .editor-panes { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
@@ -353,8 +373,8 @@ main { flex-grow: 1; }
   .tree-toggle { display: inline-flex; margin-bottom: 4px; }
   .tree { display: none; }
   .tree.open { display: flex; }
-  .table { overflow-x: auto; }
-  .table .thead, .table .tr { min-width: 640px; }
+  .table .thead, .table .tr { min-width: max(var(--tmin, 0px), 560px); }
+  .form-row.cat-row { grid-template-columns: minmax(0, 1fr) 104px 72px; gap: 8px; }
   .article-head { flex-direction: column; }
   .stat-grid { grid-template-columns: 1fr; }
   .toast-stack { right: 12px; bottom: 12px; width: calc(100vw - 24px); }
@@ -389,8 +409,12 @@ main { flex-grow: 1; }
 .home-patch a.item { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; font-size: 14px; min-width: 0; }
 .home-patch a.item .d { font-size: 12px; color: var(--muted); flex-shrink: 0; }
 .home-patch a.item .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 1024px) {
-  .admin-layout > section > div[style*="grid-template-columns: minmax(0,1fr) 3"] { grid-template-columns: 1fr !important; }
+/* 관리 본문이 표 + 폼을 나란히 두기엔 좁으면 한 단으로 */
+@container (max-width: 1080px) {
+  .admin-split, .admin-split.even { grid-template-columns: 1fr; }
+}
+@supports not (container-type: inline-size) {
+  @media (max-width: 1360px) { .admin-split, .admin-split.even { grid-template-columns: 1fr; } }
 }
 
 /* ---------- 3차: 통계 · 검색 결과 ---------- */
