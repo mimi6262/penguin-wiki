@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>관리 — 펭귄서버 위키</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="../assets/css/site.css">
+<script>window.PW_ROOT = '../';</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <div class="container admin-layout" id="admin" hidden>
+
+    <aside class="card plain admin-nav" aria-label="관리 메뉴">
+      <span class="label">관리</span>
+      <a href="#docs" data-tab="docs">문서 관리</a>
+      <a href="#settings" data-tab="settings">사이트 설정</a>
+      <a href="#events" data-tab="events">이벤트 관리 <span class="soon">2차</span></a>
+      <a href="#patch" data-tab="patch">패치노트 관리 <span class="soon">2차</span></a>
+      <a href="#popups" data-tab="popups">알림 설정 <span class="soon">2차</span></a>
+      <a href="#data" data-tab="data">명령어 · 시세 데이터 <span class="soon">2·3차</span></a>
+      <hr>
+      <a href="#editors" data-tab="editors" data-auth="admin" hidden>편집자 관리</a>
+      <a href="#history" data-tab="history">접속 · 수정 이력</a>
+    </aside>
+
+    <section id="panel" class="stack" style="gap: 20px"></section>
+
+  </div>
+  <div class="container" id="gate"><div class="loading">권한을 확인하는 중입니다</div></div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script type="module">
+  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast } from '../assets/js/ui.js';
+  renderHeader('admin');
+  renderFooter();
+
+  const { requireEditor, editor: _e } = await import('../assets/js/auth.js');
+  const me = await requireEditor();
+  if (!me) throw new Error('redirect');
+  const isAdmin = me.role === 'admin';
+  $('#gate').hidden = true;
+  $('#admin').hidden = false;
+
+  const {
+    db, doc, getDoc, setDoc, getDocs, collection, query, orderBy, limit, where, serverTimestamp, updateDoc, deleteDoc,
+  } = await import('../assets/js/firebase.js');
+  const P = await import('../assets/js/pages.js');
+  const { renderMarkdown } = await import('../assets/js/markdown.js');
+
+  let panel = $('#panel');
+  // 탭을 다시 그릴 때 이전 클릭 핸들러가 쌓이지 않도록 패널을 새 노드로 교체
+  function freshPanel() { const n = panel.cloneNode(false); panel.replaceWith(n); panel = n; return n; }
+  const head = (title, sub = '', actions = '') => `
+    <div class="row-between">
+      <div class="stack" style="gap: 8px">
+        <div class="page-title"><span class="seal" aria-hidden="true"></span><h1 style="font-size: 32px">${title}</h1></div>
+        ${sub ? `<span class="subtitle">${sub}</span>` : ''}
+      </div>
+      <div style="display: flex; gap: 8px">${actions}</div>
+    </div>`;
+  const EDIT = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  const TRASH = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>';
+
+  // ================= 문서 관리 =================
+  async function renderDocs() {
+    freshPanel();
+    panel.innerHTML = head('문서 관리', '섹션을 만들고, 문서를 섹션에 배치합니다', `<a class="btn primary" href="editor.html">새 문서</a>`) + '<div class="loading">불러오는 중</div>';
+    const [sections, pages] = await Promise.all([P.listSections(), P.listPages({ editorView: true })]);
+    const secName = (id) => {
+      const s = sections.find((x) => x.id === id);
+      if (!s) return '<span style="color:#8A7D66">미배치</span>';
+      const p = s.parentId ? sections.find((x) => x.id === s.parentId) : null;
+      return esc(p ? `${p.name} › ${s.name}` : s.name);
+    };
+    const top = sections.filter((s) => !s.parentId);
+    const secRows = sections.length ? sections.map((s) => `
+      <div class="tr" style="grid-template-columns: 60px minmax(0,1fr) 160px 72px">
+        <span style="color:#8A7D66">${s.order ?? 0}</span>
+        <span>${s.parentId ? '<span style="color:#8A7D66">└ </span>' : ''}${esc(s.name)}${s.desc ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(s.desc)}</span>` : ''}</span>
+        <span style="color:#8A7D66; font-size:12px">${s.parentId ? esc(sections.find((x) => x.id === s.parentId)?.name || '') : '최상위'}</span>
+        <div class="actions">
+          <button type="button" class="icon-btn" data-edit-sec="${s.id}" aria-label="섹션 편집">${EDIT}</button>
+          <button type="button" class="icon-btn danger" data-del-sec="${s.id}" aria-label="섹션 삭제">${TRASH}</button>
+        </div>
+      </div>`).join('') : '<div class="empty">섹션이 없습니다. 오른쪽에서 첫 섹션을 추가해 주세요.</div>';
+    const pageRows = pages.length ? pages.map((p) => `
+      <div class="tr" style="grid-template-columns: minmax(0,1fr) 180px 90px 120px 110px">
+        <span><a href="../guide.html?p=${encodeURIComponent(p.id)}" style="text-decoration:none; color:inherit">${esc(p.title)}</a><span style="color:#8A7D66; font-size:12px"> /${esc(p.id)}</span></span>
+        <span style="font-size:13px">${secName(p.sectionId)}</span>
+        <span>${p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>'}${p.draft ? '<span class="tag" style="margin-left:4px">임시</span>' : ''}</span>
+        <span style="font-size:12px; color:#8A7D66">${fmtDate(p.updatedAt, true)}</span>
+        <div class="actions">
+          <a class="icon-btn" href="editor.html?p=${encodeURIComponent(p.id)}" aria-label="편집">${EDIT}</a>
+          <button type="button" class="icon-btn" data-toggle-pub="${p.id}" data-pub="${p.public ? 1 : 0}" aria-label="${p.public ? '비공개로' : '공개로'}" title="${p.public ? '비공개로 전환' : '공개로 전환'}">
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button type="button" class="icon-btn danger" data-del-page="${p.id}" data-title="${esc(p.title)}" aria-label="삭제">${TRASH}</button>
+        </div>
+      </div>`).join('') : '<div class="empty">문서가 없습니다. "새 문서"로 첫 문서를 만들어 주세요.</div>';
+
+    panel.innerHTML = head('문서 관리', `섹션 ${sections.length} · 문서 ${pages.length} (공개 ${pages.filter((p) => p.public).length})`, `<a class="btn primary" href="editor.html">새 문서</a>`) + `
+      <div style="display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 20px; align-items: start">
+        <div class="stack" style="gap: 20px">
+          <div class="card plain table">
+            <div class="thead" style="grid-template-columns: 60px minmax(0,1fr) 160px 72px"><span>순서</span><span>섹션</span><span>상위</span><span></span></div>
+            ${secRows}
+          </div>
+          <div class="card plain table">
+            <div class="thead" style="grid-template-columns: minmax(0,1fr) 180px 90px 120px 110px"><span>문서</span><span>섹션</span><span>상태</span><span>수정</span><span></span></div>
+            ${pageRows}
+          </div>
+        </div>
+        <form class="card plain form-card" id="sec-form">
+          <div class="row-between"><h2 style="font-size: 20px" id="sec-form-title">섹션 추가</h2><button type="button" class="btn xs ghost" id="sec-reset" hidden>새로</button></div>
+          <input type="hidden" id="sec-id">
+          <div class="field"><label for="sec-name">이름</label><input class="input" id="sec-name" required placeholder="예: 시작 가이드"></div>
+          <div class="form-row">
+            <div class="field"><label for="sec-order">순서</label><input class="input" id="sec-order" type="number" value="${(top.length + 1) * 10}"></div>
+            <div class="field"><label for="sec-parent">상위 섹션</label>
+              <select class="select" id="sec-parent"><option value="">없음 (최상위)</option>${top.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
+            </div>
+          </div>
+          <div class="field"><label for="sec-desc">홈 카드 설명 (최상위만)</label><input class="input" id="sec-desc" placeholder="한 줄"></div>
+          <div class="field"><label for="sec-icon">카드 아이콘 글자 (1글자)</label><input class="input" id="sec-icon" maxlength="2" placeholder="예: 시"></div>
+          <div style="display: flex; gap: 8px"><button type="submit" class="btn primary" style="flex-grow: 1">저장</button></div>
+        </form>
+      </div>`;
+
+    const f = {
+      id: $('#sec-id'), name: $('#sec-name'), order: $('#sec-order'), parent: $('#sec-parent'), desc: $('#sec-desc'), icon: $('#sec-icon'),
+    };
+    const fillSec = (s) => {
+      f.id.value = s?.id || ''; f.name.value = s?.name || ''; f.order.value = s?.order ?? (top.length + 1) * 10;
+      f.parent.value = s?.parentId || ''; f.desc.value = s?.desc || ''; f.icon.value = s?.icon || '';
+      $('#sec-form-title').textContent = s ? '섹션 편집' : '섹션 추가';
+      $('#sec-reset').hidden = !s;
+    };
+    $('#sec-reset').addEventListener('click', () => fillSec(null));
+    $('#sec-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!f.name.value.trim()) return toast('섹션 이름을 입력해 주세요');
+      await P.saveSection(f.id.value || null, {
+        name: f.name.value.trim(), order: Number(f.order.value) || 0, parentId: f.parent.value || null,
+        desc: f.desc.value.trim(), icon: f.icon.value.trim(),
+      });
+      toast('저장했습니다'); renderDocs();
+    });
+    panel.addEventListener('click', async (e) => {
+      const es = e.target.closest('[data-edit-sec]'); if (es) return fillSec(sections.find((s) => s.id === es.dataset.editSec));
+      const ds = e.target.closest('[data-del-sec]');
+      if (ds) {
+        const s = sections.find((x) => x.id === ds.dataset.delSec);
+        const used = pages.some((p) => p.sectionId === s.id) || sections.some((x) => x.parentId === s.id);
+        if (used) return toast('문서나 하위 섹션이 남아 있어 삭제할 수 없습니다');
+        if (!confirm(`"${s.name}" 섹션을 삭제할까요?`)) return;
+        await P.deleteSection(s.id); toast('삭제했습니다'); renderDocs(); return;
+      }
+      const tp = e.target.closest('[data-toggle-pub]');
+      if (tp) { await P.setPagePublic(tp.dataset.togglePub, tp.dataset.pub !== '1', me.name); toast('상태를 바꿨습니다'); renderDocs(); return; }
+      const dp = e.target.closest('[data-del-page]');
+      if (dp) {
+        if (!confirm(`"${dp.dataset.title}" 문서를 삭제할까요? 이력은 남지만 문서는 복구되지 않습니다.`)) return;
+        await P.deletePage(dp.dataset.delPage, me.name, dp.dataset.title); toast('삭제했습니다'); renderDocs();
+      }
+    }, { once: false });
+  }
+
+  // ================= 사이트 설정 =================
+  async function renderSettings() {
+    freshPanel();
+    panel.innerHTML = head('사이트 설정', '홈 화면과 푸터에 표시되는 값') + '<div class="loading">불러오는 중</div>';
+    const snap = await getDoc(doc(db, 'settings', 'site'));
+    const s = snap.exists() ? snap.data() : {};
+    const b = s.business || {};
+    const F = (id, label, val, ph = '', type = 'text') => `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(val ?? '')}" placeholder="${esc(ph)}"></div>`;
+    panel.innerHTML = head('사이트 설정', '홈 화면과 푸터에 표시되는 값') + `
+      <form class="card plain form-card" id="settings-form" style="border-color: var(--line)">
+        <h2 style="font-size: 20px">홈 화면</h2>
+        <div class="form-row">${F('seasonTag', '시즌 태그', s.seasonTag, '예: 시즌 3 · 조선 한옥')}${F('tagline', '한 줄 소개', s.tagline)}</div>
+        <div class="form-row">${F('serverAddress', '서버 주소', s.serverAddress, '예: play.example.kr')}${F('version', '버전', s.version, '예: 1.21.4')}</div>
+        <div class="form-row">${F('mediaUrl', '소개 이미지 또는 유튜브 URL', s.mediaUrl, 'https://…')}${F('howToSlug', '접속 방법 문서 슬러그', s.howToSlug, 'how-to-join')}</div>
+        <div class="form-row">${F('onlineCount', '접속 중 인원 (비우면 숨김)', s.onlineCount, '', 'number')}${F('inquiryUrl', '문의센터 링크 (디스코드 문의 게시판)', s.inquiryUrl, 'https://discord.com/…')}</div>
+        <h2 style="font-size: 20px; margin-top: 8px">커뮤니티</h2>
+        <div class="form-row">${F('discordUrl', '디스코드 초대 링크', s.discordUrl, 'https://discord.gg/…')}${F('discordDesc', '디스코드 안내 문구', s.discordDesc)}</div>
+        <div class="form-row">${F('minelistUrl', '마인리스트 추천 링크', s.minelistUrl, 'https://minelist.kr/…')}${F('minelistDesc', '마인리스트 안내 문구', s.minelistDesc)}</div>
+        <h2 style="font-size: 20px; margin-top: 8px">푸터 사업자 정보</h2>
+        <div class="form-row">${F('company', '상호', b.company)}${F('owner', '대표', b.owner)}</div>
+        <div class="form-row">${F('regNo', '사업자등록번호', b.regNo, '000-00-00000')}<div></div></div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end"><button type="submit" class="btn primary">저장</button></div>
+      </form>`;
+    $('#settings-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = (id) => $('#' + id).value.trim();
+      const oc = v('onlineCount');
+      await setDoc(doc(db, 'settings', 'site'), {
+        seasonTag: v('seasonTag'), tagline: v('tagline'), serverAddress: v('serverAddress'), version: v('version'),
+        mediaUrl: v('mediaUrl'), howToSlug: v('howToSlug'), inquiryUrl: v('inquiryUrl'),
+        onlineCount: oc === '' ? null : Number(oc),
+        discordUrl: v('discordUrl'), discordDesc: v('discordDesc'), minelistUrl: v('minelistUrl'), minelistDesc: v('minelistDesc'),
+        business: { company: v('company'), owner: v('owner'), regNo: v('regNo') },
+        updatedAt: serverTimestamp(), updatedBy: me.name,
+      }, { merge: true });
+      toast('저장했습니다');
+    });
+  }
+
+  // ================= 편집자 관리 (운영자) =================
+  async function renderEditors() {
+    freshPanel();
+    if (!isAdmin) { panel.innerHTML = head('편집자 관리') + '<div class="notice-box">운영자만 볼 수 있는 화면입니다.</div>'; return; }
+    panel.innerHTML = head('편집자 관리', '가이드 · 운영자 계정') + '<div class="loading">불러오는 중</div>';
+    const snap = await getDocs(collection(db, 'editors'));
+    const list = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    panel.innerHTML = head('편집자 관리', `편집자 ${list.length}명`) + `
+      <div style="display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 20px; align-items: start">
+        <div class="card plain table">
+          <div class="thead" style="grid-template-columns: minmax(0,1fr) 200px 90px 72px"><span>이름</span><span>이메일</span><span>역할</span><span></span></div>
+          ${list.map((u) => `
+            <div class="tr" style="grid-template-columns: minmax(0,1fr) 200px 90px 72px">
+              <span>${esc(u.name || '')}<span style="color:#8A7D66; font-size:11px; display:block">${esc(u.uid)}</span></span>
+              <span style="font-size:13px">${esc(u.email || '')}</span>
+              <span>${u.role === 'admin' ? '<span class="tag fill">운영자</span>' : '<span class="tag">가이드</span>'}</span>
+              <div class="actions">
+                <button type="button" class="icon-btn" data-role="${u.uid}" data-cur="${u.role}" aria-label="역할 전환" title="역할 전환">${EDIT}</button>
+                <button type="button" class="icon-btn danger" data-del-editor="${u.uid}" aria-label="편집자 제거" ${u.uid === me.uid ? 'disabled' : ''}>${TRASH}</button>
+              </div>
+            </div>`).join('') || '<div class="empty">편집자가 없습니다.</div>'}
+        </div>
+        <form class="card plain form-card" id="editor-form">
+          <h2 style="font-size: 20px">편집자 추가</h2>
+          <div class="field"><label for="ed-name">이름 (표시용)</label><input class="input" id="ed-name" required></div>
+          <div class="field"><label for="ed-email">이메일 (아이디)</label><input class="input" id="ed-email" type="email" required></div>
+          <div class="field"><label for="ed-pw">임시 비밀번호 (6자 이상)</label><input class="input" id="ed-pw" type="text" minlength="6" required></div>
+          <div class="field"><label for="ed-role">역할</label><select class="select" id="ed-role"><option value="guide">가이드</option><option value="admin">운영자</option></select></div>
+          <div class="notice-box" style="font-size: 12px">계정이 만들어지고 편집자 명단에 등록됩니다. 임시 비밀번호는 본인에게 직접 전달해 주세요.</div>
+          <button type="submit" class="btn primary">계정 만들기</button>
+        </form>
+      </div>`;
+    $('#editor-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = $('#ed-name').value.trim(), email = $('#ed-email').value.trim(), pw = $('#ed-pw').value, role = $('#ed-role').value;
+      try {
+        // 보조 앱으로 계정 생성: 현재 운영자 세션을 유지한 채 새 사용자를 만듭니다.
+        const { initializeApp, deleteApp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
+        const { getAuth, createUserWithEmailAndPassword, signOut } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+        const { firebaseConfig } = await import('../assets/js/firebase.js');
+        const sec = initializeApp(firebaseConfig, 'secondary-' + Date.now());
+        const sAuth = getAuth(sec);
+        const cred = await createUserWithEmailAndPassword(sAuth, email, pw);
+        await signOut(sAuth);
+        await deleteApp(sec);
+        await setDoc(doc(db, 'editors', cred.user.uid), { name, email, role, createdAt: serverTimestamp(), createdBy: me.name });
+        toast('편집자를 추가했습니다'); renderEditors();
+      } catch (err) {
+        toast(err.code?.includes('email-already-in-use') ? '이미 계정이 있는 이메일입니다. Firebase 콘솔에서 UID를 확인해 명단에만 추가해 주세요.' : (err.message || '실패했습니다'));
+      }
+    });
+    panel.addEventListener('click', async (e) => {
+      const r = e.target.closest('[data-role]');
+      if (r) {
+        const next = r.dataset.cur === 'admin' ? 'guide' : 'admin';
+        if (r.dataset.role === me.uid && next === 'guide') return toast('본인 역할은 낮출 수 없습니다');
+        await updateDoc(doc(db, 'editors', r.dataset.role), { role: next }); toast('역할을 바꿨습니다'); renderEditors(); return;
+      }
+      const d = e.target.closest('[data-del-editor]');
+      if (d && !d.disabled) {
+        if (!confirm('편집자 명단에서 제거할까요? (계정 자체는 Firebase 콘솔에서 삭제)')) return;
+        await deleteDoc(doc(db, 'editors', d.dataset.delEditor)); toast('제거했습니다'); renderEditors();
+      }
+    });
+  }
+
+  // ================= 이력 =================
+  async function renderHistory(slug) {
+    freshPanel();
+    panel.innerHTML = head('접속 · 수정 이력') + '<div class="loading">불러오는 중</div>';
+    let versionsHtml = '';
+    if (slug) {
+      const versions = await P.listVersions(slug);
+      const page = await P.getPage(slug);
+      versionsHtml = `
+        <div class="card plain table">
+          <div class="thead" style="grid-template-columns: 150px minmax(0,1fr) 120px 150px"><span>저장 시각</span><span>변경 요약</span><span>작성자</span><span></span></div>
+          <div class="tr" style="grid-template-columns: 150px minmax(0,1fr) 120px 150px; background:#F8F1E3">
+            <span style="font-size:12px">${fmtDate(page?.publishedAt, true)}</span><span><span class="tag green">현재 게시본</span> ${esc(page?.lastSummary || '')}</span><span style="font-size:13px">${esc(page?.updatedBy || '')}</span><span></span>
+          </div>
+          ${versions.map((v) => `
+            <div class="tr" style="grid-template-columns: 150px minmax(0,1fr) 120px 150px">
+              <span style="font-size:12px">${fmtDate(v.savedAt, true)}</span>
+              <span>${esc(v.summary || '(요약 없음)')}</span>
+              <span style="font-size:13px">${esc(v.savedBy || '')}</span>
+              <div class="actions"><button type="button" class="btn xs ghost" data-preview="${v.id}">보기</button><button type="button" class="btn xs secondary" data-restore="${v.id}">되돌리기</button></div>
+            </div>`).join('') || '<div class="empty">이전 버전이 없습니다.</div>'}
+        </div>
+        <div class="card plain" id="version-preview" hidden><div class="prose" style="padding: 20px 24px"></div></div>`;
+      panel.innerHTML = head(`문서 이력 — ${esc(page?.title || slug)}`, `/${esc(slug)}`, `<a class="btn sm secondary" href="editor.html?p=${encodeURIComponent(slug)}">편집으로</a><a class="btn sm ghost" href="#history">전체 이력</a>`) + versionsHtml;
+      panel.addEventListener('click', async (e) => {
+        const pv = e.target.closest('[data-preview]');
+        if (pv) {
+          const v = versions.find((x) => x.id === pv.dataset.preview);
+          const box = $('#version-preview'); box.hidden = false; box.querySelector('.prose').innerHTML = renderMarkdown(v.markdown); box.scrollIntoView({ behavior: 'smooth' }); return;
+        }
+        const rs = e.target.closest('[data-restore]');
+        if (rs) {
+          const v = versions.find((x) => x.id === rs.dataset.restore);
+          if (!confirm('이 버전을 현재 게시본으로 되돌릴까요? 지금 게시본은 이력에 보관됩니다.')) return;
+          await P.publish(slug, { title: page.title, sectionId: page.sectionId || null, order: page.order ?? 0, markdown: v.markdown, public: page.public !== false }, me.name, `${fmtDate(v.savedAt, true)} 버전으로 되돌림`);
+          toast('되돌렸습니다'); renderHistory(slug);
+        }
+      });
+      return;
+    }
+    const [edits, logins] = await Promise.all([
+      getDocs(query(collection(db, 'editLogs'), orderBy('at', 'desc'), limit(50))),
+      isAdmin ? getDocs(query(collection(db, 'loginLogs'), orderBy('at', 'desc'), limit(50))) : Promise.resolve({ docs: [] }),
+    ]);
+    const ACTION = { publish: '게시', draft: '임시저장', create: '생성', delete: '삭제', show: '공개', hide: '비공개' };
+    panel.innerHTML = head('접속 · 수정 이력', '최근 50건') + `
+      <h2 style="font-size: 20px">수정 이력</h2>
+      <div class="card plain table">
+        <div class="thead" style="grid-template-columns: 150px 90px minmax(0,1fr) 120px"><span>시각</span><span>동작</span><span>문서</span><span>편집자</span></div>
+        ${edits.docs.map((d) => { const x = d.data(); return `
+          <div class="tr" style="grid-template-columns: 150px 90px minmax(0,1fr) 120px; min-height: 44px">
+            <span style="font-size:12px">${fmtDate(x.at, true)}</span>
+            <span class="tag ${x.action === 'publish' ? 'green' : x.action === 'delete' ? 'accent' : ''}">${ACTION[x.action] || x.action}</span>
+            <span><a href="#history:${encodeURIComponent(x.pageId)}" style="text-decoration:none">${esc(x.title || x.pageId)}</a>${x.summary ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(x.summary)}</span>` : ''}</span>
+            <span style="font-size:13px">${esc(x.by || '')}</span>
+          </div>`; }).join('') || '<div class="empty">아직 기록이 없습니다.</div>'}
+      </div>
+      ${isAdmin ? `
+      <h2 style="font-size: 20px; margin-top: 8px">접속 이력</h2>
+      <div class="card plain table">
+        <div class="thead" style="grid-template-columns: 150px 140px 90px minmax(0,1fr)"><span>시각</span><span>이름</span><span>역할</span><span>접속 환경</span></div>
+        ${logins.docs.map((d) => { const x = d.data(); return `
+          <div class="tr" style="grid-template-columns: 150px 140px 90px minmax(0,1fr); min-height: 44px">
+            <span style="font-size:12px">${fmtDate(x.at, true)}</span><span>${esc(x.name || '')}</span>
+            <span>${x.role === 'admin' ? '<span class="tag fill">운영자</span>' : '<span class="tag">가이드</span>'}</span>
+            <span style="font-size:12px; color:#8A7D66; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(x.ua || '')}</span>
+          </div>`; }).join('') || '<div class="empty">아직 기록이 없습니다.</div>'}
+      </div>` : ''}`;
+  }
+
+  const SOON = (t) => head(t) + '<div class="notice-box">2차 작업에서 만들어지는 화면입니다. 시안 v1의 관리 화면 구성을 따릅니다.</div>';
+
+  function route() {
+    const h = (location.hash || '#docs').slice(1);
+    const [tab, arg] = h.split(':');
+    $$('.admin-nav [data-tab]').forEach((a) => { if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    if (tab === 'docs') return renderDocs();
+    if (tab === 'settings') return renderSettings();
+    if (tab === 'editors') return renderEditors();
+    if (tab === 'history') return renderHistory(arg ? decodeURIComponent(arg) : null);
+    freshPanel(); return void (panel.innerHTML = SOON({ events: '이벤트 관리', patch: '패치노트 관리', popups: '알림 설정', data: '명령어 · 시세 데이터' }[tab] || '관리'));
+  }
+  window.addEventListener('hashchange', route);
+  route();
+</script>
+</body>
+</html>

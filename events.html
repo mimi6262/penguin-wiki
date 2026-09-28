@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이벤트 — 펭귄서버 위키</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>window.PW_ROOT = './';</script>
+</head>
+<body>
+<header id="site-header"></header>
+<main>
+  <div class="container narrow stack">
+    <div class="stack" style="gap: 12px">
+      <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>이벤트</h1></div>
+      <span class="subtitle">진행 중 · 상시 · 예정 · 종료</span>
+    </div>
+    <div class="notice-box">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      2차 작업에서 열립니다. 하트로 관심 이벤트를 지정하면 팝업 알림을 받습니다.
+    </div>
+  </div>
+</main>
+<footer id="site-footer"></footer>
+<script type="module">
+  import { renderHeader, renderFooter } from './assets/js/ui.js';
+  renderHeader('events');
+  renderFooter();
+  try { const { watchAuth } = await import('./assets/js/auth.js'); watchAuth(); } catch (e) { console.warn(e); }
+</script>
+</body>
+</html>

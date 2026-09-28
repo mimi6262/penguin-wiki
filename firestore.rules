@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 편집자 명단(editors/{uid})에 있으면 가이드, role == 'admin' 이면 운영자
+    function signedIn() { return request.auth != null; }
+    function editorDoc() { return get(/databases/$(database)/documents/editors/$(request.auth.uid)); }
+    function isEditor() { return signedIn() && exists(/databases/$(database)/documents/editors/$(request.auth.uid)); }
+    function isAdmin() { return isEditor() && editorDoc().data.role == 'admin'; }
+
+    // 가이드 문서: 공개 문서는 누구나, 비공개·임시본은 편집자만
+    match /pages/{slug} {
+      allow read: if resource.data.public == true || isEditor();
+      allow create, update, delete: if isEditor();
+    }
+    match /pageVersions/{id} {
+      allow read, create: if isEditor();
+      allow update, delete: if false;
+    }
+    match /sections/{id} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    // 사이트 설정(홈 화면 값, 푸터)
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    // 2차: 이벤트 · 패치노트 · 카테고리 · 명령어 · 팝업 설정 (공개 읽기, 편집자 쓰기)
+    match /events/{id} { allow read: if true; allow write: if isEditor(); }
+    match /patchNotes/{id} { allow read: if resource.data.status == 'published' || isEditor(); allow write: if isEditor(); }
+    match /patchCategories/{id} { allow read: if true; allow write: if isEditor(); }
+    match /commands/{id} { allow read: if true; allow write: if isEditor(); }
+    match /popups/{id} { allow read: if true; allow write: if isEditor(); }
+
+    // 3차: 시세 — 읽기 공개, 쓰기는 편집자(운영자 스크립트는 서비스 계정으로 규칙을 우회)
+    match /prices/{id} { allow read: if true; allow write: if isEditor(); }
+
+    // 편집자 명단: 편집자는 읽기, 운영자만 쓰기
+    match /editors/{uid} {
+      allow read: if isEditor();
+      allow write: if isAdmin();
+    }
+
+    // 접속 이력: 본인 기록만 생성, 운영자만 조회
+    match /loginLogs/{id} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+    // 수정 이력: 편집자 생성·조회, 수정·삭제 불가
+    match /editLogs/{id} {
+      allow create, read: if isEditor();
+      allow update, delete: if false;
+    }
+  }
+}

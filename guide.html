@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가이드 — 펭귄서버 위키</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>window.PW_ROOT = './';</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <div class="container guide-layout">
+
+    <aside class="card tree" aria-label="가이드 목차" id="tree">
+      <div class="head"><span class="seal sm" aria-hidden="true"></span>가이드</div>
+      <div class="loading">목차를 불러오는 중입니다</div>
+    </aside>
+
+    <article id="article">
+      <nav class="breadcrumb" aria-label="현재 위치" id="breadcrumb">
+        <a href="index.html">홈</a><span aria-hidden="true">›</span><a href="guide.html">가이드</a>
+      </nav>
+      <div class="article-head">
+        <h1 id="title">가이드</h1>
+        <div style="display: flex; gap: 8px; flex-shrink: 0" data-auth="editor" hidden id="edit-actions">
+          <a class="btn sm secondary" id="btn-edit" href="admin/editor.html">
+            <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            편집
+          </a>
+          <a class="btn sm ghost" id="btn-history" href="admin/index.html#history">이력</a>
+        </div>
+      </div>
+      <div class="article-meta" id="meta"></div>
+      <div class="prose" id="content"><div class="loading">문서를 불러오는 중입니다</div></div>
+      <nav class="page-nav" id="page-nav" hidden></nav>
+    </article>
+
+    <aside class="toc" id="toc" aria-label="이 문서의 목차" hidden>
+      <span class="label">목차</span>
+    </aside>
+
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script type="module">
+  import { renderHeader, renderFooter, $, esc, param, fmtDate, ICONS } from './assets/js/ui.js';
+  renderHeader('guide');
+  renderFooter();
+
+  const CHEV = '<svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#8A7D66" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  const slugParam = param('p');
+  const sectionParam = param('s');
+  const q = (param('q') || '').trim().toLowerCase();
+
+  try {
+    const { watchAuth } = await import('./assets/js/auth.js');
+    const { listSections, listPages, getPage, buildTree, flatten } = await import('./assets/js/pages.js');
+    const { renderMarkdown, decorate } = await import('./assets/js/markdown.js');
+
+    const editor = await watchAuth();
+    const [sections, pages] = await Promise.all([listSections(), listPages({ editorView: !!editor })]);
+    const { tree, orphans } = buildTree(sections, pages);
+    const flat = flatten(tree, orphans);
+
+    // 현재 문서 결정: ?p= > ?s=(섹션 첫 문서) > 첫 문서
+    let current = null;
+    if (slugParam) current = pages.find((p) => p.id === slugParam) || (await getPage(slugParam).catch(() => null));
+    else if (sectionParam) current = flat.find((p) => p.sectionId === sectionParam) || null;
+    else if (!q) current = flat[0] || null;
+
+    // ---- 트리 ----
+    const treeEl = $('#tree');
+    const pageLink = (p) => `<a class="page${current && p.id === current.id ? ' active' : ''}" href="guide.html?p=${encodeURIComponent(p.id)}">${esc(p.title)}${p.public === false ? '<span class="tag gray draft">비공개</span>' : ''}</a>`;
+    const matches = (p) => !q || (p.title || '').toLowerCase().includes(q);
+    const openId = current ? current.sectionId : sectionParam;
+    let html = `<div class="head"><span class="seal sm" aria-hidden="true"></span>가이드${q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : ''}</div>`;
+    tree.forEach((t) => {
+      const childHasCurrent = t.children.some((c) => c.section.id === openId);
+      const open = q || t.section.id === openId || childHasCurrent;
+      const items = t.pages.filter(matches).map(pageLink).join('');
+      const kids = t.children.map((c) => {
+        const cItems = c.pages.filter(matches).map(pageLink).join('');
+        if (q && !cItems) return '';
+        return `<div class="sec${open ? ' open' : ''}" data-toggle>${CHEV}${esc(c.section.name)}</div><div class="children"${open ? '' : ' hidden'}>${cItems}</div>`;
+      }).join('');
+      if (q && !items && !kids) return;
+      html += `<div class="sec${open ? ' open' : ''}" data-toggle>${CHEV}${esc(t.section.name)}</div><div class="children"${open ? '' : ' hidden'}>${items}${kids}</div>`;
+    });
+    if (orphans.length) html += `<div class="children">${orphans.filter(matches).map(pageLink).join('')}</div>`;
+    if (!tree.length && !orphans.length) html += '<div class="empty">아직 문서가 없습니다.</div>';
+    html += `<div class="fixed">
+      <a href="commands.html"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5"/><path d="M12 19h8"/></svg>명령어</a>
+      <a href="guide.html?p=rules"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>규칙</a>
+    </div>`;
+    treeEl.innerHTML = html;
+    treeEl.addEventListener('click', (e) => {
+      const sec = e.target.closest('[data-toggle]');
+      if (!sec) return;
+      sec.classList.toggle('open');
+      const ch = sec.nextElementSibling;
+      if (ch) ch.hidden = !ch.hidden;
+    });
+
+    // ---- 본문 ----
+    const content = $('#content');
+    if (!current && slugParam) {
+      $('#title').textContent = '문서를 찾을 수 없습니다';
+      content.innerHTML = '<p>주소가 바뀌었거나 아직 공개되지 않은 문서입니다.</p>';
+    } else if (!current) {
+      $('#title').textContent = q ? '검색 결과' : '가이드';
+      content.innerHTML = q
+        ? (flat.filter(matches).length ? '<p>왼쪽 목차에서 검색된 문서를 선택해 주세요.</p>' : '<p>검색 결과가 없습니다.</p>')
+        : '<p>왼쪽 목차에서 문서를 선택해 주세요.</p>';
+    } else if (current.public === false && !editor) {
+      $('#title').textContent = '비공개 문서';
+      content.innerHTML = '<p>아직 공개되지 않은 문서입니다.</p>';
+    } else {
+      document.title = `${current.title} — 펭귄서버 위키`;
+      $('#title').textContent = current.title;
+      const sec = sections.find((s) => s.id === current.sectionId);
+      const parent = sec && sec.parentId ? sections.find((s) => s.id === sec.parentId) : null;
+      $('#breadcrumb').innerHTML = `<a href="index.html">홈</a><span aria-hidden="true">›</span><a href="guide.html">가이드</a>`
+        + (parent ? `<span aria-hidden="true">›</span><span>${esc(parent.name)}</span>` : '')
+        + (sec ? `<span aria-hidden="true">›</span><span>${esc(sec.name)}</span>` : '')
+        + `<span aria-hidden="true">›</span><span class="cur">${esc(current.title)}</span>`;
+      $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.updatedAt)}</span>${current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
+      content.innerHTML = renderMarkdown(current.markdown || current.draft || '');
+      const toc = decorate(content);
+      if (toc.length) {
+        const tocEl = $('#toc');
+        tocEl.hidden = false;
+        tocEl.insertAdjacentHTML('beforeend', toc.map((t) => `<a class="${t.level === 3 ? 'h3' : ''}" href="#${t.id}">${esc(t.text)}</a>`).join(''));
+      }
+      $('#btn-edit').href = `admin/editor.html?p=${encodeURIComponent(current.id)}`;
+      $('#btn-history').href = `admin/index.html#history:${encodeURIComponent(current.id)}`;
+
+      // 이전/다음
+      const idx = flat.findIndex((p) => p.id === current.id);
+      if (idx >= 0) {
+        const prev = flat[idx - 1], next = flat[idx + 1];
+        const nav = $('#page-nav');
+        nav.hidden = !(prev || next);
+        nav.innerHTML = (prev ? `<a class="prev" href="guide.html?p=${encodeURIComponent(prev.id)}"><span class="k">이전</span><span>${esc(prev.title)}</span></a>` : '')
+          + (next ? `<a class="next" href="guide.html?p=${encodeURIComponent(next.id)}"><span class="k">다음</span><span>${esc(next.title)}</span></a>` : '');
+      }
+    }
+  } catch (e) {
+    console.warn(e);
+    $('#tree').innerHTML = '<div class="head"><span class="seal sm" aria-hidden="true"></span>가이드</div><div class="empty">목차를 불러오지 못했습니다.</div>';
+    $('#content').innerHTML = '<p>문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
+  }
+</script>
+</body>
+</html>

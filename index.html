@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>펭귄서버 위키</title>
+<meta name="description" content="펭귄서버 공식 위키 — 가이드, 명령어, 시세, 이벤트">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>window.PW_ROOT = './';</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <div class="container stack" style="gap: 56px">
+
+    <section class="hero">
+      <div class="copy">
+        <span class="pill-info" id="season-tag" style="align-self: flex-start">[시즌 태그]</span>
+        <h1>펭귄서버</h1>
+        <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px">[서버 한 줄 소개]</p>
+        <div class="info-pills">
+          <div class="info-pill" id="online-pill" hidden>
+            <span class="dot" aria-hidden="true"></span>
+            <span class="k">접속 중</span>
+            <span class="v" id="online-count">-</span>
+          </div>
+          <div class="info-pill has-btn">
+            <span class="k">서버 주소</span>
+            <span class="v" id="server-address">[주소]</span>
+            <button type="button" class="btn icon" id="copy-address" aria-label="서버 주소 복사">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            </button>
+          </div>
+          <div class="info-pill">
+            <span class="k">버전</span>
+            <span class="v" id="server-version">[버전]</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap">
+          <a class="btn primary" id="btn-howto" href="guide.html?p=how-to-join">접속 방법</a>
+          <a class="btn secondary" id="btn-inquiry" href="#" target="_blank" rel="noopener">문의센터</a>
+        </div>
+      </div>
+      <div class="media" id="hero-media">
+        <svg aria-hidden="true" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#A6957A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z"/></svg>
+        <span>[이미지 / 영상]</span>
+      </div>
+    </section>
+
+    <section class="stack" style="gap: 20px">
+      <div class="section-head">
+        <div class="title"><span class="seal" aria-hidden="true"></span><h2>서버 가이드</h2></div>
+        <a href="guide.html" style="font-size: 14px; text-decoration: none">전체 보기</a>
+      </div>
+      <div class="card-grid" id="guide-cards">
+        <div class="loading">가이드를 불러오는 중입니다</div>
+      </div>
+    </section>
+
+    <section class="stack" style="gap: 20px">
+      <div class="section-head">
+        <div class="title"><span class="seal" aria-hidden="true"></span><h2>커뮤니티</h2></div>
+      </div>
+      <div class="community">
+        <div class="card item">
+          <span class="icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3A5A78" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H8l-4 3v-4.5A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg>
+          </span>
+          <div class="grow">
+            <h3>디스코드</h3>
+            <p id="discord-desc">[디스코드 안내 문구]</p>
+          </div>
+          <a class="btn" id="btn-discord" href="#" target="_blank" rel="noopener" style="background: #3A5A78; color: #FBF7EF">참여하기</a>
+        </div>
+        <div class="card item">
+          <span class="icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>
+          </span>
+          <div class="grow">
+            <h3>마인리스트</h3>
+            <p id="minelist-desc">[마인리스트 추천 안내 문구]</p>
+          </div>
+          <a class="btn primary" id="btn-minelist" href="#" target="_blank" rel="noopener">추천하기</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script type="module">
+  import { renderHeader, renderFooter, $, esc, copyText, toast } from './assets/js/ui.js';
+  renderHeader('home');
+  renderFooter();
+
+  $('#copy-address').addEventListener('click', () => {
+    const v = $('#server-address').textContent.trim();
+    if (v && !v.startsWith('[')) copyText(v); else toast('서버 주소가 아직 등록되지 않았습니다');
+  });
+
+  // Firebase 연결 (실패해도 뼈대는 그대로 보입니다)
+  try {
+    const { db, doc, getDoc } = await import('./assets/js/firebase.js');
+    const { watchAuth } = await import('./assets/js/auth.js');
+    const { listSections } = await import('./assets/js/pages.js');
+    watchAuth();
+
+    // 사이트 설정
+    const snap = await getDoc(doc(db, 'settings', 'site'));
+    const s = snap.exists() ? snap.data() : {};
+    const put = (id, v) => { if (v) $(id).textContent = v; };
+    put('#season-tag', s.seasonTag); put('#tagline', s.tagline);
+    put('#server-address', s.serverAddress); put('#server-version', s.version);
+    put('#discord-desc', s.discordDesc); put('#minelist-desc', s.minelistDesc);
+    if (s.discordUrl) $('#btn-discord').href = s.discordUrl;
+    if (s.minelistUrl) $('#btn-minelist').href = s.minelistUrl;
+    if (s.inquiryUrl) $('#btn-inquiry').href = s.inquiryUrl;
+    if (s.howToSlug) $('#btn-howto').href = `guide.html?p=${encodeURIComponent(s.howToSlug)}`;
+    if (typeof s.onlineCount === 'number') { $('#online-count').textContent = `${s.onlineCount}명`; $('#online-pill').hidden = false; }
+    if (s.mediaUrl) {
+      const m = $('#hero-media');
+      const yt = s.mediaUrl.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
+      m.innerHTML = yt
+        ? `<iframe src="https://www.youtube.com/embed/${yt[1]}" title="서버 소개 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+        : `<img src="${esc(s.mediaUrl)}" alt="">`;
+    }
+    renderFooter(s.business || {});
+
+    // 가이드 카드: 최상위 섹션
+    const sections = (await listSections()).filter((x) => !x.parentId).slice(0, 8);
+    const grid = $('#guide-cards');
+    grid.innerHTML = sections.length
+      ? sections.map((x) => `
+        <a class="card guide-card" href="guide.html?s=${encodeURIComponent(x.id)}">
+          <span class="icon" aria-hidden="true">${esc((x.icon || x.name).slice(0, 1))}</span>
+          <h3>${esc(x.name)}</h3>
+          <p>${esc(x.desc || '')}</p>
+        </a>`).join('')
+      : '<div class="loading">아직 등록된 가이드가 없습니다. 관리 화면에서 섹션을 추가해 주세요.</div>';
+  } catch (e) {
+    console.warn(e);
+    $('#guide-cards').innerHTML = '<div class="loading">가이드 목록을 불러오지 못했습니다.</div>';
+  }
+</script>
+</body>
+</html>
