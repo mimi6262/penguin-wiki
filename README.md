@@ -11,7 +11,8 @@ guide.html          가이드 문서 (?p=슬러그, ?s=섹션id, ?q=검색어)
 patch.html          패치노트 (카테고리 배지 + ㆍ 항목 양식)
 events.html         이벤트 (진행 중 · 상시 · 예정 · 종료, 하트로 관심 지정)
 commands.html       명령어 (분류 탭 · 검색 · 복사 버튼)
-prices.html         시세 (3차)
+prices.html         시세 (분류 탭 · 검색 · 전일 대비 · 7일 추이)
+search.html         통합 검색 (가이드 · 명령어 · 패치노트 · 이벤트)
 admin/login.html    관리자 로그인
 admin/index.html    관리 (#docs 문서 · #settings 사이트 설정 · #events 이벤트 · #patch 패치노트 · #popups 알림 · #commands 명령어 · #editors 편집자 · #history 이력)
 admin/panels2.js    관리 2차 패널 (이벤트 · 패치노트 · 알림 · 명령어)
@@ -67,6 +68,13 @@ firestore.rules     Firestore 보안 규칙
 ㆍ수정된 문제. `/명령어` 와 **강조** 사용 가능
 ```
 제목을 비우면 카테고리 이름을 이어 붙여 자동 생성됩니다. 카테고리 색은 관리 → 패치노트 관리에서 지정합니다.
+
+## 시세 데이터
+
+- 관리 → 시세 데이터에서 한 건씩 저장하거나, CSV(`이름, 분류, 가격, 단위`) 또는 JSON 배열을 붙여넣어 한꺼번에 가져옵니다.
+- 같은 이름은 덮어쓰고, 가격이 바뀌면 `prevPrice`(전일가)와 `history`(최근 14일, 하루 1건)가 갱신됩니다.
+- 운영자 스크립트로 자동 갱신할 때는 서비스 계정으로 Firestore `prices/{아이템id}` 문서에 같은 필드를 쓰면 됩니다:
+  `name, category, price, prevPrice, unit, history:[{d:'YYYY-MM-DD', p}], updatedAt`.
 
 ## 커스텀 도메인 연결 (구입 후)
 

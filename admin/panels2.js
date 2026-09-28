@@ -368,3 +368,98 @@ export async function renderCommands(ctx) {
   });
   fill(null);
 }
+
+// ================= 시세 데이터 =================
+export async function renderPrices(ctx) {
+  const { head, me } = ctx;
+  let panel = ctx.freshPanel();
+  panel.innerHTML = head('시세 데이터') + '<div class="loading">불러오는 중</div>';
+  const [items, note] = await Promise.all([C.listPrices(), C.getPriceNote()]);
+  const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
+  const fmtNum = (n) => Number(n).toLocaleString('ko-KR');
+  panel = ctx.freshPanel();
+  panel.innerHTML = head('시세 데이터', `아이템 ${items.length}개 · 분류 ${cats.length}개`) + `
+    <div style="display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 20px; align-items: start">
+      <div class="stack" style="gap: 20px">
+        <div class="card plain table">
+          <div class="thead" style="grid-template-columns: minmax(0,1fr) 110px 120px 110px 100px 72px"><span>아이템</span><span>분류</span><span>현재가</span><span>전일가</span><span>갱신</span><span></span></div>
+          ${items.map((i) => `
+            <div class="tr" style="grid-template-columns: minmax(0,1fr) 110px 120px 110px 100px 72px; min-height: 50px">
+              <span>${esc(i.name)}${i.unit ? `<span style="font-size: 11px; color: var(--muted)"> /${esc(i.unit)}</span>` : ''}</span>
+              <span style="font-size: 13px">${esc(i.category || '')}</span>
+              <span>${fmtNum(i.price)}</span>
+              <span style="font-size: 13px; color: var(--muted)">${i.prevPrice != null ? fmtNum(i.prevPrice) : '-'}</span>
+              <span style="font-size: 12px; color: var(--muted)">${fmtDate(i.updatedAt)}</span>
+              <div class="actions">
+                <button type="button" class="icon-btn" data-edit="${i.id}" aria-label="편집">${EDIT}</button>
+                <button type="button" class="icon-btn danger" data-del="${i.id}" aria-label="삭제">${TRASH}</button>
+              </div>
+            </div>`).join('') || '<div class="empty">아직 시세가 없습니다. 오른쪽에서 한 건씩 넣거나 아래에 붙여넣어 주세요.</div>'}
+        </div>
+        <form class="card plain form-card" id="pr-import" style="border-color: var(--line)">
+          <div class="row-between"><h2 style="font-size: 20px">한꺼번에 붙여넣기</h2><span class="subtitle" style="font-size: 12px">같은 이름은 덮어쓰고, 가격이 바뀌면 전일가·추이가 갱신됩니다</span></div>
+          <textarea class="textarea" id="pr-text" style="min-height: 160px; font-family: var(--font-mono); font-size: 13px" placeholder="다이아몬드, 광물, 1200
+철괴, 광물, 80, 개
+[{&quot;name&quot;:&quot;다이아몬드&quot;,&quot;category&quot;:&quot;광물&quot;,&quot;price&quot;:1200}]"></textarea>
+          <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">
+            <b>CSV</b> 한 줄에 <code>이름, 분류, 가격, 단위</code> (분류·단위 생략 가능, 탭 구분도 됨) · <b>JSON</b> <code>[{"name","category","price","unit"}]</code> 배열<br>
+            운영자 스크립트가 직접 넣을 때는 Firestore <code>prices/{아이템id}</code> 문서에 같은 필드(name, category, price, prevPrice, unit, history[{d,p}], updatedAt)를 쓰면 이 화면과 시세 페이지에 그대로 반영됩니다.
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button type="submit" class="btn primary">가져오기</button>
+            <span class="subtitle" style="font-size: 12px" id="pr-import-status"></span>
+          </div>
+        </form>
+        <form class="card plain form-card" id="pr-note" style="border-color: var(--line)">
+          <h2 style="font-size: 20px">시세 페이지 하단 안내 문구</h2>
+          ${F('pr-note-text', '출처 · 갱신 주기 등', note, { ph: '예: 유저 상점 거래가 기준, 매일 자정 갱신' })}
+          <button type="submit" class="btn sm dark" style="align-self: flex-start">저장</button>
+        </form>
+      </div>
+      <form class="card plain form-card" id="pr-form">
+        <div class="row-between"><h2 style="font-size: 20px" id="pr-form-title">아이템 추가</h2><button type="button" class="btn xs ghost" id="pr-reset">새로</button></div>
+        ${F('pr-name', '아이템 이름', '', { ph: '예: 다이아몬드' })}
+        <div class="form-row">
+          <div class="field"><label for="pr-cat">분류</label><input class="input" id="pr-cat" list="pr-cats" placeholder="예: 광물"><datalist id="pr-cats">${cats.map((c) => `<option value="${esc(c)}">`).join('')}</datalist></div>
+          ${F('pr-unit', '단위', '', { ph: '예: 개, 64개' })}
+        </div>
+        ${F('pr-price', '현재가', '', { type: 'number', ph: '숫자만' })}
+        <div class="notice-box" style="font-size: 12px">저장하면 오늘 날짜로 이력이 쌓이고, 이전 가격이 전일가로 넘어갑니다. 하루에 여러 번 저장하면 오늘 값만 갱신됩니다.</div>
+        <button type="submit" class="btn primary">저장</button>
+      </form>
+    </div>`;
+  const f = (id) => $('#' + id, panel);
+  const fill = (i) => {
+    f('pr-name').value = i?.name || ''; f('pr-name').readOnly = !!i; f('pr-cat').value = i?.category || ''; f('pr-unit').value = i?.unit || ''; f('pr-price').value = i?.price ?? '';
+    f('pr-form-title').textContent = i ? '시세 갱신' : '아이템 추가';
+  };
+  f('pr-reset').addEventListener('click', () => fill(null));
+  f('pr-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = f('pr-name').value.trim(), price = Number(f('pr-price').value);
+    if (!name || !Number.isFinite(price)) return toast('이름과 가격을 확인해 주세요');
+    await C.savePrice({ name, category: f('pr-cat').value, unit: f('pr-unit').value, price, source: 'manual' }, me.name, T.todayKST());
+    toast('저장했습니다'); renderPrices(ctx);
+  });
+  f('pr-import').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    let rowsToImport;
+    try { rowsToImport = C.parsePriceImport(f('pr-text').value); } catch (err) { return toast('형식을 읽지 못했습니다: ' + err.message); }
+    if (!rowsToImport.length) return toast('가져올 줄이 없습니다');
+    const st = f('pr-import-status');
+    let n = 0;
+    for (const r of rowsToImport) { await C.savePrice({ ...r, source: 'import' }, me.name, T.todayKST()); st.textContent = `${++n}/${rowsToImport.length} 저장 중`; }
+    toast(`${n}건 가져왔습니다`); renderPrices(ctx);
+  });
+  f('pr-note').addEventListener('submit', async (e) => { e.preventDefault(); await C.savePriceNote(f('pr-note-text').value.trim(), me.name); toast('저장했습니다'); });
+  panel.addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-edit]'); if (ed) { fill(items.find((x) => x.id === ed.dataset.edit)); f('pr-price').focus(); return; }
+    const dl = e.target.closest('[data-del]');
+    if (dl) {
+      const i = items.find((x) => x.id === dl.dataset.del);
+      if (!confirm(`"${i.name}" 시세를 삭제할까요? 이력도 함께 지워집니다.`)) return;
+      await C.deletePrice(i.id); toast('삭제했습니다'); renderPrices(ctx);
+    }
+  });
+  fill(null);
+}

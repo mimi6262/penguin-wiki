@@ -129,3 +129,59 @@ export function toggleHeart(id) {
   try { localStorage.setItem(HEART_KEY, JSON.stringify([...set])); } catch {}
   return set.has(id);
 }
+
+// ---------- 시세 ----------
+// prices/{id}: { name, category, price, prevPrice, unit, history: [{ d:'YYYY-MM-DD', p }], updatedAt, updatedBy, source }
+// settings/prices: { note }  — 데이터 출처·갱신 주기 안내 문구
+export function priceId(name) {
+  return String(name || '').trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 60) || 'item';
+}
+export async function listPrices() {
+  return rows(await getDocs(query(collection(db, 'prices'), orderBy('name'))));
+}
+export async function getPriceNote() {
+  const snap = await getDoc(doc(db, 'settings', 'prices'));
+  return snap.exists() ? (snap.data().note || '') : '';
+}
+export async function savePriceNote(note, by) {
+  await setDoc(doc(db, 'settings', 'prices'), { note, ...stamp(by) }, { merge: true });
+}
+// 한 건 저장(업서트). 가격이 바뀌면 prevPrice와 오늘 이력을 갱신
+export async function savePrice(item, by, today) {
+  const id = priceId(item.name);
+  const ref = doc(db, 'prices', id);
+  const prev = await getDoc(ref);
+  const old = prev.exists() ? prev.data() : null;
+  const price = Number(item.price);
+  let history = Array.isArray(old?.history) ? [...old.history] : [];
+  const last = history[history.length - 1];
+  if (last && last.d === today) last.p = price; else history.push({ d: today, p: price });
+  history = history.slice(-14);
+  const prevPrice = old && old.price !== price ? old.price : (old?.prevPrice ?? null);
+  await setDoc(ref, {
+    name: item.name.trim(), category: (item.category || old?.category || '').trim(), unit: (item.unit || old?.unit || '').trim(),
+    price, prevPrice, history, source: item.source || 'manual', ...stamp(by),
+    ...(old ? {} : { createdAt: serverTimestamp() }),
+  }, { merge: true });
+  return id;
+}
+export async function deletePrice(id) { await deleteDoc(doc(db, 'prices', id)); }
+
+// 붙여넣기 파서: CSV(이름,분류,가격[,단위]) 또는 JSON 배열 [{name, category, price, unit}]
+export function parsePriceImport(text) {
+  const t = (text || '').trim();
+  if (!t) return [];
+  if (t.startsWith('[') || t.startsWith('{')) {
+    const j = JSON.parse(t);
+    const arr = Array.isArray(j) ? j : (Array.isArray(j.items) ? j.items : []);
+    return arr.map((x) => ({ name: String(x.name || x.item || '').trim(), category: String(x.category || '').trim(), price: Number(x.price), unit: String(x.unit || '').trim() })).filter((x) => x.name && Number.isFinite(x.price));
+  }
+  return t.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+    const c = line.split(/\s*[,\t]\s*/);
+    if (c.length < 2) return null;
+    const hasCat = c.length >= 3 && Number.isFinite(Number(c[2].replace(/[^\d.-]/g, '')));
+    const name = c[0], category = hasCat ? c[1] : '', priceRaw = hasCat ? c[2] : c[1], unit = hasCat ? (c[3] || '') : (c[2] || '');
+    const price = Number(String(priceRaw).replace(/[^\d.-]/g, ''));
+    return name && Number.isFinite(price) ? { name, category, price, unit } : null;
+  }).filter(Boolean).filter((x) => !/^(이름|name|아이템)$/i.test(x.name));
+}

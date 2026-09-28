@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검색 — 펭귄서버 위키</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>window.PW_ROOT = './';</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <div class="container narrow stack" style="gap: 22px">
+    <div class="stack" style="gap: 12px">
+      <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>검색</h1></div>
+      <form class="search" role="search" action="search.html" method="get" style="border-color: var(--line); background: var(--card); width: 100%; max-width: 560px; height: 48px">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" name="q" id="q" aria-label="검색어" placeholder="가이드 · 명령어 · 패치노트 · 이벤트 검색" autocomplete="off">
+      </form>
+      <span class="subtitle" id="summary"></span>
+    </div>
+    <div class="stack" id="results" style="gap: 24px"></div>
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script type="module">
+  import { renderHeader, renderFooter, $, esc, param } from './assets/js/ui.js';
+  renderHeader('');
+  renderFooter();
+  const q = (param('q') || '').trim();
+  $('#q').value = q;
+  const results = $('#results'), summary = $('#summary');
+  if (!q) { summary.textContent = '검색어를 입력해 주세요.'; }
+  else try {
+    document.title = `${q} — 검색 — 펭귄서버 위키`;
+    summary.textContent = '검색 중입니다';
+    const { watchAuth } = await import('./assets/js/auth.js');
+    const editor = await watchAuth();
+    import('./assets/js/popups.js');
+    const P = await import('./assets/js/pages.js');
+    const C = await import('./assets/js/content.js');
+    const [pages, sections, cmds, notes, events] = await Promise.all([
+      P.listPages({ editorView: !!editor }), P.listSections(), C.listCommands().catch(() => []), C.listPatchNotes({ editorView: !!editor }).catch(() => []), C.listEvents().catch(() => []),
+    ]);
+    const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const plain = (md) => (md || '').replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`\[\]()!|-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const score = (title, body) => {
+      const t = (title || '').toLowerCase(), b = (body || '').toLowerCase();
+      let s = 0;
+      for (const w of terms) { if (!t.includes(w) && !b.includes(w)) return 0; if (t.includes(w)) s += 5; s += Math.min(5, b.split(w).length - 1); }
+      return s;
+    };
+    const mark = (text) => { let s = esc(text); terms.forEach((w) => { s = s.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (m) => `<mark>${m}</mark>`); }); return s; };
+    const snippet = (body) => {
+      const p = plain(body); const low = p.toLowerCase();
+      let i = -1; for (const w of terms) { i = low.indexOf(w); if (i >= 0) break; }
+      if (i < 0) return mark(p.slice(0, 120)) + (p.length > 120 ? '…' : '');
+      const a = Math.max(0, i - 50), b = Math.min(p.length, i + 90);
+      return (a > 0 ? '…' : '') + mark(p.slice(a, b)) + (b < p.length ? '…' : '');
+    };
+    const secName = (id) => { const s = sections.find((x) => x.id === id); if (!s) return ''; const par = s.parentId ? sections.find((x) => x.id === s.parentId) : null; return par ? `${par.name} › ${s.name}` : s.name; };
+
+    const groups = [
+      { title: '가이드 문서', items: pages.map((p) => ({ s: score(p.title, plain(p.markdown)), html: `<a class="sr-item" href="guide.html?p=${encodeURIComponent(p.id)}"><span class="sr-title">${mark(p.title)}${p.public === false ? ' <span class="tag gray">비공개</span>' : ''}</span><span class="sr-meta">${esc(secName(p.sectionId))}</span><span class="sr-snip">${snippet(p.markdown)}</span></a>` })) },
+      { title: '명령어', items: cmds.map((c) => ({ s: score(`${c.command} ${c.aliases || ''}`, c.desc), html: `<a class="sr-item" href="commands.html"><span class="sr-title"><code class="cmd-chip">${mark(c.command)}</code></span><span class="sr-meta">${esc(c.category || '')}${c.permission ? ` · ${esc(c.permission)}` : ''}</span><span class="sr-snip">${mark(c.desc || '')}</span></a>` })) },
+      { title: '패치노트', items: notes.map((n) => ({ s: score(n.title, n.body), html: `<a class="sr-item" href="patch.html"><span class="sr-title">${mark(n.title || '')}</span><span class="sr-meta">${esc(n.date || '')}</span><span class="sr-snip">${snippet(n.body)}</span></a>` })) },
+      { title: '이벤트', items: events.map((ev) => ({ s: score(ev.name, ev.note), html: `<a class="sr-item" href="events.html"><span class="sr-title">${mark(ev.name)}</span><span class="sr-snip">${mark(ev.note || '')}</span></a>` })) },
+    ].map((g) => ({ ...g, items: g.items.filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 20) })).filter((g) => g.items.length);
+
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
+    summary.textContent = total ? `"${q}" 검색 결과 ${total}건` : `"${q}"에 대한 결과가 없습니다.`;
+    results.innerHTML = groups.map((g) => `
+      <section class="stack" style="gap: 10px">
+        <div class="section-head"><div class="title"><span class="seal" aria-hidden="true"></span><h2 style="font-size: 22px">${g.title} <span style="font-size: 14px; color: var(--muted); font-family: var(--font-body)">${g.items.length}</span></h2></div></div>
+        <div class="card plain" style="overflow: hidden">${g.items.map((x) => x.html).join('')}</div>
+      </section>`).join('');
+  } catch (e) {
+    console.warn(e);
+    summary.textContent = '검색 중 오류가 났습니다. 잠시 후 다시 시도해 주세요.';
+  }
+</script>
+</body>
+</html>

@@ -66,10 +66,14 @@ export function renderHeader(active = '') {
         ${links}
         <a class="nav-admin" data-auth="editor" hidden href="${ROOT}admin/index.html"${active === 'admin' ? ' aria-current="page"' : ''}>${ICONS.gear} 관리</a>
       </nav>
-      <form class="search" role="search" action="${ROOT}guide.html" method="get">
+      <form class="search" role="search" action="${ROOT}search.html" method="get">
         ${ICONS.search}
         <input type="search" name="q" aria-label="위키 검색" placeholder="검색" autocomplete="off">
       </form>
+      <a class="search-link" href="${ROOT}search.html" aria-label="검색">${ICONS.search}</a>
+      <button type="button" class="menu-btn" aria-label="메뉴 열기" aria-expanded="false" data-action="menu">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F3E4C4" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
       <div class="user-chip" data-auth="editor" hidden>
         <span class="user-name"></span>
         <span class="role"></span>
@@ -137,5 +141,12 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="logout"]');
   if (btn) {
     document.dispatchEvent(new CustomEvent('pw:logout'));
+  }
+  const menu = e.target.closest('[data-action="menu"]');
+  if (menu) {
+    const bar = menu.closest('.bar');
+    const open = bar.classList.toggle('open');
+    menu.setAttribute('aria-expanded', String(open));
+    menu.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
   }
 });

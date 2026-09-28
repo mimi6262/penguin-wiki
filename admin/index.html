@@ -25,7 +25,7 @@
       <a href="#patch" data-tab="patch">패치노트 관리</a>
       <a href="#popups" data-tab="popups">알림 설정</a>
       <a href="#commands" data-tab="commands">명령어 관리</a>
-      <a href="#prices" data-tab="prices">시세 데이터 <span class="soon">3차</span></a>
+      <a href="#prices" data-tab="prices">시세 데이터</a>
       <hr>
       <a href="#editors" data-tab="editors" data-auth="admin" hidden>편집자 관리</a>
       <a href="#history" data-tab="history">접속 · 수정 이력</a>
@@ -360,10 +360,10 @@
     if (tab === 'settings') return renderSettings();
     if (tab === 'editors') return renderEditors();
     if (tab === 'history') return renderHistory(arg ? decodeURIComponent(arg) : null);
-    if (['events', 'patch', 'popups', 'commands'].includes(tab)) {
+    if (['events', 'patch', 'popups', 'commands', 'prices'].includes(tab)) {
       return import('./panels2.js').then((m) => {
         const ctx = { head, me, isAdmin, freshPanel: () => freshPanel() };
-        return ({ events: m.renderEvents, patch: m.renderPatch, popups: m.renderPopups, commands: m.renderCommands })[tab](ctx);
+        return ({ events: m.renderEvents, patch: m.renderPatch, popups: m.renderPopups, commands: m.renderCommands, prices: m.renderPrices })[tab](ctx);
       }).catch((e) => { console.error(e); freshPanel(); panel.innerHTML = head('오류') + '<div class="notice-box">화면을 불러오지 못했습니다. 새로고침해 주세요.</div>'; });
     }
     freshPanel(); return void (panel.innerHTML = SOON({ prices: '시세 데이터' }[tab] || '관리'));

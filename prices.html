@@ -12,24 +12,106 @@
 </head>
 <body>
 <header id="site-header"></header>
+
 <main>
-  <div class="container narrow stack">
-    <div class="stack" style="gap: 12px">
-      <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>시세</h1></div>
-      <span class="subtitle">아이템 시세와 변동</span>
+  <div class="container narrow stack" style="gap: 22px">
+    <div class="row-between">
+      <div class="stack" style="gap: 12px">
+        <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>시세</h1></div>
+        <span class="subtitle">아이템 시세와 전일 대비 변동</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center">
+        <span class="pill-info" id="updated" hidden></span>
+        <a class="btn sm secondary" data-auth="editor" hidden href="admin/index.html#prices">시세 관리</a>
+      </div>
     </div>
-    <div class="notice-box">
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
-      3차 작업에서 열립니다. 운영자 데이터가 연결되면 표시됩니다.
+
+    <div class="stat-grid">
+      <div class="card plain stat"><span class="k">등록 아이템</span><span class="v" id="st-total">-</span></div>
+      <div class="card plain stat"><span class="k">오늘 상승</span><span class="v" id="st-up" style="color: var(--accent)">-</span></div>
+      <div class="card plain stat"><span class="k">오늘 하락</span><span class="v" id="st-down" style="color: var(--blue)">-</span></div>
     </div>
+
+    <div class="row-between" style="padding-bottom: 16px; border-bottom: 1px solid var(--line)">
+      <div class="filter-row" id="tabs"></div>
+      <div class="search" style="border-color: var(--line); background: var(--card); width: 240px">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" id="q" aria-label="아이템 검색" placeholder="아이템 검색" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="card plain table" id="list"><div class="loading" style="padding: 20px">불러오는 중입니다</div></div>
+    <div class="notice-box" id="note" hidden></div>
   </div>
 </main>
+
 <footer id="site-footer"></footer>
+
 <script type="module">
-  import { renderHeader, renderFooter } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, fmtDate } from './assets/js/ui.js';
   renderHeader('prices');
   renderFooter();
-  try { const { watchAuth } = await import('./assets/js/auth.js'); watchAuth(); import('./assets/js/popups.js'); } catch (e) { console.warn(e); }
+  try {
+    const { watchAuth } = await import('./assets/js/auth.js');
+    watchAuth();
+    import('./assets/js/popups.js');
+    const C = await import('./assets/js/content.js');
+    const [items, note] = await Promise.all([C.listPrices(), C.getPriceNote()]);
+    if (note) { $('#note').textContent = note; $('#note').hidden = false; }
+    const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
+    let active = '', q = '';
+    const diff = (i) => (i.prevPrice == null || !i.prevPrice) ? null : (i.price - i.prevPrice) / i.prevPrice * 100;
+    $('#st-total').textContent = `${items.length}개`;
+    $('#st-up').textContent = `${items.filter((i) => (diff(i) ?? 0) > 0).length}개`;
+    $('#st-down').textContent = `${items.filter((i) => (diff(i) ?? 0) < 0).length}개`;
+    const latest = items.map((i) => i.updatedAt?.toDate?.()).filter(Boolean).sort((a, b) => b - a)[0];
+    if (latest) { $('#updated').textContent = `${fmtDate(latest, true)} 기준`; $('#updated').hidden = false; }
+
+    $('#tabs').innerHTML = `<button type="button" class="btn sm dark" data-cat="">전체</button>` + cats.map((c) => `<button type="button" class="btn sm ghost" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+    $('#tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cat]'); if (!b) return;
+      active = b.dataset.cat;
+      $('#tabs').querySelectorAll('[data-cat]').forEach((x) => { x.className = `btn sm ${x === b ? 'dark' : 'ghost'}`; });
+      draw();
+    });
+    $('#q').addEventListener('input', (e) => { q = e.target.value.trim().toLowerCase(); draw(); });
+
+    const spark = (h, color) => {
+      const pts = (h || []).slice(-7).map((x) => x.p);
+      if (pts.length < 2) return '<span style="color: var(--muted); font-size: 12px">-</span>';
+      const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
+      const coords = pts.map((p, i) => `${2 + i * (116 / (pts.length - 1))},${24 - (p - min) / span * 20}`).join(' ');
+      return `<svg aria-hidden="true" width="120" height="28" viewBox="0 0 120 28"><polyline points="${coords}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    };
+    const fmtNum = (n) => Number(n).toLocaleString('ko-KR');
+
+    function draw() {
+      const list = $('#list');
+      const shown = items.filter((i) => (!active || i.category === active) && (!q || i.name.toLowerCase().includes(q)));
+      if (!shown.length) { list.innerHTML = `<div class="empty">${items.length ? '검색 결과가 없습니다.' : '아직 등록된 시세가 없습니다.'}</div>`; return; }
+      list.innerHTML = `<div class="thead" style="grid-template-columns: minmax(0,1fr) 130px 130px 140px 110px"><span>아이템</span><span>현재가</span><span>전일 대비</span><span>추이</span><span>갱신</span></div>` +
+        shown.map((i) => {
+          const d = diff(i);
+          const color = d == null || d === 0 ? '#A6957A' : d > 0 ? '#A63A2B' : '#3A5A78';
+          const arrow = d == null ? '—' : d > 0 ? '▲' : d < 0 ? '▼' : '—';
+          return `
+          <div class="tr" style="grid-template-columns: minmax(0,1fr) 130px 130px 140px 110px; min-height: 60px">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+              <span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 8px; flex-shrink: 0; font-family: var(--font-head); color: var(--wood)">${esc(i.name.slice(0, 1))}</span>
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(i.name)}${i.category ? `<span style="font-size: 11px; color: var(--muted); margin-left: 8px">${esc(i.category)}</span>` : ''}</span>
+            </div>
+            <span style="font-size: 15px">${fmtNum(i.price)}${i.unit ? `<span style="font-size: 12px; color: var(--muted)"> /${esc(i.unit)}</span>` : ''}</span>
+            <span style="font-size: 13px; color: ${color}">${arrow} ${d == null ? '-' : `${d > 0 ? '+' : ''}${d.toFixed(1)}%`}</span>
+            ${spark(i.history, color)}
+            <span style="font-size: 12px; color: var(--muted)">${fmtDate(i.updatedAt)}</span>
+          </div>`;
+        }).join('');
+    }
+    draw();
+  } catch (e) {
+    console.warn(e);
+    $('#list').innerHTML = '<div class="empty">시세를 불러오지 못했습니다.</div>';
+  }
 </script>
 </body>
 </html>
