@@ -94,9 +94,8 @@
       </div>`;
     const siblings = (s) => sections.filter((x) => (x.parentId || null) === (s.parentId || null));
     const secRows = orderedSections.length ? orderedSections.map((s) => { const g = siblings(s); return `
-      <div class="tr" style="grid-template-columns: 56px minmax(0,1fr) 140px 56px 72px">
-        <span style="color:#8A7D66">${s.order ?? 0}</span>
-        <span title="${esc(s.desc || '')}">${s.parentId ? '<span style="color:#8A7D66">└ </span>' : ''}${esc(s.name)}${s.desc ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(s.desc)}</span>` : ''}</span>
+      <div class="tr" style="grid-template-columns: minmax(0,1fr) 140px 56px 72px">
+        <span title="${esc(s.desc || '')}">${s.parentId ? '<span style="color:#8A7D66; margin-left: 18px">└ </span>' : ''}${esc(s.name)}${s.desc ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(s.desc)}</span>` : ''}</span>
         <span style="color:#8A7D66; font-size:12px">${s.parentId ? esc(sections.find((x) => x.id === s.parentId)?.name || '') : '최상위'}</span>
         ${MOVE('data-move-sec', s.id, g, g.findIndex((x) => x.id === s.id))}
         <div class="actions">
@@ -124,8 +123,9 @@
     panel.innerHTML = head('문서 관리', `섹션 ${sections.length} · 문서 ${pages.length} (공개 ${pages.filter((p) => p.public).length})`, `<a class="btn primary" href="editor.html">새 문서</a>`) + `
       <div class="admin-split">
         <div class="stack" style="gap: 20px">
-          <div class="card plain table" style="--tmin: 540px">
-            <div class="thead" style="grid-template-columns: 56px minmax(0,1fr) 140px 56px 72px"><span>순서</span><span>섹션</span><span>상위</span><span>이동</span><span></span></div>
+          <div class="subtitle" style="font-size: 12px; margin-bottom: -8px">목차에 보이는 순서 그대로입니다. ▲▼로 자리를 바꾸세요 (하위 섹션은 같은 상위 안에서만).</div>
+          <div class="card plain table" style="--tmin: 500px">
+            <div class="thead" style="grid-template-columns: minmax(0,1fr) 140px 56px 72px"><span>섹션</span><span>상위</span><span>이동</span><span></span></div>
             ${secRows}
           </div>
           <div class="card plain table" style="--tmin: 680px">
@@ -145,23 +145,21 @@
           <div class="row-between"><h2 style="font-size: 20px" id="sec-form-title">섹션 추가</h2><button type="button" class="btn xs ghost" id="sec-reset" hidden>새로</button></div>
           <input type="hidden" id="sec-id">
           <div class="field"><label for="sec-name">이름</label><input class="input" id="sec-name" required placeholder="예: 시작 가이드"></div>
-          <div class="form-row">
-            <div class="field"><label for="sec-order">순서</label><input class="input" id="sec-order" type="number" value="${(top.length + 1) * 10}"></div>
-            <div class="field"><label for="sec-parent">상위 섹션</label>
-              <select class="select" id="sec-parent"><option value="">없음 (최상위)</option>${top.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
-            </div>
+          <div class="field"><label for="sec-parent">상위 섹션</label>
+            <select class="select" id="sec-parent"><option value="">없음 (최상위)</option>${top.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
           </div>
           <div class="field"><label for="sec-desc">홈 카드 설명 (최상위만)</label><input class="input" id="sec-desc" placeholder="한 줄"></div>
-          <div class="notice-box" style="font-size: 12px">순서는 표의 ▲▼로 바꾸는 게 편합니다. 숫자는 작을수록 위에 옵니다.</div>
+          <div class="notice-box" style="font-size: 12px">새 섹션은 맨 아래에 추가됩니다. 자리는 표의 ▲▼로 옮기세요.</div>
           <div style="display: flex; gap: 8px"><button type="submit" class="btn primary" style="flex-grow: 1">저장</button></div>
         </form>
       </div>`;
 
     const f = {
-      id: $('#sec-id'), name: $('#sec-name'), order: $('#sec-order'), parent: $('#sec-parent'), desc: $('#sec-desc'),
+      id: $('#sec-id'), name: $('#sec-name'), parent: $('#sec-parent'), desc: $('#sec-desc'),
     };
+    let editingOrder = null; // 편집 중인 섹션의 기존 순서 (상위가 바뀌면 새 묶음의 맨 아래로)
     const fillSec = (s) => {
-      f.id.value = s?.id || ''; f.name.value = s?.name || ''; f.order.value = s?.order ?? (top.length + 1) * 10;
+      f.id.value = s?.id || ''; f.name.value = s?.name || ''; editingOrder = s ? { order: s.order ?? 0, parentId: s.parentId || null } : null;
       f.parent.value = s?.parentId || ''; f.desc.value = s?.desc || '';
       $('#sec-form-title').textContent = s ? '섹션 편집' : '섹션 추가';
       $('#sec-reset').hidden = !s;
@@ -170,8 +168,11 @@
     $('#sec-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!f.name.value.trim()) return toast('섹션 이름을 입력해 주세요');
+      const parentId = f.parent.value || null;
+      const lastOf = (pid) => Math.max(0, ...sections.filter((x) => (x.parentId || null) === pid && x.id !== f.id.value).map((x) => x.order ?? 0)) + 10;
+      const order = editingOrder && editingOrder.parentId === parentId ? editingOrder.order : lastOf(parentId);
       await P.saveSection(f.id.value || null, {
-        name: f.name.value.trim(), order: Number(f.order.value) || 0, parentId: f.parent.value || null,
+        name: f.name.value.trim(), order, parentId,
         desc: f.desc.value.trim(),
       });
       toast('저장했습니다'); renderDocs();
@@ -402,36 +403,59 @@
     panel.innerHTML = head('접속 · 수정 이력') + '<div class="loading">불러오는 중</div>';
     let versionsHtml = '';
     if (slug) {
-      const versions = await P.listVersions(slug);
+      const versions = await P.listVersions(slug); // 최신순
       const page = await P.getPage(slug);
+      // 버전 번호: 가장 오래된 것이 #1, 현재 게시본이 가장 큰 번호. 되돌려도 번호는 바뀌지 않습니다.
+      const total = versions.length;
+      const numOf = (v) => total - versions.indexOf(v);
+      const curNum = total + 1;
+      const COLS = '64px 130px minmax(0,1fr) 100px 150px';
+      const summaryCell = (summary, restoredFrom) => {
+        const tag = restoredFrom ? `<span class="tag" style="margin-right:6px">#${restoredFrom.num} 되돌림</span>` : '';
+        return `<span title="${esc(summary || '')}">${tag}${esc(summary || (restoredFrom ? '' : '(요약 없음)'))}</span>`;
+      };
       versionsHtml = `
-        <div class="card plain table" style="--tmin: 620px">
-          <div class="thead" style="grid-template-columns: 130px minmax(0,1fr) 110px 150px"><span>저장 시각</span><span>변경 요약</span><span>작성자</span><span></span></div>
-          <div class="tr" style="grid-template-columns: 130px minmax(0,1fr) 110px 150px; background:#F8F1E3">
-            <span style="font-size:12px">${fmtDate(page?.publishedAt, true)}</span><span title="${esc(page?.lastSummary || '')}"><span class="tag green">현재 게시본</span> ${esc(page?.lastSummary || '')}</span><span style="font-size:13px">${esc(page?.updatedBy || '')}</span><span></span>
+        <div class="notice-box" style="font-size: 12px">번호는 저장된 순서(#1이 가장 오래된 것)입니다. 되돌리기는 그 버전 내용을 새 게시본(#${curNum + 1})으로 다시 게시하는 것이라, 이력은 지워지지 않고 쌓입니다.</div>
+        <div class="card plain table" style="--tmin: 680px">
+          <div class="thead" style="grid-template-columns: ${COLS}"><span>버전</span><span>저장 시각</span><span>변경 요약</span><span>작성자</span><span></span></div>
+          <div class="tr" style="grid-template-columns: ${COLS}; background:#F8F1E3">
+            <span style="font-family: var(--font-head); color: var(--wood)">#${curNum}</span>
+            <span style="font-size:12px">${fmtDate(page?.publishedAt, true)}</span>
+            <span title="${esc(page?.lastSummary || '')}"><span class="tag green" style="margin-right:6px">현재 게시본</span>${page?.restoredFrom ? `<span class="tag" style="margin-right:6px">#${page.restoredFrom.num} 되돌림</span>` : ''}${esc(page?.lastSummary || '')}</span>
+            <span style="font-size:13px">${esc(page?.updatedBy || '')}</span><span></span>
           </div>
           ${versions.map((v) => `
-            <div class="tr" style="grid-template-columns: 130px minmax(0,1fr) 110px 150px">
+            <div class="tr" style="grid-template-columns: ${COLS}">
+              <span style="font-family: var(--font-head); color: var(--muted)">#${numOf(v)}</span>
               <span style="font-size:12px">${fmtDate(v.savedAt, true)}</span>
-              <span title="${esc(v.summary || '')}">${esc(v.summary || '(요약 없음)')}</span>
+              ${summaryCell(v.summary, v.restoredFrom)}
               <span style="font-size:13px">${esc(v.savedBy || '')}</span>
               <div class="actions"><button type="button" class="btn xs ghost" data-preview="${v.id}">보기</button><button type="button" class="btn xs secondary" data-restore="${v.id}">되돌리기</button></div>
             </div>`).join('') || '<div class="empty">이전 버전이 없습니다.</div>'}
         </div>
-        <div class="card plain" id="version-preview" hidden><div class="prose" style="padding: 20px 24px"></div></div>`;
+        <div class="card plain" id="version-preview" hidden>
+          <div class="row-between" style="padding: 14px 24px 0"><span style="font-size: 12px; color: var(--label); letter-spacing: 1px" id="version-preview-title"></span><button type="button" class="btn xs ghost" id="version-preview-close">닫기</button></div>
+          <div class="prose" style="padding: 16px 24px 20px"></div>
+        </div>`;
       panel.innerHTML = head(`문서 이력 — ${esc(page?.title || slug)}`, `/${esc(slug)}`, `<a class="btn sm secondary" href="editor.html?p=${encodeURIComponent(slug)}">편집으로</a><a class="btn sm ghost" href="#history">전체 이력</a>`) + versionsHtml;
       panel.addEventListener('click', async (e) => {
+        if (e.target.closest('#version-preview-close')) { $('#version-preview').hidden = true; return; }
         const pv = e.target.closest('[data-preview]');
         if (pv) {
           const v = versions.find((x) => x.id === pv.dataset.preview);
-          const box = $('#version-preview'); box.hidden = false; const pr = box.querySelector('.prose'); pr.innerHTML = renderMarkdown(v.markdown); resolveImages(pr); box.scrollIntoView({ behavior: 'smooth' }); return;
+          const box = $('#version-preview'); box.hidden = false;
+          $('#version-preview-title').textContent = `#${numOf(v)} 미리보기 · ${fmtDate(v.savedAt, true)}${v.summary ? ` · ${v.summary}` : ''}`;
+          const pr = box.querySelector('.prose'); pr.innerHTML = renderMarkdown(v.markdown); resolveImages(pr); box.scrollIntoView({ behavior: 'smooth' }); return;
         }
         const rs = e.target.closest('[data-restore]');
         if (rs) {
           const v = versions.find((x) => x.id === rs.dataset.restore);
-          if (!confirm('이 버전을 현재 게시본으로 되돌릴까요? 지금 게시본은 이력에 보관됩니다.')) return;
-          await P.publish(slug, { title: page.title, sectionId: page.sectionId || null, order: page.order ?? 0, markdown: v.markdown, public: page.public !== false }, me.name, `${fmtDate(v.savedAt, true)} 버전으로 되돌림`);
-          toast('되돌렸습니다'); renderHistory(slug);
+          const n = numOf(v);
+          if ((v.markdown || '') === (page?.markdown || '')) return toast(`#${n}은 지금 게시본과 내용이 같습니다`);
+          if (!confirm(`#${n} (${fmtDate(v.savedAt, true)}) 내용을 새 게시본 #${curNum + 1}으로 되돌릴까요?\n지금 게시본(#${curNum})은 이력에 그대로 남습니다.`)) return;
+          await P.publish(slug, { title: page.title, sectionId: page.sectionId || null, order: page.order ?? 0, markdown: v.markdown, public: page.public !== false }, me.name,
+            v.summary ? `${v.summary}` : '', { restoredFrom: { id: v.id, num: n, summary: v.summary || '' } });
+          toast(`#${n} 내용으로 되돌렸습니다`); renderHistory(slug);
         }
       });
       return;
@@ -440,7 +464,7 @@
       getDocs(query(collection(db, 'editLogs'), orderBy('at', 'desc'), limit(50))),
       isAdmin ? getDocs(query(collection(db, 'loginLogs'), orderBy('at', 'desc'), limit(50))) : Promise.resolve({ docs: [] }),
     ]);
-    const ACTION = { publish: '게시', draft: '임시저장', create: '생성', delete: '삭제', show: '공개', hide: '비공개', import: '가져오기' };
+    const ACTION = { publish: '게시', draft: '임시저장', create: '생성', delete: '삭제', show: '공개', hide: '비공개', restore: '되돌림', import: '가져오기' };
     panel.innerHTML = head('접속 · 수정 이력', '최근 50건') + `
       <h2 style="font-size: 20px">수정 이력</h2>
       <div class="card plain table" style="--tmin: 560px">

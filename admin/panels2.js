@@ -280,14 +280,32 @@ export async function renderPopups(ctx) {
   panel.innerHTML = head('알림 설정') + '<div class="loading">불러오는 중</div>';
   const s = await C.getPopupSettings();
   panel = ctx.freshPanel();
+  const rowHtml = (w = { start: '', end: '', text: '' }) => `
+    <div class="ml-window" style="display: grid; grid-template-columns: 112px 16px 112px minmax(0,1fr) 30px; gap: 6px; align-items: center">
+      <input class="input" type="time" data-w="start" value="${esc(w.start || '')}" style="height: 36px; padding: 0 10px; font-size: 13px" aria-label="시작">
+      <span style="text-align: center; color: var(--muted)">~</span>
+      <input class="input" type="time" data-w="end" value="${esc(w.end || '')}" style="height: 36px; padding: 0 10px; font-size: 13px" aria-label="종료">
+      <input class="input" data-w="text" value="${esc(w.text || '')}" placeholder="이 시간대 문구 (비우면 기본 문구)" style="height: 36px; font-size: 13px">
+      <button type="button" class="icon-btn danger" data-del-window aria-label="시간대 삭제" style="width: 28px; height: 28px; font-size: 12px">×</button>
+    </div>`;
   panel.innerHTML = head('알림 설정', '하단 우측 팝업의 동작 규칙') + `
     <div class="admin-split even">
       <form class="card plain form-card" id="ml-form" style="border-color: var(--line)">
         <div class="row-between"><h2 style="font-size: 20px">마인리스트 추천 알림</h2>${toggle(!!s.enabled, 'id="ml-enabled"')}</div>
-        <div class="form-row">${F('ml-start', '매일 노출 시작', s.start || '23:30', { type: 'time' })}${F('ml-end', '노출 종료', s.end || '23:59', { type: 'time' })}</div>
+        <div class="field">
+          <span style="font-size: 13px; color: var(--label)">매일 노출 시간대 (한국 시간, 최대 4개)</span>
+          <div class="stack" id="ml-windows" style="gap: 8px">${C.popupWindows(s).map(rowHtml).join('')}</div>
+          <div class="filter-row" style="margin-top: 4px">
+            <button type="button" class="btn xs ghost" id="ml-add">+ 시간대 추가</button>
+            <button type="button" class="btn xs ghost" id="ml-preset" title="23:30~23:59 · 00:00~00:30 · 12:00~13:00 · 18:00~19:00">자정 전후 + 점심 + 저녁으로 채우기</button>
+          </div>
+        </div>
         ${F('ml-url', '마인리스트 추천 링크', s.url || '', { ph: 'https://minelist.kr/servers/…/votes/new' })}
-        ${F('ml-text', '팝업 문구', s.text || '', { ph: '예: 오늘의 마인리스트 추천을 부탁드려요' })}
-        <div class="notice-box" style="font-size: 12px">추천하기 또는 닫기를 누르면 그날은 다시 뜨지 않고, 다음 날 같은 시간대에 다시 뜹니다. 시각은 한국 시간 기준입니다.</div>
+        ${F('ml-text', '기본 팝업 문구', s.text || '', { ph: '예: 오늘의 마인리스트 추천을 부탁드려요' })}
+        <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">
+          <b>닫기</b>를 누르면 그 시간대만 오늘 다시 안 뜨고, <b>추천하기</b>를 누르면 오늘 남은 시간대에는 안 뜹니다. 자정이 지나면 새로운 날로 칩니다 (마인리스트 추천 초기화와 같음).<br>
+          페이지를 켜 둔 상태에서도 시간대에 들어서면 뜹니다.
+        </div>
         <button type="submit" class="btn primary">저장</button>
       </form>
       <div class="card plain pad stack" style="gap: 12px">
@@ -302,10 +320,18 @@ export async function renderPopups(ctx) {
       </div>
     </div>`;
   bindToggles(panel);
+  const wrap = $('#ml-windows', panel);
+  const rows = () => Array.from(wrap.querySelectorAll('.ml-window'));
+  const readWindows = () => rows().map((r) => ({ start: r.querySelector('[data-w="start"]').value, end: r.querySelector('[data-w="end"]').value, text: r.querySelector('[data-w="text"]').value.trim() }));
+  $('#ml-add', panel).addEventListener('click', () => { if (rows().length >= 4) return toast('시간대는 최대 4개까지입니다'); wrap.insertAdjacentHTML('beforeend', rowHtml()); });
+  $('#ml-preset', panel).addEventListener('click', () => { wrap.innerHTML = C.DEFAULT_ML_WINDOWS.map(rowHtml).join(''); });
+  wrap.addEventListener('click', (e) => { const b = e.target.closest('[data-del-window]'); if (b) b.closest('.ml-window').remove(); });
   $('#ml-form', panel).addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = (id) => $('#' + id, panel).value.trim();
-    await C.savePopupSettings({ enabled: isOn($('#ml-enabled', panel)), start: v('ml-start'), end: v('ml-end'), url: v('ml-url'), text: v('ml-text') }, me.name);
+    const windows = readWindows().filter((w) => w.start && w.end);
+    if (isOn($('#ml-enabled', panel)) && !windows.length) return toast('시간대를 하나 이상 넣어 주세요');
+    await C.savePopupSettings({ enabled: isOn($('#ml-enabled', panel)), windows, url: v('ml-url'), text: v('ml-text') }, me.name);
     toast('저장했습니다');
   });
 }

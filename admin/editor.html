@@ -35,7 +35,7 @@
 
     <div class="card plain editor-meta">
       <span style="display: inline-flex; align-items: center; gap: 8px">섹션 <select class="select" id="section" aria-label="섹션"><option value="">미배치</option></select></span>
-      <span style="display: inline-flex; align-items: center; gap: 8px">순서 <input class="input" id="order" type="number" aria-label="문서 순서" style="width: 80px; text-align: center" value="10"></span>
+      <span style="font-size: 12px; color: var(--muted)" id="order-hint" title="순서는 관리 → 문서 관리의 ▲▼로 바꿉니다">새 문서는 섹션 맨 아래에 놓입니다</span>
       <span style="display: inline-flex; align-items: center; gap: 8px">주소 /guide/ <input class="input" id="slug" aria-label="문서 슬러그" style="width: 220px; font-family: var(--font-mono)" placeholder="예: how-to-join"></span>
       <label style="display: inline-flex; align-items: center; gap: 8px; margin-left: auto; cursor: pointer">공개 <span class="toggle on" id="public" role="switch" aria-checked="true" tabindex="0"></span></label>
     </div>
@@ -104,15 +104,20 @@
   const { renderMarkdown, resolveImages } = await import('../assets/js/markdown.js');
 
   const el = {
-    title: $('#title'), md: $('#md'), preview: $('#preview'), section: $('#section'), order: $('#order'),
+    title: $('#title'), md: $('#md'), preview: $('#preview'), section: $('#section'),
     slug: $('#slug'), pub: $('#public'), summary: $('#summary'), status: $('#status'), crumb: $('#crumb'),
   };
   let slug = param('p');
   let existing = null;
   let dirty = false;
 
-  // 섹션 목록
-  const sections = await P.listSections();
+  // 섹션 목록 + 문서 목록(순서 계산용)
+  const [sections, allPages] = await Promise.all([P.listSections(), P.listPages({ editorView: true })]);
+  // 순서: 같은 섹션이면 기존 자리 유지, 섹션을 옮기거나 새 문서면 그 섹션 맨 아래
+  const orderFor = (sectionId) => {
+    if (existing && (existing.sectionId || null) === (sectionId || null)) return existing.order ?? 0;
+    return Math.max(0, ...allPages.filter((p) => (p.sectionId || null) === (sectionId || null) && p.id !== existing?.id).map((p) => p.order ?? 0)) + 10;
+  };
   const top = sections.filter((s) => !s.parentId);
   el.section.innerHTML = '<option value="">미배치</option>' + top.map((t) =>
     `<option value="${t.id}">${esc(t.name)}</option>` +
@@ -127,7 +132,7 @@
     el.title.value = existing.title || '';
     el.md.value = existing.draft || existing.markdown || '';
     el.section.value = existing.sectionId || '';
-    el.order.value = existing.order ?? 10;
+    $('#order-hint').textContent = '순서는 관리 → 문서 관리에서 ▲▼로 바꿉니다';
     el.slug.value = existing.id; el.slug.disabled = true;
     setPublic(existing.public !== false);
     el.crumb.textContent = existing.title;
@@ -242,7 +247,8 @@
     if (uploading) { toast('이미지를 아직 올리는 중입니다. 잠시 후 저장해 주세요'); return null; }
     if (!title) { toast('제목을 입력해 주세요'); return null; }
     if (!/^[\p{L}\p{N}-]+$/u.test(id)) { toast('주소(슬러그)는 글자, 숫자, 하이픈만 쓸 수 있습니다'); return null; }
-    return { id, title, sectionId: el.section.value || null, order: Number(el.order.value) || 0, markdown: el.md.value, public: el.pub.classList.contains('on') };
+    const sectionId = el.section.value || null;
+    return { id, title, sectionId, order: orderFor(sectionId), markdown: el.md.value, public: el.pub.classList.contains('on') };
   }
   async function afterSave(id) {
     dirty = false;

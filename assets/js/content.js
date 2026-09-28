@@ -116,9 +116,21 @@ export async function deleteCommand(id) { await deleteDoc(doc(db, 'commands', id
 
 // ---------- 팝업 설정 ----------
 // popups/minelist: { enabled, start 'HH:MM', end 'HH:MM', text, url }
+// popups/minelist: { enabled, url, text, windows: [{ start, end, text }] }  — 하루 여러 시간대 (최대 4)
+export const DEFAULT_ML_WINDOWS = [
+  { start: '23:30', end: '23:59', text: '오늘 추천, 아직 안 하셨다면 자정 전에 부탁드려요' },
+  { start: '00:00', end: '00:30', text: '날짜가 바뀌어 추천이 다시 가능해요' },
+  { start: '12:00', end: '13:00', text: '' },
+  { start: '18:00', end: '19:00', text: '' },
+];
+export function popupWindows(s) {
+  if (Array.isArray(s?.windows) && s.windows.length) return s.windows.filter((w) => w && w.start && w.end).slice(0, 4);
+  if (s?.start && s?.end) return [{ start: s.start, end: s.end, text: '' }]; // 예전 저장 형식
+  return [];
+}
 export async function getPopupSettings() {
   const snap = await getDoc(doc(db, 'popups', 'minelist'));
-  return snap.exists() ? snap.data() : { enabled: false, start: '23:30', end: '23:59', text: '', url: '' };
+  return snap.exists() ? snap.data() : { enabled: false, windows: [DEFAULT_ML_WINDOWS[0]], text: '', url: '' };
 }
 export async function savePopupSettings(data, by) {
   await setDoc(doc(db, 'popups', 'minelist'), { ...data, ...stamp(by) }, { merge: true });

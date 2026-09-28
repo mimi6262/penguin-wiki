@@ -49,7 +49,8 @@ export async function saveDraft(slug, data, by) {
 }
 
 // 게시: 게시본 교체 + 이전 게시본을 이력에 보관
-export async function publish(slug, data, by, summary) {
+// extra.restoredFrom: { id, num, summary } — 이력에서 되돌린 경우 어느 버전에서 왔는지 (이력 화면 표시용)
+export async function publish(slug, data, by, summary, extra = {}) {
   const ref = doc(db, 'pages', slug);
   const prev = await getDoc(ref);
   const batch = writeBatch(db);
@@ -58,16 +59,19 @@ export async function publish(slug, data, by, summary) {
     batch.set(doc(collection(db, 'pageVersions')), {
       pageId: slug, title: p.title, markdown: p.markdown,
       summary: p.lastSummary || '', savedAt: p.publishedAt || p.updatedAt || serverTimestamp(), savedBy: p.updatedBy || '',
+      restoredFrom: p.restoredFrom || null,
     });
   }
   const payload = {
     ...data, slug, markdown: data.markdown, draft: '', public: data.public !== false,
-    lastSummary: summary || '', publishedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: by,
+    lastSummary: summary || '', restoredFrom: extra.restoredFrom || null,
+    publishedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: by,
   };
   if (prev.exists()) batch.update(ref, payload);
   else batch.set(ref, { ...payload, createdAt: serverTimestamp() });
   await batch.commit();
-  await log({ pageId: slug, title: data.title, action: 'publish', summary: summary || '', by });
+  const rf = extra.restoredFrom;
+  await log({ pageId: slug, title: data.title, action: rf ? 'restore' : 'publish', summary: rf ? `#${rf.num} 내용으로 되돌림${summary ? ` (${summary})` : ''}` : (summary || ''), by });
 }
 
 export async function setPagePublic(slug, isPublic, by) {

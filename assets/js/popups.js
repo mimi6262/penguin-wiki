@@ -3,7 +3,7 @@
 //  - 하트를 하나도 안 눌렀으면 진행 중(팝업 켜진) 이벤트 전부, 하트가 있으면 누른 것만
 //  - 닫으면 그날은 다시 안 뜸 (브라우저 저장)
 //  - 마인리스트: 설정한 시간대에만, 추천하기/닫기 후 다음 날 다시
-import { listEvents, getPopupSettings, getHearts } from './content.js';
+import { listEvents, getPopupSettings, getHearts, popupWindows } from './content.js';
 import { popupActive, popupEndsAt, inDailyWindow, fmtRemaining, todayKST, fmtKST } from './time.js';
 import { esc, ROOT } from './ui.js';
 
@@ -64,22 +64,34 @@ export async function initPopups() {
     timers.push(setInterval(tick, 1000));
   });
 
-  // 마인리스트 추천
-  if (settings?.enabled && settings.url && inDailyWindow(settings.start, settings.end) && !dismissed('minelist')) {
+  // 마인리스트 추천: 시간대 여러 개. 닫기 → 그 시간대만 오늘 숨김, 추천하기 → 오늘 전부 숨김 (자정 지나면 새 날)
+  // 페이지를 켜 둔 채 시간대에 들어서도 뜨도록 1분마다 다시 확인합니다.
+  const windows = popupWindows(settings);
+  let mlEl = null;
+  const showMinelist = () => {
+    if (mlEl || !settings?.enabled || !settings.url || dismissed('ml_voted')) return;
+    const idx = windows.findIndex((w, i) => inDailyWindow(w.start, w.end) && !dismissed(`ml_${i}`));
+    if (idx < 0) return;
+    const w = windows[idx];
     const el = document.createElement('div');
     el.className = 'toast';
     el.setAttribute('role', 'status');
     el.innerHTML = `${STAR}
       <div class="grow">
-        <div style="font-size:14px">${esc(settings.text || '마인리스트 추천으로 서버를 응원해 주세요')}</div>
-        <div class="sub">${esc(settings.start)} ~ ${esc(settings.end)} · 하루 한 번</div>
+        <div style="font-size:14px">${esc(w.text || settings.text || '마인리스트 추천으로 서버를 응원해 주세요')}</div>
+        <div class="sub">${esc(w.start)} ~ ${esc(w.end)} · 추천은 하루 한 번</div>
       </div>
       <a class="btn sm primary" href="${esc(settings.url)}" target="_blank" rel="noopener">추천하기</a>
       <button type="button" class="close" aria-label="알림 닫기">${CLOSE}</button>`;
-    el.querySelector('.close').addEventListener('click', () => { dismiss('minelist'); el.remove(); });
-    el.querySelector('a.btn').addEventListener('click', () => { dismiss('minelist'); setTimeout(() => el.remove(), 300); });
+    el.querySelector('.close').addEventListener('click', () => { dismiss(`ml_${idx}`); el.remove(); mlEl = null; });
+    el.querySelector('a.btn').addEventListener('click', () => { dismiss('ml_voted'); setTimeout(() => { el.remove(); mlEl = null; }, 300); });
     stack().appendChild(el);
-  }
+    mlEl = el;
+    // 시간대가 끝나면 스스로 사라짐
+    const check = setInterval(() => { if (!inDailyWindow(w.start, w.end)) { el.remove(); mlEl = null; clearInterval(check); } }, 30000);
+  };
+  showMinelist();
+  setInterval(showMinelist, 60000);
 }
 
 initPopups();

@@ -43,7 +43,7 @@ const toMin = (t) => { const [h, m] = (t || '00:00').split(':').map(Number); ret
 export function inDailyWindow(start, end, now = new Date()) {
   if (!start || !end) return true;
   const n = kstParts(now).minutes, s = toMin(start), e = toMin(end);
-  return s <= e ? (n >= s && n < e) : (n >= s || n < e);
+  return s <= e ? (n >= s && n <= e) : (n >= s || n <= e); // 종료 분까지 포함 (23:59면 자정 직전까지)
 }
 
 // 오늘 창의 종료 시각(Date). 자정을 넘는 창이면 내일로
