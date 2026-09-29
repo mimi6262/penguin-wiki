@@ -24,8 +24,11 @@ service cloud.firestore {
 
     // 사이트 설정(홈 화면 값, 푸터)
     match /settings/{id} {
-      allow read: if true;
+      allow read: if id != 'private';   // settings/private(디스코드 웹훅 등 비밀값)은 아래에서 편집자만
       allow write: if isEditor();
+    }
+    match /settings/private {
+      allow read, write: if isEditor();
     }
 
     // 2차: 이벤트 · 패치노트 · 카테고리 · 명령어 · 팝업 설정 (공개 읽기, 편집자 쓰기)

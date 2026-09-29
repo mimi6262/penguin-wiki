@@ -2,9 +2,11 @@
 import { $, $$, esc, toast, fmtDate } from '../assets/js/ui.js';
 import * as C from '../assets/js/content.js';
 import * as T from '../assets/js/time.js';
+import * as D from '../assets/js/discord.js';
 
 const EDIT = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const TRASH = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>';
+const BELL = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>';
 const toggle = (on, attrs = '') => `<span class="toggle${on ? ' on' : ''}" role="switch" aria-checked="${on}" tabindex="0" ${attrs}></span>`;
 const isOn = (el) => el.classList.contains('on');
 const bindToggles = (root) => root.querySelectorAll('.toggle').forEach((t) => {
@@ -36,15 +38,16 @@ export async function renderEvents(ctx) {
   panel = ctx.freshPanel();
   panel.innerHTML = head('이벤트 관리', `진행 중 ${count('active')} · 상시 ${count('always')} · 예정 ${count('upcoming')} · 종료 ${count('ended')}`, '<button type="button" class="btn primary" id="ev-new">새 이벤트</button>') + `
     <div class="admin-split">
-      <div class="card plain table" style="--tmin: 560px">
-        <div class="thead" style="grid-template-columns: minmax(0,1fr) 136px 76px 60px 72px"><span>이벤트</span><span>기간</span><span>상태</span><span>팝업</span><span></span></div>
+      <div class="card plain table" style="--tmin: 590px">
+        <div class="thead" style="grid-template-columns: minmax(0,1fr) 136px 76px 60px 104px"><span>이벤트</span><span>기간</span><span>상태</span><span>팝업</span><span></span></div>
         ${withStatus.map((ev) => `
-          <div class="tr" style="grid-template-columns: minmax(0,1fr) 136px 76px 60px 72px">
+          <div class="tr" style="grid-template-columns: minmax(0,1fr) 136px 76px 60px 104px">
             <span title="${esc(ev.note || '')}">${esc(ev.name)}</span>
             <span style="font-size: 12px; color: var(--muted); line-height: 1.4">${periodCell(ev)}</span>
             <span><span class="tag ${BADGE[ev.st]}">${T.STATUS_LABEL[ev.st]}</span></span>
             <span>${ev.popup ? '<span class="tag green">켜짐</span>' : '<span class="tag gray">꺼짐</span>'}</span>
             <div class="actions">
+              <button type="button" class="icon-btn" data-notify="${ev.id}" aria-label="디스코드에 알리기" title="디스코드에 알리기">${BELL}</button>
               <button type="button" class="icon-btn" data-edit="${ev.id}" aria-label="편집">${EDIT}</button>
               <button type="button" class="icon-btn danger" data-del="${ev.id}" aria-label="삭제">${TRASH}</button>
             </div>
@@ -127,9 +130,22 @@ export async function renderEvents(ctx) {
     if (kind === 'period' && data.startAt && data.endAt && data.endAt < data.startAt) return toast('종료가 시작보다 빠릅니다');
     if (kind === 'always' && (!data.dailyStart || !data.dailyEnd)) return toast('상시 이벤트는 매일 시작·종료 시각이 필요합니다');
     await C.saveEvent(f('ev-id').value || null, data, me.name);
-    toast('저장했습니다'); renderEvents(ctx);
+    toast('저장했습니다');
+    const st = T.eventStatus(data, new Date());
+    if (st !== 'ended') {
+      try { const dc = await D.getDiscordSettings(); if (dc.webhook && dc.notifyEvent !== false && await D.notifyEvent(data, T.eventPeriodText(data), T.STATUS_LABEL[st])) toast('디스코드에도 알렸습니다'); }
+      catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
+    }
+    renderEvents(ctx);
   });
   panel.addEventListener('click', async (e) => {
+    const nt = e.target.closest('[data-notify]');
+    if (nt) {
+      const ev = withStatus.find((x) => x.id === nt.dataset.notify);
+      if (!confirm(`"${ev.name}" 이벤트를 디스코드에 알릴까요?`)) return;
+      try { (await D.notifyEvent(ev, T.eventPeriodText(ev), T.STATUS_LABEL[ev.st])) ? toast('디스코드에 알렸습니다') : toast('알림 설정에서 웹훅 주소를 먼저 넣어 주세요'); } catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
+      return;
+    }
     const ed = e.target.closest('[data-edit]'); if (ed) { fill(events.find((x) => x.id === ed.dataset.edit)); f('ev-name').focus(); return; }
     const dl = e.target.closest('[data-del]');
     if (dl) {
@@ -176,15 +192,16 @@ export async function renderPatch(ctx) {
             <button type="submit" class="btn sm dark" style="align-self: flex-start">카테고리 저장</button>
           </form>
         </div>
-        <div class="card plain table" style="--tmin: 620px">
-          <div class="thead" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 72px"><span>날짜</span><span>제목</span><span>카테고리</span><span>상태</span><span></span></div>
+        <div class="card plain table" style="--tmin: 650px">
+          <div class="thead" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 104px"><span>날짜</span><span>제목</span><span>카테고리</span><span>상태</span><span></span></div>
           ${notes.map((n) => `
-            <div class="tr" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 72px">
+            <div class="tr" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 104px">
               <span style="font-size: 13px; color: var(--muted)">${esc(n.date)}</span>
               <span title="${esc(n.title || '')}">${esc(n.title || (n.categories || []).join(', '))}</span>
               <div style="display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}</div>
               <span>${n.status !== 'published' ? '<span class="tag gray">임시</span>' : n.scheduled ? '<span class="tag blue" title="날짜가 되면 유저에게 보입니다">예약</span>' : '<span class="tag green">게시</span>'}</span>
               <div class="actions">
+                <button type="button" class="icon-btn" data-notify="${n.id}" aria-label="디스코드에 알리기" title="디스코드에 알리기" ${n.status !== 'published' ? 'disabled' : ''}>${BELL}</button>
                 <button type="button" class="icon-btn" data-edit="${n.id}" aria-label="편집">${EDIT}</button>
                 <button type="button" class="icon-btn danger" data-del="${n.id}" aria-label="삭제">${TRASH}</button>
               </div>
@@ -276,13 +293,25 @@ export async function renderPatch(ctx) {
     const d = collect(status); if (!d) return;
     await C.savePatchNote(f('pn-id').value || null, d, me.name);
     const scheduled = status === 'published' && d.date > T.todayKST();
-    toast(status !== 'published' ? '임시저장했습니다' : scheduled ? `${d.date}부터 보이도록 예약했습니다` : '게시했습니다'); renderPatch(ctx);
+    toast(status !== 'published' ? '임시저장했습니다' : scheduled ? `${d.date}부터 보이도록 예약했습니다 (디스코드 알림은 날짜에 종 버튼으로)` : '게시했습니다');
+    if (status === 'published' && !scheduled) {
+      try { const dc = await D.getDiscordSettings(); if (dc.webhook && dc.notifyPatch !== false && await D.notifyPatch(d)) toast('디스코드에도 알렸습니다'); }
+      catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
+    }
+    renderPatch(ctx);
   };
   f('pn-draft').addEventListener('click', () => save('draft'));
   f('pn-publish').addEventListener('click', () => save('published'));
   f('pn-new').addEventListener('click', () => { fillNote(null); f('pn-body').focus(); });
   f('pn-reset').addEventListener('click', () => fillNote(null));
   panel.addEventListener('click', async (e) => {
+    const nt = e.target.closest('[data-notify]');
+    if (nt && !nt.disabled) {
+      const n = notes.find((x) => x.id === nt.dataset.notify);
+      if (!confirm(`"${n.title}" 패치노트를 디스코드에 알릴까요?`)) return;
+      try { (await D.notifyPatch(n)) ? toast('디스코드에 알렸습니다') : toast('알림 설정에서 웹훅 주소를 먼저 넣어 주세요'); } catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
+      return;
+    }
     const ed = e.target.closest('[data-edit]'); if (ed) { fillNote(notes.find((x) => x.id === ed.dataset.edit)); f('pn-body').focus(); return; }
     const dl = e.target.closest('[data-del]');
     if (dl) {
@@ -299,7 +328,7 @@ export async function renderPopups(ctx) {
   const { head, me } = ctx;
   let panel = ctx.freshPanel();
   panel.innerHTML = head('알림 설정') + '<div class="loading">불러오는 중</div>';
-  const s = await C.getPopupSettings();
+  const [s, dc] = await Promise.all([C.getPopupSettings(), D.getDiscordSettings()]);
   panel = ctx.freshPanel();
   const rowHtml = (w = { start: '', end: '', text: '' }) => `
     <div class="ml-window" style="display: grid; grid-template-columns: 112px 16px 112px minmax(0,1fr) 30px; gap: 6px; align-items: center">
@@ -329,6 +358,20 @@ export async function renderPopups(ctx) {
         </div>
         <button type="submit" class="btn primary">저장</button>
       </form>
+      <form class="card plain form-card" id="dc-form" style="border-color: var(--line)">
+        <div class="row-between"><h2 style="font-size: 20px">디스코드 알림 (웹훅)</h2><button type="button" class="btn xs secondary" id="dc-test">테스트 메시지</button></div>
+        <div class="field"><label for="dc-webhook">웹훅 주소</label>
+          <div style="display: flex; gap: 6px"><input class="input" id="dc-webhook" type="password" value="${esc(dc.webhook || '')}" placeholder="https://discord.com/api/webhooks/…" autocomplete="off" style="font-family: var(--font-mono); font-size: 12px"><button type="button" class="btn sm ghost" id="dc-show">보기</button></div>
+        </div>
+        ${F('dc-name', '보내는 이름 (비우면 "펭귄서버 위키")', dc.botName || '', { ph: '펭귄서버 위키' })}
+        <div class="stack" style="gap: 8px; padding: 12px 16px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 12px; font-size: 13px">
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer">패치노트를 게시하면 알림 ${toggle(dc.notifyPatch !== false, 'id="dc-patch"')}</label>
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer">이벤트를 저장하면 알림 (예정·진행 중·상시) ${toggle(dc.notifyEvent !== false, 'id="dc-event"')}</label>
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer">가이드 문서를 게시하면 알림 (편집기에서 매번 선택 가능) ${toggle(!!dc.notifyGuide, 'id="dc-guide"')}</label>
+        </div>
+        <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">웹훅 주소는 편집자만 읽을 수 있는 곳에 저장됩니다. 알림은 편집자가 저장·게시하는 순간 그 브라우저에서 보내므로, 예약 게시 패치노트는 날짜가 되어도 자동으로 나가지 않고 패치노트 관리의 종 버튼으로 직접 보냅니다.</div>
+        <button type="submit" class="btn primary">저장</button>
+      </form>
       <div class="card plain pad stack" style="gap: 12px">
         <h2 style="font-size: 20px">이벤트 알림 규칙</h2>
         <ul style="margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.8; color: var(--wood-dark)">
@@ -354,6 +397,19 @@ export async function renderPopups(ctx) {
     if (isOn($('#ml-enabled', panel)) && !windows.length) return toast('시간대를 하나 이상 넣어 주세요');
     await C.savePopupSettings({ enabled: isOn($('#ml-enabled', panel)), windows, url: v('ml-url'), text: v('ml-text') }, me.name);
     toast('저장했습니다');
+  });
+  // 디스코드
+  $('#dc-show', panel).addEventListener('click', () => { const i = $('#dc-webhook', panel); i.type = i.type === 'password' ? 'text' : 'password'; });
+  const readDc = () => ({ webhook: $('#dc-webhook', panel).value.trim(), botName: $('#dc-name', panel).value.trim(), notifyPatch: isOn($('#dc-patch', panel)), notifyEvent: isOn($('#dc-event', panel)), notifyGuide: isOn($('#dc-guide', panel)) });
+  $('#dc-form', panel).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const d = readDc();
+    if (d.webhook && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(d.webhook)) return toast('디스코드 웹훅 주소 형식이 아닙니다');
+    await D.saveDiscordSettings(d, me.name); toast('저장했습니다');
+  });
+  $('#dc-test', panel).addEventListener('click', async () => {
+    const d = readDc(); if (!d.webhook) return toast('웹훅 주소를 먼저 넣어 주세요');
+    try { await D.notifyTest(me.name, d); toast('디스코드로 테스트 메시지를 보냈습니다'); } catch (err) { toast('보내지 못했습니다: ' + (err.message || err)); }
   });
 }
 

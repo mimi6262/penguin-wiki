@@ -83,6 +83,7 @@
     <div class="card plain editor-bottom">
       <span style="flex-shrink: 0">변경 요약</span>
       <input class="input" id="summary" type="text" aria-label="변경 요약" placeholder="이력에 남길 한 줄, 예: 오타 수정">
+      <label style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; color: var(--wood); cursor: pointer" title="관리 → 알림 설정의 웹훅으로 보냅니다"><input type="checkbox" id="notify-discord" style="accent-color: #A63A2B"> 게시하면 디스코드에 알리기</label>
       <span style="flex-shrink: 0; font-size: 12px; color: #8A7D66">게시하면 이전 게시본이 이력에 보관됩니다</span>
     </div>
 
@@ -144,6 +145,9 @@
   }
   $('#gate').hidden = true; $('#editor').hidden = false;
   render();
+  // 디스코드 알림 기본값 (알림 설정의 "가이드 문서를 게시하면 알림")
+  let D = null;
+  try { D = await import('../assets/js/discord.js'); const dc = await D.getDiscordSettings(); $('#notify-discord').checked = !!(dc.webhook && dc.notifyGuide); $('#notify-discord').disabled = !dc.webhook; if (!dc.webhook) $('#notify-discord').parentElement.title = '관리 → 알림 설정에서 웹훅 주소를 넣으면 쓸 수 있어요'; } catch (e) { console.warn('discord settings', e); }
 
   function setPublic(on) { el.pub.classList.toggle('on', on); el.pub.setAttribute('aria-checked', String(on)); }
   el.pub.addEventListener('click', () => setPublic(!el.pub.classList.contains('on')));
@@ -275,6 +279,9 @@
     el.summary.value = '';
     el.status.textContent = `게시 ${fmtDate(new Date(), true)}`;
     toast(d.public ? '게시했습니다' : '비공개 상태로 저장했습니다');
+    if (d.public && D && $('#notify-discord').checked) {
+      try { if (await D.notifyGuide({ id: d.id, title: d.title }, summary)) toast('디스코드에도 알렸습니다'); } catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
+    }
   });
 </script>
 </body>
