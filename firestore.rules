@@ -51,6 +51,11 @@ service cloud.firestore {
       allow read: if isEditor();
       allow write: if isAdmin();
     }
+    // 명단 등록 요청: 로그인은 되지만 명단에 없는 계정이 본인 UID 로 남김. 운영자가 보고 승인/삭제
+    match /editorRequests/{uid} {
+      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow read, delete: if isAdmin();
+    }
 
     // 접속 이력: 본인 기록만 생성, 운영자만 조회
     match /loginLogs/{id} {

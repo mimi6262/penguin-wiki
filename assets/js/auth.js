@@ -1,6 +1,6 @@
 // 로그인 상태, 역할(guide/admin), 접속 이력
 import {
-  auth, db, doc, getDoc, addDoc, collection, serverTimestamp,
+  auth, db, doc, getDoc, setDoc, addDoc, collection, serverTimestamp,
   onAuthStateChanged, signInWithEmailAndPassword, signOut,
   setPersistence, browserLocalPersistence, browserSessionPersistence,
   sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
@@ -71,8 +71,13 @@ export async function login(email, password, { remember = true } = {}) {
   const cred = await signInWithEmailAndPassword(auth, email, password);
   const e = await resolveEditor(cred.user);
   if (!e) {
+    // 계정은 맞지만 명단에 없음: 운영자가 승인할 수 있도록 등록 요청을 남기고 로그아웃
+    const uid = cred.user.uid;
+    try { await setDoc(doc(db, 'editorRequests', uid), { email: cred.user.email || email, at: serverTimestamp() }); } catch (err) { console.warn('request failed', err); }
     await signOut(auth);
-    throw new Error('편집자 명단에 없는 계정입니다. 운영자에게 등록을 요청해 주세요.');
+    const err = new Error(`편집자 명단에 없는 계정입니다. 운영자에게 등록 요청을 보냈으니 승인되면 다시 로그인해 주세요. (UID ${uid})`);
+    err.code = 'pw/not-in-list'; err.uid = uid;
+    throw err;
   }
   // 접속 이력
   try {

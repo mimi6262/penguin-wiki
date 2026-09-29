@@ -390,10 +390,25 @@
     panel.innerHTML = head('편집자 관리', '가이드 · 운영자 계정') + '<div class="loading">불러오는 중</div>';
     const snap = await getDocs(collection(db, 'editors'));
     const list = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    // 명단 등록 요청: 로그인은 되는데 명단에 없어서 튕긴 계정들 (본인이 로그인 시도하면 자동으로 남음)
+    let requests = [];
+    try { requests = (await getDocs(collection(db, 'editorRequests'))).docs.map((d) => ({ uid: d.id, ...d.data() })).filter((r) => !list.some((u) => u.uid === r.uid)); } catch (err) { console.warn('requests', err); }
     const KEY = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M15 8l2 2M18 5l2 2"/></svg>';
     // Firebase 로그인 UID 는 28자. 그보다 짧으면 콘솔에서 자동 ID 로 잘못 만든 문서 → 그 사람은 로그인해도 편집자로 인식되지 않음
     const badUid = (u) => !/^[A-Za-z0-9]{28}$/.test(u.uid);
     panel.innerHTML = head('편집자 관리', `편집자 ${list.length}명`) + `
+      ${requests.length ? `
+      <div class="card plain form-card" style="border-color: var(--gold); gap: 10px">
+        <div class="row-between"><h2 style="font-size: 18px">명단 등록 요청 ${requests.length}건</h2><span class="subtitle" style="font-size: 12px">로그인 계정은 있는데 명단에 없어 튕긴 사람들. 승인하면 바로 편집자가 됩니다.</span></div>
+        ${requests.map((r) => `
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line-faint)">
+            <span style="font-size: 14px">${esc(r.email || '')}</span><span style="font-size: 11px; color: var(--muted)">${esc(r.uid)} · ${fmtDate(r.at, true)}</span>
+            <input class="input" data-req-name="${esc(r.uid)}" placeholder="표시 이름" value="${esc((r.email || '').split('@')[0])}" style="width: 140px; height: 34px; font-size: 13px; margin-left: auto">
+            <button type="button" class="btn xs secondary" data-approve="${esc(r.uid)}" data-role-approve="guide">가이드로 승인</button>
+            <button type="button" class="btn xs primary" data-approve="${esc(r.uid)}" data-role-approve="admin">운영자로 승인</button>
+            <button type="button" class="btn xs ghost" data-reject="${esc(r.uid)}">거절</button>
+          </div>`).join('')}
+      </div>` : ''}
       <div class="admin-split">
         <div class="card plain table" style="--tmin: 620px">
           <div class="thead" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 104px"><span>이름</span><span>이메일</span><span>역할</span><span></span></div>
@@ -470,6 +485,16 @@
       }
     });
     panel.addEventListener('click', async (e) => {
+      const ap = e.target.closest('[data-approve]');
+      if (ap) {
+        const uid = ap.dataset.approve, role = ap.dataset.roleApprove, req = requests.find((x) => x.uid === uid);
+        const name = (panel.querySelector(`[data-req-name="${uid}"]`)?.value || '').trim() || (req?.email || '').split('@')[0];
+        await setDoc(doc(db, 'editors', uid), { name, email: req?.email || '', role, createdAt: serverTimestamp(), createdBy: me.name });
+        try { await deleteDoc(doc(db, 'editorRequests', uid)); } catch {}
+        toast(`${name} 님을 ${role === 'admin' ? '운영자' : '가이드'}로 등록했습니다`); renderEditors(); return;
+      }
+      const rj = e.target.closest('[data-reject]');
+      if (rj) { if (!confirm('이 요청을 지울까요? (계정은 그대로, 다시 로그인하면 또 요청됩니다)')) return; await deleteDoc(doc(db, 'editorRequests', rj.dataset.reject)); renderEditors(); return; }
       const rs = e.target.closest('[data-reset]');
       if (rs && !rs.disabled) {
         const email = rs.dataset.reset;
