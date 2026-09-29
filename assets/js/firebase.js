@@ -14,6 +14,7 @@ export const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+auth.languageCode = 'ko'; // 비밀번호 재설정 메일 등을 한국어로
 export const db = getFirestore(app);
 
 // Firestore SDK 재export — 각 화면에서 이 파일 하나만 import하면 됩니다.
@@ -25,4 +26,5 @@ export {
 export {
   onAuthStateChanged, signInWithEmailAndPassword, signOut,
   setPersistence, browserLocalPersistence, browserSessionPersistence,
+  sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';

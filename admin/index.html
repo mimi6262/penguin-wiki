@@ -29,6 +29,7 @@
       <hr>
       <a href="#editors" data-tab="editors" data-auth="admin" hidden>편집자 관리</a>
       <a href="#history" data-tab="history">접속 · 수정 이력</a>
+      <a href="#account" data-tab="account">내 계정</a>
     </aside>
 
     <section id="panel" class="stack admin-main" style="gap: 20px"></section>
@@ -389,34 +390,68 @@
     panel.innerHTML = head('편집자 관리', '가이드 · 운영자 계정') + '<div class="loading">불러오는 중</div>';
     const snap = await getDocs(collection(db, 'editors'));
     const list = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    const KEY = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M15 8l2 2M18 5l2 2"/></svg>';
+    // Firebase 로그인 UID 는 28자. 그보다 짧으면 콘솔에서 자동 ID 로 잘못 만든 문서 → 그 사람은 로그인해도 편집자로 인식되지 않음
+    const badUid = (u) => !/^[A-Za-z0-9]{28}$/.test(u.uid);
     panel.innerHTML = head('편집자 관리', `편집자 ${list.length}명`) + `
       <div class="admin-split">
-        <div class="card plain table" style="--tmin: 600px">
-          <div class="thead" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 72px"><span>이름</span><span>이메일</span><span>역할</span><span></span></div>
+        <div class="card plain table" style="--tmin: 620px">
+          <div class="thead" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 104px"><span>이름</span><span>이메일</span><span>역할</span><span></span></div>
           ${list.map((u) => `
-            <div class="tr" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 72px">
-              <span title="${esc(u.uid)}">${esc(u.name || '')}<span style="color:#8A7D66; font-size:11px; display:block; overflow:hidden; text-overflow:ellipsis">${esc(u.uid)}</span></span>
+            <div class="tr" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr) 80px 104px">
+              <span title="${esc(u.uid)}">${esc(u.name || '')}${badUid(u) ? ' <span class="tag accent" title="문서 ID가 로그인 UID(28자)가 아닙니다. 이 사람은 로그인해도 편집자로 인식되지 않으니, 지우고 \'기존 계정 연결\'로 UID를 넣어 다시 추가해 주세요">UID 확인</span>' : ''}<span style="color:#8A7D66; font-size:11px; display:block; overflow:hidden; text-overflow:ellipsis">${esc(u.uid)}</span></span>
               <span style="font-size:13px" title="${esc(u.email || '')}">${esc(u.email || '')}</span>
               <span>${u.role === 'admin' ? '<span class="tag fill">운영자</span>' : '<span class="tag">가이드</span>'}</span>
               <div class="actions">
+                <button type="button" class="icon-btn" data-reset="${esc(u.email || '')}" aria-label="비밀번호 재설정 메일" title="비밀번호 재설정 메일 보내기" ${u.email ? '' : 'disabled'}>${KEY}</button>
                 <button type="button" class="icon-btn" data-role="${u.uid}" data-cur="${u.role}" aria-label="역할 전환" title="역할 전환">${EDIT}</button>
                 <button type="button" class="icon-btn danger" data-del-editor="${u.uid}" aria-label="편집자 제거" ${u.uid === me.uid ? 'disabled' : ''}>${TRASH}</button>
               </div>
             </div>`).join('') || '<div class="empty">편집자가 없습니다.</div>'}
         </div>
-        <form class="card plain form-card" id="editor-form">
-          <h2 style="font-size: 20px">편집자 추가</h2>
-          <div class="field"><label for="ed-name">이름 (표시용)</label><input class="input" id="ed-name" required></div>
-          <div class="field"><label for="ed-email">이메일 (아이디)</label><input class="input" id="ed-email" type="email" required></div>
-          <div class="field"><label for="ed-pw">임시 비밀번호 (6자 이상)</label><input class="input" id="ed-pw" type="text" minlength="6" required></div>
-          <div class="field"><label for="ed-role">역할</label><select class="select" id="ed-role"><option value="guide">가이드</option><option value="admin">운영자</option></select></div>
-          <div class="notice-box" style="font-size: 12px">계정이 만들어지고 편집자 명단에 등록됩니다. 임시 비밀번호는 본인에게 직접 전달해 주세요.</div>
-          <button type="submit" class="btn primary">계정 만들기</button>
-        </form>
+        <div class="stack" style="gap: 16px">
+          <form class="card plain form-card" id="editor-form">
+            <h2 style="font-size: 20px">편집자 추가</h2>
+            <div class="filter-row">
+              <button type="button" class="btn sm dark" data-mode="create">새 계정 만들기</button>
+              <button type="button" class="btn sm ghost" data-mode="link">기존 계정 연결 (UID)</button>
+            </div>
+            <div class="field"><label for="ed-name">이름 (표시용)</label><input class="input" id="ed-name" required></div>
+            <div class="field"><label for="ed-email">이메일 (아이디)</label><input class="input" id="ed-email" type="email" required></div>
+            <div class="field" id="ed-pw-field"><label for="ed-pw">임시 비밀번호 (6자 이상)</label><input class="input" id="ed-pw" type="text" minlength="6"></div>
+            <div class="field" id="ed-uid-field" hidden><label for="ed-uid">로그인 UID (28자)</label><input class="input" id="ed-uid" style="font-family: var(--font-mono); font-size: 13px" placeholder="Firebase 콘솔 → Authentication → Users 에서 복사" pattern="[A-Za-z0-9]{28}"></div>
+            <div class="field"><label for="ed-role">역할</label><select class="select" id="ed-role"><option value="guide">가이드</option><option value="admin">운영자</option></select></div>
+            <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6" id="ed-hint">계정이 만들어지고 편집자 명단에 등록됩니다. 임시 비밀번호는 본인에게 직접 전달해 주세요.</div>
+            <button type="submit" class="btn primary" id="ed-submit">계정 만들기</button>
+          </form>
+          <div class="card plain form-card" style="border-color: var(--line); gap: 8px">
+            <h2 style="font-size: 18px">비밀번호를 잊었을 때</h2>
+            <p style="margin: 0; font-size: 13px; color: var(--wood); line-height: 1.6">다른 사람의 비밀번호를 여기서 직접 정할 수는 없습니다(Firebase 규칙). 표의 열쇠 버튼을 누르면 그 사람 메일로 <b>재설정 링크</b>가 가고, 본인이 링크에서 새 비밀번호를 정합니다. 본인은 관리 → <a href="#account">내 계정</a>에서 언제든 바꿀 수 있어요.</p>
+          </div>
+        </div>
       </div>`;
+    let mode = 'create';
+    const setMode = (m) => {
+      mode = m;
+      panel.querySelectorAll('[data-mode]').forEach((b) => { b.className = `btn sm ${b.dataset.mode === m ? 'dark' : 'ghost'}`; });
+      $('#ed-pw-field').hidden = m !== 'create'; $('#ed-uid-field').hidden = m !== 'link';
+      $('#ed-pw').required = m === 'create'; $('#ed-uid').required = m === 'link';
+      $('#ed-submit').textContent = m === 'create' ? '계정 만들기' : '명단에 추가';
+      $('#ed-hint').innerHTML = m === 'create'
+        ? '계정이 만들어지고 편집자 명단에 등록됩니다. 임시 비밀번호는 본인에게 직접 전달해 주세요.'
+        : '이미 로그인 계정이 있는 사람(실수로 명단에서 지운 경우 등)을 다시 넣을 때 씁니다.<br>UID는 Firebase 콘솔 → Authentication → Users 에서 그 이메일 옆 "사용자 UID"를 복사해 오세요. 비밀번호는 그대로이고, 잊었으면 열쇠 버튼으로 재설정 메일을 보내면 됩니다.';
+    };
+    panel.querySelector('[data-mode]').parentElement.addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
     $('#editor-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = $('#ed-name').value.trim(), email = $('#ed-email').value.trim(), pw = $('#ed-pw').value, role = $('#ed-role').value;
+      if (mode === 'link') {
+        const uid = $('#ed-uid').value.trim();
+        if (!/^[A-Za-z0-9]{28}$/.test(uid)) return toast('UID는 영문·숫자 28자입니다. 콘솔에서 다시 복사해 주세요');
+        if ((await getDoc(doc(db, 'editors', uid))).exists()) return toast('이미 명단에 있는 UID입니다');
+        await setDoc(doc(db, 'editors', uid), { name, email, role, createdAt: serverTimestamp(), createdBy: me.name });
+        toast('명단에 추가했습니다'); renderEditors(); return;
+      }
       try {
         // 보조 앱으로 계정 생성: 현재 운영자 세션을 유지한 채 새 사용자를 만듭니다.
         const { initializeApp, deleteApp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
@@ -430,10 +465,19 @@
         await setDoc(doc(db, 'editors', cred.user.uid), { name, email, role, createdAt: serverTimestamp(), createdBy: me.name });
         toast('편집자를 추가했습니다'); renderEditors();
       } catch (err) {
-        toast(err.code?.includes('email-already-in-use') ? '이미 계정이 있는 이메일입니다. Firebase 콘솔에서 UID를 확인해 명단에만 추가해 주세요.' : (err.message || '실패했습니다'));
+        if (err.code?.includes('email-already-in-use')) { setMode('link'); toast('이미 로그인 계정이 있는 이메일입니다. "기존 계정 연결"로 UID를 넣어 주세요'); }
+        else toast(err.message || '실패했습니다');
       }
     });
     panel.addEventListener('click', async (e) => {
+      const rs = e.target.closest('[data-reset]');
+      if (rs && !rs.disabled) {
+        const email = rs.dataset.reset;
+        if (!confirm(`${email} 로 비밀번호 재설정 메일을 보낼까요?`)) return;
+        try { const A = await import('../assets/js/auth.js'); await A.sendResetMail(email); toast('재설정 메일을 보냈습니다. 스팸함도 확인하라고 알려 주세요'); }
+        catch (err) { toast(err.code === 'auth/user-not-found' ? '이 이메일로 만들어진 로그인 계정이 없습니다' : (err.message || '보내지 못했습니다')); }
+        return;
+      }
       const r = e.target.closest('[data-role]');
       if (r) {
         const next = r.dataset.cur === 'admin' ? 'guide' : 'admin';
@@ -442,8 +486,40 @@
       }
       const d = e.target.closest('[data-del-editor]');
       if (d && !d.disabled) {
-        if (!confirm('편집자 명단에서 제거할까요? (계정 자체는 Firebase 콘솔에서 삭제)')) return;
+        if (!confirm('편집자 명단에서 제거할까요?\n로그인 계정 자체는 남으니, 다시 넣을 때는 "기존 계정 연결(UID)"을 쓰면 됩니다.')) return;
         await deleteDoc(doc(db, 'editors', d.dataset.delEditor)); toast('제거했습니다'); renderEditors();
+      }
+    });
+  }
+
+  // ================= 내 계정 =================
+  async function renderAccount() {
+    freshPanel();
+    panel.innerHTML = head('내 계정', `${esc(me.name)} · ${esc(me.email || '')} · ${isAdmin ? '운영자' : '가이드'}`) + `
+      <div class="admin-split">
+        <form class="card plain form-card" id="pw-form" style="max-width: 460px">
+          <h2 style="font-size: 20px">비밀번호 변경</h2>
+          <div class="field"><label for="pw-cur">현재 비밀번호</label><input class="input" id="pw-cur" type="password" autocomplete="current-password" required></div>
+          <div class="field"><label for="pw-new">새 비밀번호 (6자 이상)</label><input class="input" id="pw-new" type="password" autocomplete="new-password" minlength="6" required></div>
+          <div class="field"><label for="pw-new2">새 비밀번호 확인</label><input class="input" id="pw-new2" type="password" autocomplete="new-password" minlength="6" required></div>
+          <button type="submit" class="btn primary">변경</button>
+        </form>
+        <div class="card plain form-card" style="border-color: var(--line); gap: 8px">
+          <h2 style="font-size: 18px">현재 비밀번호를 모르면</h2>
+          <p style="margin: 0; font-size: 13px; color: var(--wood); line-height: 1.6">로그인 화면의 "비밀번호를 잊으셨나요?"로 재설정 메일을 받거나, 운영자에게 편집자 관리에서 재설정 메일을 보내 달라고 하세요.</p>
+        </div>
+      </div>`;
+    $('#pw-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cur = $('#pw-cur').value, nw = $('#pw-new').value, nw2 = $('#pw-new2').value;
+      if (nw !== nw2) return toast('새 비밀번호 두 칸이 다릅니다');
+      if (nw === cur) return toast('현재 비밀번호와 같습니다');
+      try {
+        const A = await import('../assets/js/auth.js');
+        await A.changeMyPassword(cur, nw);
+        $('#pw-form').reset(); toast('비밀번호를 바꿨습니다');
+      } catch (err) {
+        toast(err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' ? '현재 비밀번호가 맞지 않습니다' : err.code === 'auth/weak-password' ? '새 비밀번호가 너무 짧습니다' : (err.message || '바꾸지 못했습니다'));
       }
     });
   }
@@ -550,6 +626,7 @@
     if (tab === 'docs') return renderDocs();
     if (tab === 'settings') return renderSettings();
     if (tab === 'editors') return renderEditors();
+    if (tab === 'account') return renderAccount();
     if (tab === 'history') return renderHistory(arg ? decodeURIComponent(arg) : null);
     if (['events', 'patch', 'popups', 'commands', 'prices'].includes(tab)) {
       return import('./panels2.js').then((m) => {

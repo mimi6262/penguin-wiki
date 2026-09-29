@@ -3,6 +3,7 @@ import {
   auth, db, doc, getDoc, addDoc, collection, serverTimestamp,
   onAuthStateChanged, signInWithEmailAndPassword, signOut,
   setPersistence, browserLocalPersistence, browserSessionPersistence,
+  sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
 } from './firebase.js';
 import { $, $$, ROOT, toast } from './ui.js';
 
@@ -102,3 +103,16 @@ export const authErrorMessage = (err) => {
   if (code.includes('network')) return '네트워크 연결을 확인해 주세요.';
   return err?.message || '로그인에 실패했습니다.';
 };
+
+// ---- 비밀번호 ----
+// 다른 사람의 비밀번호는 브라우저에서 직접 바꿀 수 없습니다(Firebase 규칙). 대신 그 사람 메일로 재설정 링크를 보냅니다.
+export async function sendResetMail(email) {
+  await sendPasswordResetEmail(auth, email);
+}
+// 내 비밀번호 변경: 현재 비밀번호로 다시 확인한 뒤 새 비밀번호로 교체
+export async function changeMyPassword(currentPassword, newPassword) {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error('로그인 상태가 아닙니다');
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, currentPassword));
+  await updatePassword(user, newPassword);
+}

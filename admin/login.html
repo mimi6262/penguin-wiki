@@ -38,6 +38,7 @@
       </label>
       <div class="form-error" id="error" hidden></div>
       <button type="submit" class="btn primary" id="submit" style="height: 50px; font-size: 16px; margin-top: 4px">로그인</button>
+      <button type="button" class="btn sm ghost" id="forgot" style="align-self: center; border: 0">비밀번호를 잊으셨나요?</button>
       <div class="notice-box" style="font-size: 12px">
         <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         로그인 시각과 접속 환경이 기록됩니다
@@ -53,7 +54,7 @@
   renderHeader('admin');
   renderFooter();
 
-  const { watchAuth, login, authErrorMessage } = await import('../assets/js/auth.js');
+  const { watchAuth, login, authErrorMessage, sendResetMail } = await import('../assets/js/auth.js');
   const next = param('next') || 'index.html';
   const go = () => { location.replace(next.startsWith('http') ? 'index.html' : next); };
 
@@ -61,6 +62,14 @@
   watchAuth().then((e) => { if (e) go(); });
 
   const form = $('#login-form'), err = $('#error'), btn = $('#submit');
+  // 비밀번호 재설정: 아이디 칸의 이메일로 링크를 보냅니다
+  $('#forgot').addEventListener('click', async () => {
+    err.hidden = true;
+    const email = $('#email').value.trim();
+    if (!email) { err.textContent = '아이디(이메일)를 먼저 입력한 뒤 눌러 주세요.'; err.hidden = false; return; }
+    try { await sendResetMail(email); err.style.color = 'var(--green)'; err.textContent = `${email} 로 재설정 메일을 보냈습니다. 메일의 링크에서 새 비밀번호를 정한 뒤 로그인해 주세요. (스팸함도 확인)`; err.hidden = false; }
+    catch (e) { err.style.color = ''; err.textContent = e.code === 'auth/user-not-found' ? '이 이메일로 만들어진 계정이 없습니다.' : authErrorMessage(e); err.hidden = false; }
+  });
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     err.hidden = true;
