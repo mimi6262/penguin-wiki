@@ -44,6 +44,7 @@ const NAV = [
 ];
 
 export function renderHeader(active = '') {
+  syncCursor();
   const el = $('#site-header');
   if (!el) return;
   const links = NAV.map((n) =>
@@ -106,6 +107,32 @@ export function renderFooter(extra = {}) {
       </div>
       <span class="copy">© ${new Date().getFullYear()} ${esc(SITE.name)}. All rights reserved.</span>
     </div>`;
+}
+
+// 마우스 커서: 관리 → 사이트 설정에서 올린 작은 PNG(data URL)를 모든 페이지의 커서로 씁니다.
+// 브라우저에 저장해 두고 즉시 적용한 뒤, 탭당 한 번만 Firestore 에서 최신 값을 받아옵니다.
+const CURSOR_KEY = 'pw_cursor';
+export function applyCursor(cursor) {
+  const root = document.documentElement;
+  if (cursor && cursor.data) {
+    const hx = cursor.hx ?? 2, hy = cursor.hy ?? 2;
+    root.style.setProperty('--pw-cursor', `url("${cursor.data}") ${hx} ${hy}`);
+    root.classList.add('pw-cursor');
+  } else {
+    root.style.removeProperty('--pw-cursor');
+    root.classList.remove('pw-cursor');
+  }
+  try { cursor && cursor.data ? localStorage.setItem(CURSOR_KEY, JSON.stringify(cursor)) : localStorage.removeItem(CURSOR_KEY); } catch {}
+}
+export async function syncCursor() {
+  try { const c = JSON.parse(localStorage.getItem(CURSOR_KEY) || 'null'); if (c) applyCursor(c); } catch {}
+  try {
+    if (sessionStorage.getItem('pw_cursor_checked')) return;
+    sessionStorage.setItem('pw_cursor_checked', '1');
+    const { db, doc, getDoc } = await import('./firebase.js');
+    const snap = await getDoc(doc(db, 'settings', 'site'));
+    applyCursor(snap.exists() ? snap.data().cursor || null : null);
+  } catch (e) { /* 오프라인이거나 아직 설정 전 */ }
 }
 
 // 스크롤 리빌: .reveal 요소가 화면에 들어오면 .in 을 붙여 CSS transition 으로 등장 (한 번만)

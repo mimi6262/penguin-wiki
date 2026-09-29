@@ -40,7 +40,7 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast } from '../assets/js/ui.js';
+  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast, applyCursor } from '../assets/js/ui.js';
   renderHeader('admin');
   renderFooter();
 
@@ -313,8 +313,57 @@
         <h2 style="font-size: 20px; margin-top: 8px">푸터 사업자 정보</h2>
         <div class="form-row">${F('company', '상호', b.company)}${F('owner', '대표', b.owner)}</div>
         <div class="form-row">${F('regNo', '사업자등록번호', b.regNo, '000-00-00000')}<div></div></div>
+        <h2 style="font-size: 20px; margin-top: 8px">마우스 커서</h2>
+        <div class="form-row">
+          <div class="field"><label for="cursor-file">캐릭터 이미지 (배경 투명 PNG 권장)</label><input type="file" id="cursor-file" accept="image/*" style="font-size: 13px"></div>
+          <div class="field"><label for="cursor-size">크기</label>
+            <select class="select" id="cursor-size">
+              <option value="24">24px</option><option value="32">32px (디스코드 이모지 크기)</option><option value="40">40px</option><option value="48">48px</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+          <div id="cursor-preview" style="width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; background: var(--cream); border: 1px dashed var(--line); border-radius: 12px"></div>
+          <span class="subtitle" style="font-size: 12px" id="cursor-status"></span>
+          <button type="button" class="btn xs ghost" id="cursor-clear">기본 화살표로</button>
+        </div>
+        <div class="notice-box" style="font-size: 12px">저장하면 모든 페이지에서 마우스가 이 캐릭터로 보입니다. 글자 입력칸 위에서는 원래 I 모양이 유지됩니다.</div>
         <div style="display: flex; gap: 8px; justify-content: flex-end"><button type="submit" class="btn primary">저장</button></div>
       </form>`;
+    // ---- 커서 이미지: 브라우저에서 정사각형 PNG로 줄여 data URL 로 보관 (수 KB)
+    let cursorState = s.cursor && s.cursor.data ? { ...s.cursor } : null;
+    const cursorUI = () => {
+      const pv = $('#cursor-preview'), st = $('#cursor-status');
+      if (cursorState) { pv.innerHTML = `<img src="${cursorState.data}" alt="" style="width: ${cursorState.size}px; height: ${cursorState.size}px; image-rendering: auto">`; st.textContent = `${cursorState.size}px · 저장을 누르면 적용됩니다`; }
+      else { pv.innerHTML = '<span style="font-size: 11px; color: var(--muted)">없음</span>'; st.textContent = '기본 화살표를 씁니다'; }
+    };
+    $('#cursor-size').value = String(cursorState?.size || 32);
+    cursorUI();
+    let cursorSrc = null; // 마지막으로 고른 원본 파일 (크기 바꿔 다시 만들 때)
+    const buildCursor = async () => {
+      if (!cursorSrc) return;
+      const size = Number($('#cursor-size').value) || 32;
+      const bmp = await createImageBitmap(cursorSrc);
+      const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const k = Math.min(size / bmp.width, size / bmp.height);
+      const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+      ctx.drawImage(bmp, Math.round((size - w) / 2), Math.round((size - h) / 2), w, h);
+      cursorState = { data: canvas.toDataURL('image/png'), size, hx: 2, hy: 2 };
+      cursorUI();
+    };
+    $('#cursor-file').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0]; if (!file) return;
+      if (!file.type.startsWith('image/')) return toast('이미지 파일을 골라 주세요');
+      cursorSrc = file; await buildCursor();
+    });
+    $('#cursor-size').addEventListener('change', async () => {
+      if (cursorSrc) await buildCursor();
+      else if (cursorState) { // 원본이 없으면 저장된 이미지를 다시 줄임
+        const res = await fetch(cursorState.data); cursorSrc = await res.blob(); await buildCursor();
+      }
+    });
+    $('#cursor-clear').addEventListener('click', () => { cursorState = null; cursorSrc = null; $('#cursor-file').value = ''; cursorUI(); });
     $('#settings-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const v = (id) => $('#' + id).value.trim();
@@ -325,8 +374,10 @@
         onlineCount: oc === '' ? null : Number(oc),
         discordUrl: v('discordUrl'), discordDesc: v('discordDesc'), minelistUrl: v('minelistUrl'), minelistDesc: v('minelistDesc'),
         business: { company: v('company'), owner: v('owner'), regNo: v('regNo') },
+        cursor: cursorState,
         updatedAt: serverTimestamp(), updatedBy: me.name,
       }, { merge: true });
+      applyCursor(cursorState);
       toast('저장했습니다');
     });
   }
