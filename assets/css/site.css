@@ -337,7 +337,7 @@ main { flex-grow: 1; }
 .login-card h1 { font-size: 28px; }
 
 /* ---------- 푸터 ---------- */
-.site-footer { display: flex; flex-direction: column; margin-top: auto; }
+.site-footer { display: flex; flex-direction: column; margin-top: auto; position: relative; z-index: 1; }
 .site-footer .gold-line { height: 3px; background: var(--gold); }
 .site-footer .body { display: flex; flex-direction: column; gap: 10px; padding: 34px 48px 30px; background: var(--wood-dark); color: #C9B99A; font-size: 13px; line-height: 1.5; }
 .site-footer .logo { font-family: var(--font-head); font-size: 20px; color: var(--cream); margin-bottom: 6px; }
@@ -356,6 +356,15 @@ main { flex-grow: 1; }
 .toast .close { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: transparent; border: 0; border-radius: 50%; cursor: pointer; color: var(--muted); }
 .toast.simple { justify-content: center; text-align: center; }
 
+/* ---------- 우측 배경 노리개 (먹선) ---------- */
+main { position: relative; z-index: 1; }
+.norigae { display: none; position: fixed; right: 36px; top: 96px; width: 96px; height: 560px; pointer-events: none; z-index: 0; opacity: 0.28; transform-origin: 50% 0; animation: pw-sway 7s ease-in-out infinite; }
+.norigae * { fill: none; stroke: var(--wood); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.norigae .bead, .norigae .dot { fill: var(--wood); }
+@keyframes pw-sway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+@media (min-width: 1340px) { .norigae { display: block; } }
+@media (max-width: 1759px) { body.wide .norigae { display: none; } }  /* 가이드·관리처럼 넓은 화면은 여백이 더 있을 때만 */
+
 /* ---------- 마우스 커서 (사이트 설정에서 올린 캐릭터) ---------- */
 html.pw-cursor, html.pw-cursor * { cursor: var(--pw-cursor), auto !important; }
 html.pw-cursor input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="file"]), html.pw-cursor textarea { cursor: text !important; }
@@ -370,6 +379,7 @@ main > .container { animation: pw-enter .45s cubic-bezier(.22, 1, .36, 1) both; 
   main > .container { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .g-tile, .g-tile .arrow { transition: none; }
+  .norigae { animation: none; }
 }
 
 /* ---------- 상태 ---------- */
