@@ -115,7 +115,6 @@ export async function saveCommand(id, data, by) {
 export async function deleteCommand(id) { await deleteDoc(doc(db, 'commands', id)); }
 
 // ---------- 팝업 설정 ----------
-// popups/minelist: { enabled, start 'HH:MM', end 'HH:MM', text, url }
 // popups/minelist: { enabled, url, text, windows: [{ start, end, text }] }  — 하루 여러 시간대 (최대 4)
 export const DEFAULT_ML_WINDOWS = [
   { start: '23:30', end: '23:59', text: '오늘 추천, 아직 안 하셨다면 자정 전에 부탁드려요' },
