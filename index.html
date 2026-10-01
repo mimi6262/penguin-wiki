@@ -17,11 +17,11 @@
 <main>
   <div class="container stack home-content">
 
-    <section class="hero"><span class="hero-edition" aria-hidden="true">PENGUIN VILLAGE · 마을 안내소</span>
+    <section class="hero"><span class="hero-edition" id="hero-edition" aria-hidden="true">PENGUIN VILLAGE · 마을 안내소</span>
       <div class="copy">
         <span class="pill-info" id="season-tag" style="align-self: flex-start">펭귄서버 공식 위키</span>
-        <span class="hero-eyebrow">함께 머무는 작은 세상</span>
-        <h1>오늘도,<br>우리 <em>마을에서.</em></h1>
+        <span class="hero-eyebrow" id="hero-eyebrow">함께 머무는 작은 세상</span>
+        <h1 id="hero-title">오늘도,<br>우리 <em>마을에서.</em></h1>
         <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px; white-space: pre-line">농사짓고, 낚시하고, 모험하며.
 우리만의 이야기를 쌓아가는 작은 마을.</p>
         <div class="info-pills">
@@ -48,8 +48,8 @@
         </div>
       </div>
       <figure class="hero-scene">
-        <img src="assets/images/penguin-village.webp" width="1536" height="1024" alt="갓을 쓴 펭귄과 농부 펭귄이 반기는 아늑한 한옥 마을" fetchpriority="high">
-        <figcaption><span class="scene-dot" aria-hidden="true"></span> 산 너머 작은 마을, 당신의 이야기가 시작되는 곳</figcaption>
+        <img id="hero-img" width="1536" height="1024" alt="" fetchpriority="high">
+        <figcaption><span class="scene-dot" aria-hidden="true"></span> <span id="hero-caption">산 너머 작은 마을, 당신의 이야기가 시작되는 곳</span></figcaption>
       </figure>
     </section>
 
@@ -68,7 +68,7 @@
 
     <section class="stack" style="gap: 20px">
       <div class="section-head reveal">
-        <div class="title"><span class="seal" aria-hidden="true"></span><div><span class="section-kicker">하나씩 알아가는 마을 생활</span><h2>당신의 하루를 골라보세요</h2></div></div>
+        <div class="title"><span class="seal" aria-hidden="true"></span><div><span class="section-kicker" id="guide-kicker">하나씩 알아가는 마을 생활</span><h2 id="guide-title">당신의 하루를 골라보세요</h2></div></div>
         <a href="guide.html" style="font-size: 14px; text-decoration: none">전체 보기</a>
       </div>
       <div class="tile-grid" id="guide-cards">
@@ -78,7 +78,7 @@
 
     <section class="stack" style="gap: 20px">
       <div class="section-head reveal">
-        <div class="title"><span class="seal" aria-hidden="true"></span><div><span class="section-kicker">발걸음이 모여 이야기가 되는 곳</span><h2>우리 마을 사랑방</h2></div></div>
+        <div class="title"><span class="seal" aria-hidden="true"></span><div><span class="section-kicker" id="community-kicker">발걸음이 모여 이야기가 되는 곳</span><h2 id="community-title">우리 마을 사랑방</h2></div></div>
       </div>
       <div class="community">
         <div class="card item reveal">
@@ -120,6 +120,19 @@
   renderFooter();
   initReveal();
 
+  // 첫 화면 그림: 설정을 읽은 뒤 한 번만 넣어서 기본 그림이 잠깐 보였다 바뀌는 일이 없게 합니다
+  const { HERO_DEFAULT, titleHtml, resolveHeroSrc } = await import('./assets/js/home.js');
+  let heroShown = false;
+  function showHero(src, alt) {
+    if (heroShown) return; heroShown = true;
+    const img = $('#hero-img');
+    img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+    img.addEventListener('error', () => { if (img.src.indexOf(HERO_DEFAULT.src) < 0) { img.alt = HERO_DEFAULT.alt; img.src = HERO_DEFAULT.src; } }, { once: true });
+    img.alt = src ? (alt || '') : HERO_DEFAULT.alt;
+    img.src = src || HERO_DEFAULT.src;
+  }
+  setTimeout(() => showHero(null), 4000); // 설정이 너무 늦으면 기본 그림으로
+
   $('#copy-address').addEventListener('click', () => {
     const v = $('#server-address').textContent.trim();
     if (v && v !== '주소 확인 중' && !v.startsWith('[')) copyText(v); else toast('서버 주소가 아직 등록되지 않았습니다');
@@ -137,6 +150,14 @@
     const snap = await getDoc(doc(db, 'settings', 'site'));
     const s = snap.exists() ? snap.data() : {};
     const put = (id, v) => { if (v) $(id).textContent = v; };
+    // 홈 문구 (사이트 설정 → 홈 화면 문구). 비어 있으면 기본 문구 그대로
+    const home = s.home || {};
+    put('#hero-edition', home.heroEdition); put('#hero-eyebrow', home.heroEyebrow); put('#hero-caption', home.heroCaption);
+    put('#guide-kicker', home.guideKicker); put('#guide-title', home.guideTitle);
+    put('#community-kicker', home.communityKicker); put('#community-title', home.communityTitle);
+    if (home.heroTitle) $('#hero-title').innerHTML = titleHtml(home.heroTitle);
+    // 첫 화면 그림 (사이트 설정 → 첫 화면 그림). 없거나 못 불러오면 기본 그림
+    resolveHeroSrc(s.heroImage).then((src) => showHero(src, s.heroAlt)).catch(() => showHero(null));
     put('#season-tag', s.seasonTag); put('#tagline', s.tagline);
     put('#server-address', s.serverAddress); put('#server-version', s.version);
     put('#discord-desc', s.discordDesc); put('#minelist-desc', s.minelistDesc);
@@ -164,7 +185,7 @@
         const n = t.pages.length + t.children.reduce((a, c) => a + c.pages.length, 0);
         return `
         <a class="card plain g-tile reveal" style="--i: ${i}" href="guide.html?s=${encodeURIComponent(t.section.id)}">
-          <span class="guide-mark" aria-hidden="true">${guideIcon(t.section.name)}</span><div class="row"><h3>${esc(t.section.name)}</h3>${n ? `<span class="n">문서 ${n}</span>` : ''}</div>
+          <span class="guide-mark" aria-hidden="true">${guideIcon(t.section.name, t.section.icon)}</span><div class="row"><h3>${esc(t.section.name)}</h3>${n ? `<span class="n">문서 ${n}</span>` : ''}</div>
           ${t.section.desc ? `<p>${esc(t.section.desc)}</p>` : ''}
           <span class="arrow" aria-hidden="true">열어보기 ›</span>
         </a>`;
@@ -183,6 +204,7 @@
     } catch (e) { console.warn('patch strip', e); }
   } catch (e) {
     console.warn(e);
+    showHero(null);
     $('#guide-cards').innerHTML = '<div class="loading">가이드 목록을 불러오지 못했습니다.</div>';
   }
 </script>

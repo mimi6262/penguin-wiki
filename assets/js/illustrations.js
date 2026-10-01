@@ -11,7 +11,29 @@ const art = {
  star: `<path fill="#9a7750" d="m32 7 8 15 17 3-12 13 2 18-15-8-16 8 3-18L6 25l18-3z"/><path fill="#dbb66e" d="m32 4 8 15 17 3-12 13 2 18-15-8-16 8 3-18L6 22l18-3z"/><path fill="#f1dca0" stroke="none" d="m32 10 5 14 13 1-16 8-12 12 2-13-9-8 13-1z"/><path stroke="#b69255" d="m32 33 10 14M32 33l2-17"/><path stroke="#b6a16b" d="M55 9v8m-4-4h8M8 43v8m-4-4h8"/>`
 };
 export function illustration(key){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="#615b46" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="32" cy="59" rx="24" ry="3" fill="#565637" opacity=".12" stroke="none"/>${art[key]||art.book}</svg>`;}
-export function guideIllustration(name=''){
- const key=/농|생활|작물/.test(name)?'farm':/모험|RPG|전투|던전/i.test(name)?'adventure':/요리|조리/.test(name)?'cooking':/낚시|어부/.test(name)?'fish':/경제|상점|거래|시세|저잣/.test(name)?'market':/마을|건축|첫걸음|시작/.test(name)?'village':'book';
- return illustration(key);
+// 관리 → 문서 관리 → 섹션 편집의 "카드 아이콘" 선택지
+export const ICON_CHOICES = [
+ ['village','한옥 (시작·마을)'], ['book','책 (규칙·문서)'], ['farm','곡식 바구니 (생활·농사)'], ['fish','낚시'],
+ ['cooking','가마솥 (요리·기본)'], ['adventure','검과 방패 (RPG·모험)'], ['market','가판대 (상점·경제)'],
+ ['star','별 (이벤트·가차)'], ['chat','대화 (도움말·커뮤니티)'],
+];
+// 섹션에 아이콘을 직접 고르지 않았으면 이름으로 짐작합니다
+export function guideIconKey(name=''){
+ const rules=[
+  [/시작|첫걸음|입문|접속|마을|건축/,'village'],
+  [/규칙|법전|약속|정책/,'book'],
+  [/낚시|어부/,'fish'],
+  [/요리|조리/,'cooking'],
+  [/농|작물|생활|직업/,'farm'],
+  [/RPG|모험|전투|던전|레이드|장비/i,'adventure'],
+  [/가차|뽑기|이벤트|대회|축제/,'star'],
+  [/경제|상점|거래|시세|저잣|주식|마켓|콘텐츠|후원|VIP/i,'market'],
+  [/설정|도움|문의|커뮤니티|모드|리소스/,'chat'],
+  [/기본|시스템/,'cooking'],
+ ];
+ const hit=rules.find(([re])=>re.test(name));
+ return hit?hit[1]:'book';
+}
+export function guideIllustration(name='', key=''){
+ return illustration(art[key]?key:guideIconKey(name));
 }

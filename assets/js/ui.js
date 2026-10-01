@@ -46,20 +46,12 @@ const NAV = [
   { key: 'events', label: '이벤트', href: 'events.html' },
 ];
 
-// 우측 배경 노리개 장식 (먹선). 여백이 넉넉한 화면에서만 보이고, 7초 주기로 살짝 흔들립니다 (CSS)
-const ORNAMENT = '<svg class="norigae" aria-hidden="true" viewBox="0 0 96 560"><line x1="48" y1="0" x2="48" y2="470"/><circle class="bead" cx="48" cy="34" r="6"/><g class="medal"><circle cx="48" cy="96" r="38"/><g transform="translate(48 96)"><ellipse cx="0" cy="-15" rx="8" ry="15"/><ellipse cx="15" cy="0" rx="15" ry="8"/><ellipse cx="0" cy="15" rx="8" ry="15"/><ellipse cx="-15" cy="0" rx="15" ry="8"/><circle class="dot" cx="0" cy="0" r="3.5"/></g></g><g class="medal"><circle cx="48" cy="184" r="38"/><g transform="translate(48 184)"><ellipse cx="0" cy="-15" rx="8" ry="15"/><ellipse cx="15" cy="0" rx="15" ry="8"/><ellipse cx="0" cy="15" rx="8" ry="15"/><ellipse cx="-15" cy="0" rx="15" ry="8"/><circle class="dot" cx="0" cy="0" r="3.5"/></g></g><g class="medal"><circle cx="48" cy="272" r="38"/><g transform="translate(48 272)"><ellipse cx="0" cy="-15" rx="8" ry="15"/><ellipse cx="15" cy="0" rx="15" ry="8"/><ellipse cx="0" cy="15" rx="8" ry="15"/><ellipse cx="-15" cy="0" rx="15" ry="8"/><circle class="dot" cx="0" cy="0" r="3.5"/></g></g><circle class="bead" cx="48" cy="326" r="6"/><g class="knot"><path d="M48 340 l12 12 -12 12 -12 -12 z"/><path d="M48 364 l22 22 -22 22 -22 -22 z"/><path d="M48 372 l14 14 -14 14 -14 -14 z"/><path d="M26 386 c-14 0 -14 -18 0 -18 M70 386 c14 0 14 -18 0 -18"/><path d="M48 408 l12 12 -12 12 -12 -12 z"/></g><g class="tassel"><path d="M40 436 h16 l3 16 h-22 z"/><path d="M38 452 c-2 30 -4 60 -6 100"/><path d="M41 452 c-1 30 -2 60 -3 100"/><path d="M44 452 c0 30 -1 60 -1 100"/><path d="M48 452 c0 30 0 60 0 100"/><path d="M52 452 c0 30 1 60 1 100"/><path d="M55 452 c1 30 2 60 3 100"/><path d="M58 452 c2 30 4 60 6 100"/></g></svg>';
-function renderOrnament() {
-  if (document.querySelector('.norigae')) return;
-  document.body.insertAdjacentHTML('beforeend', ORNAMENT);
-}
-
 export function renderHeader(active = '') {
   syncCursor();
-  renderOrnament();
   const el = $('#site-header');
   if (!el) return;
   const links = NAV.map((n) =>
-    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}><span class="nav-illustration" aria-hidden="true">${illustration(({home:'village',patch:'book',guide:'book',commands:'book',prices:'market',events:'star'})[n.key])}</span>${n.label}</a>`
+    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}><span class="nav-illustration" aria-hidden="true">${illustration(({home:'village',patch:'book',guide:'adventure',commands:'chat',prices:'market',events:'star'})[n.key])}</span>${n.label}</a>`
   ).join('');
   const main = document.querySelector('main');
   if (main && !main.id) main.id = 'main-content';

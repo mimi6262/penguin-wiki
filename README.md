@@ -17,9 +17,11 @@ admin/login.html    관리자 로그인
 admin/index.html    관리 (#docs 문서 · #settings 사이트 설정 · #events 이벤트 · #patch 패치노트 · #popups 알림 · #commands 명령어 · #editors 편집자 · #history 이력)
 admin/panels2.js    관리 2차 패널 (이벤트 · 패치노트 · 알림 · 명령어)
 admin/editor.html   문서 편집기 (?p=슬러그)
-assets/css/site.css 공통 스타일 (시안 v1 "한지와 먹")
-assets/js/          ui.js(헤더·푸터) firebase.js(초기화) auth.js(로그인·역할) pages.js(문서) markdown.js(렌더링)
-                    content.js(패치노트·이벤트·명령어·팝업 데이터) time.js(KST 시간) popups.js(하단 알림)
+assets/css/site.css 공통 스타일 (청록 한옥). 색·글꼴 기준값은 맨 위 :root 한 곳
+assets/images/      penguin-village.webp (첫 화면 기본 그림, 1536×1024)
+assets/js/          ui.js(헤더·푸터·펭귄 로고) firebase.js(초기화) auth.js(로그인·역할) pages.js(문서) markdown.js(렌더링)
+                    content.js(패치노트·이벤트·명령어·팝업 데이터) time.js(KST 시간) popups.js(하단 알림) discord.js(웹훅)
+                    home.js(홈 문구 기본값·첫 화면 그림) illustrations.js(컬러 소품 아이콘 9종)
 firestore.rules     Firestore 보안 규칙
 ```
 
@@ -48,6 +50,15 @@ firestore.rules     Firestore 보안 규칙
 - 이미지: 편집기의 그림 버튼 / 붙여넣기(Ctrl+V) / 끌어다 놓기로 올리면 `![설명](img:ID)` 가 끼워집니다.
   브라우저에서 긴 변 1600px·WebP로 줄여 Firestore `images/{id}` 에 저장(1장 최대 약 900KB, GIF 애니메이션은 정지 이미지로).
   외부 이미지는 `![설명](https://주소)` 로도 됩니다.
+
+## 홈 화면 문구 · 첫 화면 그림
+
+- 관리 → 사이트 설정 → **홈 화면 문구**: 큰 제목, 그 위 작은 문구, 그림 설명, 가이드·커뮤니티 영역 제목 등. 비워 두면 기본 문구(`assets/js/home.js`)가 나옵니다. 큰 제목은 줄바꿈 가능, `*별표*`로 감싼 부분은 강조색.
+- 관리 → 사이트 설정 → **첫 화면 그림**: 새 그림을 올리면 목록에 쌓이고, 골라서 저장하면 홈이 바뀝니다. 계절·이벤트용을 미리 올려 두고 그때그때 고르면 됩니다. "기본 그림"을 고르면 원래 한옥 마을로 돌아옵니다.
+  - 권장 크기 **1536 × 1024 px (가로 3 : 세로 2)**. PC에서는 그림 왼쪽 약 1/3 위에 제목이 겹치고 위아래가 조금 잘리므로, 캐릭터 등 중요한 부분은 가운데~오른쪽·세로 가운데에 둡니다. 모바일에서는 그림이 글 아래에 따로 나옵니다.
+  - 올린 그림은 브라우저에서 긴 변 1600px·WebP로 줄여 Firestore `images/{id}` (kind: hero)에 저장됩니다.
+- 홈 가이드 카드 아이콘은 섹션 이름으로 자동 선택되고, 문서 관리 → 섹션 편집 → "홈 카드 아이콘"에서 직접 고를 수도 있습니다.
+- 상단 메뉴: 마을 입구 · 패치노트 · 가이드 · 명령어 · 시세 · 이벤트 (+ 편집자에게만 관리)
 
 ## 문서 일괄 가져오기
 

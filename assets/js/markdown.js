@@ -39,7 +39,8 @@ function transformUploadedImages(md) {
 
 export function renderMarkdown(md) {
   const raw = marked.parse(transformUploadedImages(md));
-  const html = transformCommands(transformCallouts(raw));
+  // 표는 감싸는 상자 안에서만 가로 스크롤 (표 자체는 본문 폭을 꽉 채움)
+  const html = transformCommands(transformCallouts(raw)).replace(/<table>/g, '<div class="table-wrap"><table>').replace(/<\/table>/g, '</table></div>');
   return DOMPurify.sanitize(html, { ADD_ATTR: ['data-cmd', 'data-pw-img', 'target'] });
 }
 
