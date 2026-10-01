@@ -107,8 +107,8 @@ export function renderFooter(extra = {}) {
         <span>사업자등록번호: ${v(b.regNo, '000-00-00000')}</span>
       </div>
       <div class="links">
-        <a href="${ROOT}guide.html?p=privacy">개인정보처리방침</a>
         <a href="${ROOT}guide.html?p=terms">이용약관</a>
+        <a class="privacy" href="${ROOT}guide.html?p=privacy">개인정보 처리방침</a>
       </div>
       <span class="copy">© ${new Date().getFullYear()} ${esc(SITE.name)}. All rights reserved.</span>
     </div>`;

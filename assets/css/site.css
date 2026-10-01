@@ -320,24 +320,10 @@ main { flex-grow: 1; }
   color: var(--ink);
   text-decoration: none;
 }
-.tree .page, .tree .sec, .tree .fixed a { transition: background-color .15s, color .15s; }
+.tree .page, .tree .sec { transition: background-color .15s, color .15s; }
 .tree .page:hover { background: var(--wood); color: var(--cream); }
 .tree .page.active::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-left: -14px; margin-right: 0; }
 .tree .page .draft { margin-left: auto; }
-.tree .fixed { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-faint); }
-.tree .fixed a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 8px;
-  border-radius: var(--radius-pill);
-  font-size: 14px;
-  color: var(--wood-dark);
-  text-decoration: none;
-}
-.tree .fixed a:hover { background: var(--wood); color: var(--cream); }
-.tree .fixed a:hover svg { stroke: var(--cream); }
 .tree .empty { padding: 8px; font-size: 13px; color: var(--muted); }
 .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 18px; flex-wrap: wrap; }
 .breadcrumb a { text-decoration: none; }
@@ -963,7 +949,7 @@ a:hover { color: var(--accent); }
 .guide-layout > article { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 32px 38px; box-shadow: var(--paper-shadow); }
 .tree { padding: 19px 13px; }
 .tree .head { color: var(--wood-dark); padding-bottom: 16px; margin-bottom: 10px; }
-.tree .page, .tree .sec, .tree .fixed a { border-radius: 8px; min-height: 35px; height: auto; padding-top: 6px; padding-bottom: 6px; }
+.tree .page, .tree .sec { border-radius: 8px; min-height: 35px; height: auto; padding-top: 6px; padding-bottom: 6px; }
 .tree .page.active { background: var(--mint-wash); color: var(--accent); }
 .toc { border-left: 2px solid var(--line); }
 .article-head h1 { color: var(--wood-dark); }
@@ -983,6 +969,8 @@ a:hover { color: var(--accent); }
 .site-footer .logo small { font-family: var(--font-body); font-size: 12px; margin-left: 12px; color: var(--line); }
 .site-footer p, .site-footer .copy { color: var(--line); }
 .site-footer .links a { color: var(--card); }
+/* 개인정보 처리방침은 다른 고지와 구분되게 (굵게·색) — 국내 작성지침 관례 */
+.site-footer .links a.privacy { color: #f0d49a; font-weight: 700; }
 .admin-nav { box-shadow: none; }
 .admin-nav a, .admin-nav button { border-radius: 9px; }
 .form-card { border-color: var(--line); }

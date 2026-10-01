@@ -71,7 +71,10 @@
     const editor = await watchAuth();
     import('./assets/js/popups.js');
     const [sections, pages] = await Promise.all([listSections(), listPages({ editorView: !!editor })]);
-    const { tree, orphans } = buildTree(sections, pages);
+    // 이용약관·개인정보 처리방침은 하단(푸터) 전용 문서 — 가이드 목차와 이전/다음 이동에서는 뺍니다
+    const FOOTER_DOCS = { terms: '이용약관', privacy: '개인정보 처리방침' };
+    const isFooterDoc = (id) => Object.hasOwn(FOOTER_DOCS, id);
+    const { tree, orphans } = buildTree(sections, pages.filter((p) => !isFooterDoc(p.id)));
     const flat = flatten(tree, orphans);
 
     // 현재 문서 결정: ?p= > ?s=(섹션 첫 문서) > 첫 문서
@@ -100,10 +103,6 @@
     });
     if (orphans.length) html += `<div class="children">${orphans.filter(matches).map(pageLink).join('')}</div>`;
     if (!tree.length && !orphans.length) html += '<div class="empty">아직 문서가 없습니다.</div>';
-    html += `<div class="fixed">
-      <a href="commands.html"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5"/><path d="M12 19h8"/></svg>명령어</a>
-      <a href="guide.html?p=rules"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>규칙</a>
-    </div>`;
     treeEl.innerHTML = html;
     treeEl.addEventListener('click', (e) => {
       const sec = e.target.closest('[data-toggle]');
@@ -115,7 +114,18 @@
 
     // ---- 본문 ----
     const content = $('#content');
-    if (!current && slugParam) {
+    if (!current && slugParam && isFooterDoc(slugParam)) {
+      // 아직 작성 전인 약관·처리방침
+      const name = FOOTER_DOCS[slugParam];
+      const createHref = `admin/editor.html?new=${encodeURIComponent(slugParam)}&title=${encodeURIComponent(name)}`;
+      $('#btn-edit').href = createHref;
+      $('#btn-history').style.display = 'none';
+      document.title = `${name} — 펭귄서버 위키`;
+      $('#title').textContent = name;
+      $('#breadcrumb').innerHTML = `<a href="index.html">홈</a><span aria-hidden="true">›</span><span class="cur">${esc(name)}</span>`;
+      content.innerHTML = '<p>준비 중인 문서입니다. 곧 이 자리에 올라옵니다.</p>'
+        + (editor ? `<div class="callout"><div><span class="callout-title">편집자 안내</span><p>이 문서는 주소가 <code>${esc(slugParam)}</code>로 정해져 있어요. <a href="${esc(createHref)}">여기서 새로 작성</a>하면 하단 링크가 이 문서로 연결됩니다. 분류는 "미배치"로 두면 됩니다.</p></div></div>` : '');
+    } else if (!current && slugParam) {
       $('#title').textContent = '문서를 찾을 수 없습니다';
       content.innerHTML = '<p>주소가 바뀌었거나 아직 공개되지 않은 문서입니다.</p>';
     } else if (!current) {
@@ -131,7 +141,8 @@
       $('#title').textContent = current.title;
       const sec = sections.find((s) => s.id === current.sectionId);
       const parent = sec && sec.parentId ? sections.find((s) => s.id === sec.parentId) : null;
-      $('#breadcrumb').innerHTML = `<a href="index.html">홈</a><span aria-hidden="true">›</span><a href="guide.html">가이드</a>`
+      $('#breadcrumb').innerHTML = `<a href="index.html">홈</a>`
+        + (isFooterDoc(current.id) ? '' : `<span aria-hidden="true">›</span><a href="guide.html">가이드</a>`)
         + (parent ? `<span aria-hidden="true">›</span><span>${esc(parent.name)}</span>` : '')
         + (sec ? `<span aria-hidden="true">›</span><span>${esc(sec.name)}</span>` : '')
         + `<span aria-hidden="true">›</span><span class="cur">${esc(current.title)}</span>`;

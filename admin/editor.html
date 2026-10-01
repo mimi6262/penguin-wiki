@@ -142,6 +142,10 @@
     $('#btn-view').hidden = false; $('#btn-view').href = `../guide.html?p=${encodeURIComponent(slug)}`;
   } else {
     const preSec = param('s'); if (preSec) el.section.value = preSec;
+    // 정해진 주소로 새 문서 만들기 (예: 하단 이용약관·개인정보 처리방침 → ?new=terms&title=이용약관)
+    const preSlug = param('new');
+    if (preSlug && /^[a-z0-9-]{1,60}$/.test(preSlug)) { el.slug.value = preSlug; el.slug.dataset.touched = '1'; }
+    const preTitle = param('title'); if (preTitle) el.title.value = preTitle.slice(0, 80);
   }
   $('#gate').hidden = true; $('#editor').hidden = false;
   render();
