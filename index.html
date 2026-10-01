@@ -11,17 +11,19 @@
 <link rel="stylesheet" href="assets/css/site.css">
 <script>window.PW_ROOT = './';</script>
 </head>
-<body>
+<body class="home-page">
 <header id="site-header"></header>
 
 <main>
-  <div class="container stack" style="gap: 56px">
+  <div class="container stack home-content">
 
-    <section class="hero">
+    <section class="hero"><span class="hero-edition" aria-hidden="true">PENGUIN VILLAGE · 마을 안내소</span>
       <div class="copy">
-        <span class="pill-info" id="season-tag" style="align-self: flex-start">[시즌 태그]</span>
-        <h1>펭귄서버</h1>
-        <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px; white-space: pre-line">[서버 한 줄 소개]</p>
+        <span class="pill-info" id="season-tag" style="align-self: flex-start">펭귄서버 공식 위키</span>
+        <span class="hero-eyebrow">함께 머무는 작은 세상</span>
+        <h1>오늘도,<br>우리 <em>마을에서.</em></h1>
+        <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px; white-space: pre-line">농사짓고, 낚시하고, 모험하며.
+우리만의 이야기를 쌓아가는 작은 마을.</p>
         <div class="info-pills">
           <div class="info-pill" id="online-pill" hidden>
             <span class="dot" aria-hidden="true"></span>
@@ -30,14 +32,14 @@
           </div>
           <div class="info-pill has-btn">
             <span class="k">서버 주소</span>
-            <span class="v" id="server-address">[주소]</span>
+            <span class="v" id="server-address">주소 확인 중</span>
             <button type="button" class="btn icon" id="copy-address" aria-label="서버 주소 복사">
               <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
             </button>
           </div>
           <div class="info-pill">
             <span class="k">버전</span>
-            <span class="v" id="server-version">[버전]</span>
+            <span class="v" id="server-version">확인 중</span>
           </div>
         </div>
         <div style="display: flex; gap: 12px; flex-wrap: wrap">
@@ -45,11 +47,18 @@
           <a class="btn secondary" id="btn-inquiry" href="#" target="_blank" rel="noopener">문의센터</a>
         </div>
       </div>
-      <div class="media" id="hero-media">
-        <svg aria-hidden="true" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#A6957A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z"/></svg>
-        <span>[이미지 / 영상]</span>
-      </div>
+      <figure class="hero-scene">
+        <img src="assets/images/penguin-village.webp" width="1536" height="1024" alt="갓을 쓴 펭귄과 농부 펭귄이 반기는 아늑한 한옥 마을" fetchpriority="high">
+        <figcaption><span class="scene-dot" aria-hidden="true"></span> 산 너머 작은 마을, 당신의 이야기가 시작되는 곳</figcaption>
+      </figure>
     </section>
+
+    <nav class="welcome-path" aria-label="처음 오신 분을 위한 안내">
+      <div class="welcome-label"><span class="mini-stamp" aria-hidden="true">첫걸음</span><div><strong>처음 오셨나요?</strong><span>천천히, 하나씩 알아가요.</span></div></div>
+      <a href="guide.html?p=how-to-join"><span class="step-num">01</span> 접속 준비 <span aria-hidden="true">↗</span></a>
+      <a href="guide.html?p=quick-start"><span class="step-num">02</span> 마을 첫걸음 <span aria-hidden="true">↗</span></a>
+      <a href="guide.html?p=rules"><span class="step-num">03</span> 함께 지킬 약속 <span aria-hidden="true">↗</span></a>
+    </nav>
 
     <section class="card plain home-patch reveal" id="home-patch" hidden>
       <span class="tag accent" style="flex-shrink: 0">패치노트</span>
@@ -59,7 +68,7 @@
 
     <section class="stack" style="gap: 20px">
       <div class="section-head reveal">
-        <div class="title"><span class="seal" aria-hidden="true"></span><h2>서버 가이드</h2></div>
+        <div class="title"><span class="seal" aria-hidden="true"></span><div><span class="section-kicker">하나씩 알아가는 마을 생활</span><h2>당신의 하루를 골라보세요</h2></div></div>
         <a href="guide.html" style="font-size: 14px; text-decoration: none">전체 보기</a>
       </div>
       <div class="tile-grid" id="guide-cards">
@@ -69,7 +78,7 @@
 
     <section class="stack" style="gap: 20px">
       <div class="section-head reveal">
-        <div class="title"><span class="seal" aria-hidden="true"></span><h2>커뮤니티</h2></div>
+        <div class="title"><span class="seal" aria-hidden="true"></span><div><span class="section-kicker">발걸음이 모여 이야기가 되는 곳</span><h2>우리 마을 사랑방</h2></div></div>
       </div>
       <div class="community">
         <div class="card item reveal">
@@ -78,7 +87,7 @@
           </span>
           <div class="grow">
             <h3>디스코드</h3>
-            <p id="discord-desc">[디스코드 안내 문구]</p>
+            <p id="discord-desc">마을 이웃들과 소식과 이야기를 나눠요.</p>
           </div>
           <a class="btn" id="btn-discord" href="#" target="_blank" rel="noopener" style="background: #3A5A78; color: #FBF7EF">참여하기</a>
         </div>
@@ -88,27 +97,32 @@
           </span>
           <div class="grow">
             <h3>마인리스트</h3>
-            <p id="minelist-desc">[마인리스트 추천 안내 문구]</p>
+            <p id="minelist-desc">오늘도 펭귄마을을 응원해 주세요.</p>
           </div>
           <a class="btn primary" id="btn-minelist" href="#" target="_blank" rel="noopener">추천하기</a>
         </div>
       </div>
     </section>
 
+    <section class="server-tour stack" id="server-tour" hidden>
+      <div class="section-head"><div class="title"><div><span class="section-kicker">우리 마을의 풍경</span><h2>펭귄마을 둘러보기</h2></div></div></div>
+      <div class="media" id="hero-media"></div>
+    </section>
   </div>
 </main>
 
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, esc, copyText, toast, initReveal } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, copyText, toast, initReveal, guideIcon, illustration } from './assets/js/ui.js';
+  document.querySelectorAll('.community .icon').forEach((el,i)=>{el.innerHTML=illustration(i ? 'star' : 'chat');});
   renderHeader('home');
   renderFooter();
   initReveal();
 
   $('#copy-address').addEventListener('click', () => {
     const v = $('#server-address').textContent.trim();
-    if (v && !v.startsWith('[')) copyText(v); else toast('서버 주소가 아직 등록되지 않았습니다');
+    if (v && v !== '주소 확인 중' && !v.startsWith('[')) copyText(v); else toast('서버 주소가 아직 등록되지 않았습니다');
   });
 
   // Firebase 연결 (실패해도 뼈대는 그대로 보입니다)
@@ -132,6 +146,7 @@
     if (s.howToSlug) $('#btn-howto').href = `guide.html?p=${encodeURIComponent(s.howToSlug)}`;
     if (typeof s.onlineCount === 'number') { $('#online-count').textContent = `${s.onlineCount}명`; $('#online-pill').hidden = false; }
     if (s.mediaUrl) {
+      $('#server-tour').hidden = false;
       const m = $('#hero-media');
       const yt = s.mediaUrl.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
       m.innerHTML = yt
@@ -149,12 +164,12 @@
         const n = t.pages.length + t.children.reduce((a, c) => a + c.pages.length, 0);
         return `
         <a class="card plain g-tile reveal" style="--i: ${i}" href="guide.html?s=${encodeURIComponent(t.section.id)}">
-          <div class="row"><h3>${esc(t.section.name)}</h3>${n ? `<span class="n">문서 ${n}</span>` : ''}</div>
+          <span class="guide-mark" aria-hidden="true">${guideIcon(t.section.name)}</span><div class="row"><h3>${esc(t.section.name)}</h3>${n ? `<span class="n">문서 ${n}</span>` : ''}</div>
           ${t.section.desc ? `<p>${esc(t.section.desc)}</p>` : ''}
           <span class="arrow" aria-hidden="true">열어보기 ›</span>
         </a>`;
       }).join('')
-      : '<div class="loading">아직 등록된 가이드가 없습니다. 관리 화면에서 섹션을 추가해 주세요.</div>';
+      : '<div class="loading">마을 안내서를 준비하고 있어요. 잠시 후 다시 찾아와 주세요.</div>';
     initReveal(grid);
     // 최신 패치노트 2건
     try {

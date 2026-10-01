@@ -1,3 +1,4 @@
+import { guideIllustration, illustration } from './illustrations.js';
 // 공통 UI: 헤더/푸터 렌더링, 토스트, 헬퍼
 // Firebase에 의존하지 않으므로 네트워크가 막혀도 뼈대는 그려집니다.
 
@@ -37,8 +38,10 @@ const ICONS = {
 export { ICONS };
 
 const NAV = [
+  { key: 'home', label: '마을 입구', href: 'index.html' },
   { key: 'patch', label: '패치노트', href: 'patch.html' },
   { key: 'guide', label: '가이드', href: 'guide.html' },
+  { key: 'commands', label: '명령어', href: 'commands.html' },
   { key: 'prices', label: '시세', href: 'prices.html' },
   { key: 'events', label: '이벤트', href: 'events.html' },
 ];
@@ -56,32 +59,34 @@ export function renderHeader(active = '') {
   const el = $('#site-header');
   if (!el) return;
   const links = NAV.map((n) =>
-    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}>${n.label}</a>`
+    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}><span class="nav-illustration" aria-hidden="true">${illustration(({home:'village',patch:'book',guide:'book',commands:'book',prices:'market',events:'star'})[n.key])}</span>${n.label}</a>`
   ).join('');
+  const main = document.querySelector('main');
+  if (main && !main.id) main.id = 'main-content';
   el.className = 'site-header';
   el.innerHTML = `
-    <div class="tile-band"></div>
+    <a class="skip-link" href="#main-content">본문 바로가기</a><div class="tile-band" aria-hidden="true"></div>
     <svg class="tile-edge" aria-hidden="true" viewBox="0 0 1280 12" preserveAspectRatio="none">
       <defs>
         <pattern id="pw-tile" width="18" height="12" patternUnits="userSpaceOnUse">
-          <circle cx="9" cy="0" r="8" fill="#2B3A57"/><circle cx="9" cy="0" r="5" fill="#3D4F70"/>
+          <circle cx="9" cy="0" r="8" fill="#354b45"/><circle cx="9" cy="0" r="5" fill="#597067"/>
         </pattern>
       </defs>
       <rect width="1280" height="12" fill="url(#pw-tile)"/>
     </svg>
     <div class="bar">
-      <a class="plaque" href="${ROOT}index.html"><span class="name">${esc(SITE.name)}</span><span class="seal" aria-hidden="true"></span></a>
+      <a class="plaque" href="${ROOT}index.html"><span class="penguin-mark" aria-hidden="true">${PENGUIN}</span><span class="brand-copy"><span class="name">${esc(SITE.name)}</span><span class="brand-sub">함께 살아가는 작은 세상</span></span></a>
       <nav class="nav" aria-label="주요 메뉴">
         ${links}
         <a class="nav-admin" data-auth="editor" hidden href="${ROOT}admin/index.html"${active === 'admin' ? ' aria-current="page"' : ''}>${ICONS.gear} 관리</a>
       </nav>
       <form class="search" role="search" action="${ROOT}search.html" method="get">
         ${ICONS.search}
-        <input type="search" name="q" aria-label="위키 검색" placeholder="검색" autocomplete="off">
+        <input type="search" name="q" aria-label="위키 검색" placeholder="무엇이 궁금하세요?" autocomplete="off">
       </form>
       <a class="search-link" href="${ROOT}search.html" aria-label="검색">${ICONS.search}</a>
       <button type="button" class="menu-btn" aria-label="메뉴 열기" aria-expanded="false" data-action="menu">
-        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F3E4C4" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
       <div class="user-chip" data-auth="editor" hidden>
         <span class="user-name"></span>
@@ -102,7 +107,7 @@ export function renderFooter(extra = {}) {
   el.innerHTML = `
     <div class="gold-line"></div>
     <div class="body">
-      <span class="logo">${esc(SITE.name)}</span>
+      <span class="logo">${esc(SITE.name)} <small>함께 쓰는 마을 이야기</small></span>
       <p>Minecraft는 Mojang AB 및 Microsoft의 상표이며, ${esc(SITE.name)}는 Mojang AB나 Microsoft와 제휴 관계가 아닙니다.</p>
       <div class="row">
         <span>상호: ${v(b.company, '상호')}</span>
@@ -199,3 +204,8 @@ document.addEventListener('click', (e) => {
     menu.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
   }
 });
+
+// Decorative UI only. No database fields or persistence are changed.
+const PENGUIN = `<svg viewBox="0 0 48 52" fill="none"><ellipse cx="24" cy="30" rx="17" ry="20" fill="#344f4b"/><ellipse cx="24" cy="33" rx="12" ry="15" fill="#fffaf0"/><ellipse cx="14" cy="29" rx="3" ry="2" fill="#dca38e"/><ellipse cx="34" cy="29" rx="3" ry="2" fill="#dca38e"/><circle cx="18" cy="24" r="2" fill="#263b37"/><circle cx="30" cy="24" r="2" fill="#263b37"/><path d="m20 29 4 4 4-4" fill="#d6a35b"/><path d="M13 37q11 9 22 0l-3 11H16z" fill="#799788"/><path d="m21 38 5 4 5-4-3 9h-4z" fill="#d6ba80"/><path d="M6 15Q24 9 42 15L40 18H8Z" fill="#34413f"/><path d="M15 13 18 3h12l3 10" fill="#34413f"/><ellipse cx="17" cy="48" rx="5" ry="2" fill="#d6a35b"/><ellipse cx="31" cy="48" rx="5" ry="2" fill="#d6a35b"/></svg>`;
+export const guideIcon = guideIllustration;
+export { illustration };
