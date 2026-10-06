@@ -31,6 +31,8 @@ firestore.rules     Firestore 보안 규칙
    몇 분 뒤 `https://mimi6262.github.io/penguin-wiki/` 에서 열립니다.
 2. **Firestore 만들기**: Firebase 콘솔 → Firestore Database → 데이터베이스 만들기 (서울 `asia-northeast3`, 프로덕션 모드).
 3. **보안 규칙**: Firestore → 규칙 탭에 `firestore.rules` 내용을 그대로 붙여넣고 게시.
+   - **`firestore.rules`가 바뀔 때마다 다시 게시해야 합니다.** 사이트 코드는 깃허브에 올리면 자동 반영되지만, 규칙은 Firebase 콘솔에서 직접 게시해야만 바뀝니다. 게시하지 않으면 새 기능의 저장이 "권한 없음"으로 막힙니다.
+   - 관리 화면은 들어갈 때마다 규칙이 최신인지 확인하고, 아니면 상단에 빨간 안내를 띄웁니다.
 4. **로그인 방식**: Authentication → Sign-in method → 이메일/비밀번호 사용 설정.
 5. **승인된 도메인**: Authentication → Settings → 승인된 도메인에 `mimi6262.github.io` 추가 (나중에 커스텀 도메인도 추가).
 6. **첫 운영자 등록** (한 번만 수동):

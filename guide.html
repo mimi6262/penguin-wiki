@@ -80,7 +80,11 @@
     // 현재 문서 결정: ?p= > ?s=(섹션 첫 문서) > 첫 문서
     let current = null;
     if (slugParam) current = pages.find((p) => p.id === slugParam) || (await getPage(slugParam).catch(() => null));
-    else if (sectionParam) current = flat.find((p) => p.sectionId === sectionParam) || null;
+    else if (sectionParam) {
+      // 홈 카드(?s=)에서 왔을 때: 그 섹션의 첫 문서, 섹션에 바로 든 문서가 없으면 하위 섹션의 첫 문서
+      const childIds = sections.filter((c) => c.parentId === sectionParam).map((c) => c.id);
+      current = flat.find((p) => p.sectionId === sectionParam) || flat.find((p) => childIds.includes(p.sectionId)) || null;
+    }
     else if (!q) current = flat[0] || null;
 
     // ---- 트리 ----
@@ -146,8 +150,8 @@
         + (parent ? `<span aria-hidden="true">›</span><span>${esc(parent.name)}</span>` : '')
         + (sec ? `<span aria-hidden="true">›</span><span>${esc(sec.name)}</span>` : '')
         + `<span aria-hidden="true">›</span><span class="cur">${esc(current.title)}</span>`;
-      // 작성자는 편집자에게만 표시 (유저에게는 최종 수정일만)
-      $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.updatedAt)}</span>${editor && current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
+      // 작성자는 편집자에게만 표시 (유저에게는 최종 수정일만). 날짜는 게시 기준 — 임시저장·공개 전환만으로는 바뀌지 않습니다
+      $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.publishedAt || current.updatedAt)}</span>${editor && current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
       content.innerHTML = renderMarkdown(current.markdown || current.draft || '');
       const toc = decorate(content);
       if (toc.length) {

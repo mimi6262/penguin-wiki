@@ -39,12 +39,20 @@ export async function pageExists(slug) {
 }
 
 // 임시저장: draft만 갱신 (유저에게 보이는 게시본은 그대로)
+// 이미 게시된 문서는 제목·섹션 변경도 draftMeta 에만 담아 두고, "게시"할 때 함께 반영합니다.
 export async function saveDraft(slug, data, by) {
   const ref = doc(db, 'pages', slug);
-  const exists = (await getDoc(ref)).exists();
-  const base = { ...data, draft: data.draft ?? '', updatedAt: serverTimestamp(), updatedBy: by };
-  if (exists) await updateDoc(ref, base);
-  else await setDoc(ref, { ...base, slug, public: false, markdown: '', createdAt: serverTimestamp() });
+  const snap = await getDoc(ref);
+  const exists = snap.exists();
+  const live = exists && !!snap.data().markdown;
+  const stamp = { updatedAt: serverTimestamp(), updatedBy: by };
+  if (live) {
+    await updateDoc(ref, { draft: data.draft ?? '', draftMeta: { title: data.title, sectionId: data.sectionId ?? null, order: data.order ?? 0 }, ...stamp });
+  } else if (exists) {
+    await updateDoc(ref, { ...data, draft: data.draft ?? '', ...stamp });
+  } else {
+    await setDoc(ref, { ...data, draft: data.draft ?? '', ...stamp, slug, public: false, markdown: '', createdAt: serverTimestamp() });
+  }
   await log({ pageId: slug, title: data.title, action: exists ? 'draft' : 'create', by });
 }
 
@@ -63,7 +71,7 @@ export async function publish(slug, data, by, summary, extra = {}) {
     });
   }
   const payload = {
-    ...data, slug, markdown: data.markdown, draft: '', public: data.public !== false,
+    ...data, slug, markdown: data.markdown, draft: '', draftMeta: null, public: data.public !== false,
     lastSummary: summary || '', restoredFrom: extra.restoredFrom || null,
     publishedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: by,
   };
@@ -101,18 +109,23 @@ async function log(entry) {
 
 // ---------- 트리 구성 ----------
 // 반환: [{ section, children: [{ section, pages }], pages }]
+// 섹션이 지워졌거나 상위 섹션이 없어진 경우에도 문서가 목차에서 사라지지 않도록:
+//  - 없는 섹션을 가리키는 문서는 "미배치"(orphans)로
+//  - 상위 섹션이 없어진 하위 섹션은 최상위로 올려서 보여 줍니다
 export function buildTree(sections, pages) {
+  const isTop = (s) => !s.parentId || !sections.some((t) => t.id === s.parentId && !t.parentId);
+  const top = sections.filter(isTop);
+  const shown = new Set([...top, ...sections.filter((c) => top.some((t) => t.id === c.parentId))].map((s) => s.id));
   const bySection = {};
   pages.forEach((p) => {
-    const k = p.sectionId || '_none';
+    const k = p.sectionId && shown.has(p.sectionId) ? p.sectionId : '_none';
     (bySection[k] ||= []).push(p);
   });
   Object.values(bySection).forEach((arr) => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
-  const top = sections.filter((s) => !s.parentId);
   const tree = top.map((s) => ({
     section: s,
     pages: bySection[s.id] || [],
-    children: sections.filter((c) => c.parentId === s.id).map((c) => ({ section: c, pages: bySection[c.id] || [] })),
+    children: sections.filter((c) => c.parentId === s.id && !isTop(c)).map((c) => ({ section: c, pages: bySection[c.id] || [] })),
   }));
   return { tree, orphans: bySection['_none'] || [] };
 }

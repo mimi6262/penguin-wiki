@@ -265,6 +265,7 @@ export async function renderPatch(ctx) {
     const name = f('cat-name').value.trim(), color = f('cat-color').value.trim();
     if (!name) return toast('이름을 입력해 주세요');
     if (!/^#[0-9a-fA-F]{6}$/.test(color)) return toast('색상 코드는 #과 6자리 (예: #A63A2B)');
+    if (editingCat && editingCat.name !== name && !confirm(`이름을 "${editingCat.name}" → "${name}"(으)로 바꿀까요?\n이미 쓴 패치노트는 본문의 [${editingCat.name}] 줄 이름으로 색을 찾기 때문에, 그 배지는 회색으로 보입니다.`)) return;
     const order = editingCat ? (editingCat.order ?? 0) : Math.max(0, ...cats.map((c) => c.order ?? 0)) + 10; // 새 카테고리는 맨 뒤
     await C.saveCategory(f('cat-id').value || null, { name, color, order });
     toast('저장했습니다'); renderPatch(ctx);
@@ -612,7 +613,7 @@ export async function renderPrices(ctx) {
     if (!rowsToImport.length) return toast('가져올 줄이 없습니다');
     const st = f('pr-import-status');
     let n = 0;
-    for (const r of rowsToImport) { await C.savePrice({ ...r, source: 'import' }, me.name, T.todayKST()); st.textContent = `${++n}/${rowsToImport.length} 저장 중`; }
+    for (const r of rowsToImport) { await C.savePrice({ ...r, category: r.category || undefined, unit: r.unit || undefined, source: 'import' }, me.name, T.todayKST()); st.textContent = `${++n}/${rowsToImport.length} 저장 중`; }
     toast(`${n}건 가져왔습니다`); renderPrices(ctx);
   });
   f('pr-note').addEventListener('submit', async (e) => { e.preventDefault(); await C.savePriceNote(f('pr-note-text').value.trim(), me.name); toast('저장했습니다'); });

@@ -15,6 +15,12 @@
 <header id="site-header"></header>
 
 <main>
+  <div class="container" id="rules-warn" style="max-width: 1480px; padding-bottom: 0" hidden>
+    <div class="notice-box" role="alert" style="display: block; line-height: 1.7; border-color: var(--accent); background: #fbeeea">
+      <b>데이터베이스 규칙이 최신이 아닙니다.</b> 이대로면 <b>그림 올리기(가이드 편집기·첫 화면 그림)</b>와 <b>편집자 등록 요청</b>이 저장되지 않고, 디스코드 웹훅 주소가 누구에게나 읽힐 수 있어요.<br>
+      Firebase 콘솔 → Firestore Database → <b>규칙</b> 탭에서, 깃허브 저장소의 <code>firestore.rules</code> 내용 전체를 붙여넣고 <b>게시</b>를 눌러 주세요. 게시 후 이 화면을 새로고침하면 이 안내가 사라집니다.
+    </div>
+  </div>
   <div class="container admin-layout" id="admin" hidden>
 
     <aside class="card plain admin-nav" aria-label="관리 메뉴">
@@ -41,9 +47,15 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast, applyCursor } from '../assets/js/ui.js';
+  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast, applyCursor, errText } from '../assets/js/ui.js';
   renderHeader('admin');
   renderFooter();
+  // 저장이 실패하면 조용히 넘어가지 않도록: 처리되지 않은 오류는 모두 화면에 알립니다
+  window.addEventListener('unhandledrejection', (e) => {
+    if (String(e.reason?.message || '') === 'redirect') return;
+    console.error(e.reason);
+    toast(`저장하지 못했습니다: ${errText(e.reason)}`, { timeout: 6000 });
+  });
 
   const { requireEditor, editor: _e } = await import('../assets/js/auth.js');
   const me = await requireEditor();
@@ -58,6 +70,17 @@
   const P = await import('../assets/js/pages.js');
   const { renderMarkdown, resolveImages } = await import('../assets/js/markdown.js');
   const { ICON_CHOICES, guideIllustration } = await import('../assets/js/illustrations.js');
+
+  // 데이터베이스 규칙 점검: 저장소의 firestore.rules 가 Firebase 에 게시되지 않았으면 일부 저장이 조용히 막힙니다.
+  // 가장 최근에 추가된 규칙(images, editorRequests)을 읽어 보고, 막히면 상단에 안내를 띄웁니다.
+  // ※ firestore.rules 에 새 컬렉션을 추가하면 여기에도 점검 대상을 추가해 주세요.
+  (async () => {
+    const denied = (err) => String(err?.code || '').includes('permission-denied');
+    const probes = [getDoc(doc(db, 'images', '__rules_probe'))];
+    if (isAdmin) probes.push(getDocs(query(collection(db, 'editorRequests'), limit(1))));
+    const results = await Promise.allSettled(probes);
+    if (results.some((r) => r.status === 'rejected' && denied(r.reason))) $('#rules-warn').hidden = false;
+  })();
 
   let panel = $('#panel');
   // 탭을 다시 그릴 때 이전 클릭 핸들러가 쌓이지 않도록 패널을 새 노드로 교체
@@ -250,7 +273,7 @@
             const sectionId = p.subsection && top ? await ensure(p.subsection, top) : top;
             const payload = {
               slug, title: String(p.title), sectionId: sectionId || null, order: Number(p.order) || 0,
-              markdown: String(p.markdown || ''), draft: '', public: true, lastSummary: '일괄 가져오기',
+              markdown: String(p.markdown || ''), draft: '', draftMeta: null, public: true, lastSummary: '일괄 가져오기',
               publishedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: me.name,
             };
             if (!existing.has(slug)) payload.createdAt = serverTimestamp();
@@ -315,12 +338,12 @@
     panel.innerHTML = head('사이트 설정', '홈 화면과 푸터에 표시되는 값') + `
       <form class="card plain form-card" id="settings-form" style="border-color: var(--line)">
         <h2 style="font-size: 20px">홈 화면</h2>
-        <div class="form-row">${F('seasonTag', '시즌 태그', s.seasonTag, '예: 시즌 3 · 조선 한옥')}
-          <div class="field"><label for="tagline">소개 문구 (줄바꿈 가능, 2줄 권장)</label><textarea class="textarea" id="tagline" style="min-height: 68px; padding: 10px 16px" placeholder="예: 힐링과 RPG를 함께 즐기는 펭귄서버">${esc(s.tagline ?? '')}</textarea></div>
+        <div class="form-row">${F('seasonTag', '시즌 태그', s.seasonTag, '비우면: 펭귄서버 공식 위키')}
+          <div class="field"><label for="tagline">소개 문구 (줄바꿈 가능, 2줄 권장)</label><textarea class="textarea" id="tagline" style="min-height: 68px; padding: 10px 16px" placeholder="비우면: 농사짓고, 낚시하고, 모험하며. / 우리만의 이야기를 쌓아가는 작은 마을.">${esc(s.tagline ?? '')}</textarea></div>
         </div>
-        <div class="form-row">${F('serverAddress', '서버 주소', s.serverAddress, '예: play.example.kr')}${F('version', '버전', s.version, '예: 1.21.4')}</div>
+        <div class="form-row">${F('serverAddress', '서버 주소 (비우면 "준비 중")', s.serverAddress, '예: play.example.kr')}${F('version', '버전', s.version, '예: 1.21.4')}</div>
         <div class="form-row">${F('mediaUrl', '홈 맨 아래 \'둘러보기\' 이미지 또는 유튜브 URL (비우면 숨김)', s.mediaUrl, 'https://…')}${F('howToSlug', '접속 방법 문서 슬러그', s.howToSlug, 'how-to-join')}</div>
-        <div class="form-row">${F('onlineCount', '접속 중 인원 (비우면 숨김)', s.onlineCount, '', 'number')}${F('inquiryUrl', '문의센터 링크 (디스코드 문의 게시판)', s.inquiryUrl, 'https://discord.com/…')}</div>
+        <div class="form-row">${F('onlineCount', '접속 중 인원 (비우면 숨김)', s.onlineCount, '', 'number')}${F('inquiryUrl', '문의센터 링크 (비우면 버튼 숨김)', s.inquiryUrl, 'https://discord.com/…')}</div>
         <h2 style="font-size: 20px; margin-top: 8px">홈 화면 문구</h2>
         <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">비워 두면 흐린 글씨로 보이는 기본 문구가 그대로 나옵니다. 큰 제목은 줄바꿈이 되고, <b>*별표*</b>로 감싼 부분은 강조색으로 바뀝니다.</div>
         <div class="form-row">${HF('heroEyebrow', '큰 제목 위 작은 문구')}${HF('heroEdition', '첫 화면 왼쪽 위 작은 영문 라벨')}</div>
@@ -352,8 +375,8 @@
         </div>
 
         <h2 style="font-size: 20px; margin-top: 8px">커뮤니티</h2>
-        <div class="form-row">${F('discordUrl', '디스코드 초대 링크', s.discordUrl, 'https://discord.gg/…')}${F('discordDesc', '디스코드 안내 문구', s.discordDesc)}</div>
-        <div class="form-row">${F('minelistUrl', '마인리스트 추천 링크', s.minelistUrl, 'https://minelist.kr/…')}${F('minelistDesc', '마인리스트 안내 문구', s.minelistDesc)}</div>
+        <div class="form-row">${F('discordUrl', '디스코드 초대 링크 (비우면 버튼 숨김)', s.discordUrl, 'https://discord.gg/…')}${F('discordDesc', '디스코드 안내 문구', s.discordDesc, '비우면: 마을 이웃들과 소식과 이야기를 나눠요.')}</div>
+        <div class="form-row">${F('minelistUrl', '마인리스트 추천 링크 (비우면 버튼 숨김)', s.minelistUrl, 'https://minelist.kr/…')}${F('minelistDesc', '마인리스트 안내 문구', s.minelistDesc, '비우면: 오늘도 펭귄마을을 응원해 주세요.')}</div>
         <h2 style="font-size: 20px; margin-top: 8px">푸터 사업자 정보</h2>
         <div class="form-row">${F('company', '상호', b.company)}${F('owner', '대표', b.owner)}</div>
         <div class="form-row">${F('regNo', '사업자등록번호', b.regNo, '000-00-00000')}<div></div></div>
@@ -433,7 +456,7 @@
         heroChoice = `img:${ref.id}`;
         await heroLibrary();
         toast('올렸습니다. 저장을 누르면 홈 첫 화면이 바뀝니다');
-      } catch (err) { console.error(err); toast('올리지 못했습니다: ' + (err.message || err)); heroPreview(); }
+      } catch (err) { console.error(err); toast('올리지 못했습니다: ' + errText(err), { timeout: 6000 }); heroPreview(); }
     });
 
     // ---- 커서 이미지: 브라우저에서 정사각형 PNG로 줄여 data URL 로 보관 (수 KB)

@@ -132,7 +132,8 @@ export async function getPopupSettings() {
   return snap.exists() ? snap.data() : { enabled: false, windows: [DEFAULT_ML_WINDOWS[0]], text: '', url: '' };
 }
 export async function savePopupSettings(data, by) {
-  await setDoc(doc(db, 'popups', 'minelist'), { ...data, ...stamp(by) }, { merge: true });
+  // start/end 는 예전(시간대 1개) 저장 형식. 비워 두지 않으면 시간대를 모두 지웠을 때 옛 시간대가 되살아납니다
+  await setDoc(doc(db, 'popups', 'minelist'), { ...data, start: null, end: null, ...stamp(by) }, { merge: true });
 }
 
 // ---------- 하트 (브라우저 저장) ----------
@@ -173,8 +174,10 @@ export async function savePrice(item, by, today) {
   if (last && last.d === today) last.p = price; else history.push({ d: today, p: price });
   history = history.slice(-14);
   const prevPrice = old && old.price !== price ? old.price : (old?.prevPrice ?? null);
+  // 분류·단위: 값을 넘기면(빈칸 포함) 그대로 저장, 안 넘기면(undefined) 기존 값 유지 — 관리 화면에서 빈칸으로 지울 수 있게
+  const keep = (v, o) => (v === undefined || v === null ? (o || '') : String(v)).trim();
   await setDoc(ref, {
-    name: item.name.trim(), category: (item.category || old?.category || '').trim(), unit: (item.unit || old?.unit || '').trim(),
+    name: item.name.trim(), category: keep(item.category, old?.category), unit: keep(item.unit, old?.unit),
     price, prevPrice, history, source: item.source || 'manual', ...stamp(by),
     ...(old ? {} : { createdAt: serverTimestamp() }),
   }, { merge: true });

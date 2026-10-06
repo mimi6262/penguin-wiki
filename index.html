@@ -135,7 +135,7 @@
 
   $('#copy-address').addEventListener('click', () => {
     const v = $('#server-address').textContent.trim();
-    if (v && v !== '주소 확인 중' && !v.startsWith('[')) copyText(v); else toast('서버 주소가 아직 등록되지 않았습니다');
+    if (v && v !== '주소 확인 중' && v !== '준비 중' && !v.startsWith('[')) copyText(v); else toast('서버 주소가 아직 등록되지 않았습니다');
   });
 
   // Firebase 연결 (실패해도 뼈대는 그대로 보입니다)
@@ -157,11 +157,13 @@
     // 첫 화면 그림 (사이트 설정 → 첫 화면 그림). 없거나 못 불러오면 기본 그림
     resolveHeroSrc(s.heroImage).then((src) => showHero(src, s.heroAlt)).catch(() => showHero(null));
     put('#season-tag', s.seasonTag); put('#tagline', s.tagline);
-    put('#server-address', s.serverAddress); put('#server-version', s.version);
+    // 서버 주소·버전: 비워 두면 "확인 중"에 멈춰 있지 않도록 "준비 중"으로
+    $('#server-address').textContent = s.serverAddress || '준비 중'; $('#server-version').textContent = s.version || '-';
     put('#discord-desc', s.discordDesc); put('#minelist-desc', s.minelistDesc);
-    if (s.discordUrl) $('#btn-discord').href = s.discordUrl;
-    if (s.minelistUrl) $('#btn-minelist').href = s.minelistUrl;
-    if (s.inquiryUrl) $('#btn-inquiry').href = s.inquiryUrl;
+    // 링크 버튼: 주소가 있으면 연결, 비워 두면 버튼을 숨깁니다 (빈 링크로 같은 페이지가 새 탭에 열리지 않게)
+    [['#btn-discord', s.discordUrl], ['#btn-minelist', s.minelistUrl], ['#btn-inquiry', s.inquiryUrl]].forEach(([id, url]) => {
+      const a = $(id); if (url) a.href = url; else a.hidden = true;
+    });
     if (s.howToSlug) $('#btn-howto').href = `guide.html?p=${encodeURIComponent(s.howToSlug)}`;
     if (typeof s.onlineCount === 'number') { $('#online-count').textContent = `${s.onlineCount}명`; $('#online-pill').hidden = false; }
     if (s.mediaUrl) {

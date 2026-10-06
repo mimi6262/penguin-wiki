@@ -90,6 +90,16 @@ export function renderHeader(active = '') {
     <div class="wood-line"></div>`;
 }
 
+// 저장·불러오기 오류를 사람이 읽을 수 있는 문장으로 (관리 화면 토스트용)
+export function errText(err) {
+  const code = String(err?.code || ''), msg = String(err?.message || err || '');
+  if (code.includes('permission-denied') || /insufficient permissions/i.test(msg)) return '권한이 없어 막혔습니다. Firebase 데이터베이스 규칙이 최신으로 게시됐는지 확인해 주세요';
+  if (code.includes('unavailable') || code.includes('network') || /network|offline/i.test(msg)) return '네트워크 연결을 확인해 주세요';
+  if (code.includes('resource-exhausted')) return '오늘 데이터베이스 사용량 한도를 넘었습니다. 내일 다시 시도해 주세요';
+  if (code.includes('invalid-argument') && /bytes|size|exceeds|longer/i.test(msg)) return '내용이 너무 커서 저장할 수 없습니다';
+  return msg || '알 수 없는 오류';
+}
+
 // 사이트 설정(settings/site) — 페이지마다 한 번만 읽어서 하단 사업자 정보·마우스 커서·홈 화면이 함께 씁니다.
 let sitePromise = null;
 export function loadSiteSettings() {
