@@ -114,7 +114,7 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, esc, copyText, toast, initReveal, guideIcon, illustration } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, loadSiteSettings, $, esc, copyText, toast, initReveal, guideIcon, illustration } from './assets/js/ui.js';
   document.querySelectorAll('.community .icon').forEach((el,i)=>{el.innerHTML=illustration(i ? 'star' : 'chat');});
   renderHeader('home');
   renderFooter();
@@ -140,15 +140,13 @@
 
   // Firebase 연결 (실패해도 뼈대는 그대로 보입니다)
   try {
-    const { db, doc, getDoc } = await import('./assets/js/firebase.js');
     const { watchAuth } = await import('./assets/js/auth.js');
     const { listSections, listPages, buildTree } = await import('./assets/js/pages.js');
     watchAuth();
     import('./assets/js/popups.js');
 
-    // 사이트 설정
-    const snap = await getDoc(doc(db, 'settings', 'site'));
-    const s = snap.exists() ? snap.data() : {};
+    // 사이트 설정 (하단·커서와 같은 한 번의 읽기를 함께 씁니다)
+    const s = await loadSiteSettings();
     const put = (id, v) => { if (v) $(id).textContent = v; };
     // 홈 문구 (사이트 설정 → 홈 화면 문구). 비어 있으면 기본 문구 그대로
     const home = s.home || {};
@@ -174,7 +172,6 @@
         ? `<iframe src="https://www.youtube.com/embed/${yt[1]}" title="서버 소개 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
         : `<img src="${esc(s.mediaUrl)}" alt="">`;
     }
-    renderFooter(s.business || {});
 
     // 가이드 타일: 최상위 섹션 이름 + 한 줄 설명 + 문서 수 (섹션이 많아도 가지런히)
     const [allSections, pages] = await Promise.all([listSections(), listPages().catch(() => [])]);

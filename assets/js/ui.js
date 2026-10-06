@@ -90,18 +90,38 @@ export function renderHeader(active = '') {
     <div class="wood-line"></div>`;
 }
 
-export function renderFooter(extra = {}) {
+// 사이트 설정(settings/site) — 페이지마다 한 번만 읽어서 하단 사업자 정보·마우스 커서·홈 화면이 함께 씁니다.
+let sitePromise = null;
+export function loadSiteSettings() {
+  if (!sitePromise) {
+    sitePromise = import('./firebase.js')
+      .then(({ db, doc, getDoc }) => getDoc(doc(db, 'settings', 'site')))
+      .then((snap) => (snap.exists() ? snap.data() : {}));
+    sitePromise.catch(() => { sitePromise = null; }); // 실패하면 다음 호출 때 다시 시도
+  }
+  return sitePromise;
+}
+
+// 하단(푸터): 모든 페이지에서 사이트 설정의 상호·대표·사업자등록번호를 직접 읽어 채웁니다.
+// 브라우저에 마지막 값을 기억해 두었다가 먼저 보여 주고, 설정을 읽으면 최신 값으로 바꿉니다.
+const BIZ_KEY = 'pw_business';
+export function renderFooter(business) {
   const el = $('#site-footer');
   if (!el) return;
-  const b = { ...SITE.business, ...extra };
-  const v = (x, ph) => (x ? esc(x) : `<span style="color:#8A7D66">[${ph}]</span>`);
+  const loaded = !!business;
+  let b = business;
+  if (!b) { try { b = JSON.parse(localStorage.getItem(BIZ_KEY) || 'null'); } catch { b = null; } }
+  const known = !!b;
+  b = { ...SITE.business, ...(b || {}) };
+  // 설정을 읽은 뒤에도 비어 있을 때만 [ ] 자리표시자를 보여 줍니다 (읽는 중에는 빈칸)
+  const v = (x, ph) => (x ? esc(x) : loaded ? `<span style="color:#8A7D66">[${ph}]</span>` : '');
   el.className = 'site-footer';
   el.innerHTML = `
     <div class="gold-line"></div>
     <div class="body">
       <span class="logo">${esc(SITE.name)} <small>함께 쓰는 마을 이야기</small></span>
       <p>Minecraft는 Mojang AB 및 Microsoft의 상표이며, ${esc(SITE.name)}는 Mojang AB나 Microsoft와 제휴 관계가 아닙니다.</p>
-      <div class="row">
+      <div class="row"${known || loaded ? '' : ' style="visibility:hidden"'}>
         <span>상호: ${v(b.company, '상호')}</span>
         <span>대표: ${v(b.owner, '대표자명')}</span>
         <span>사업자등록번호: ${v(b.regNo, '000-00-00000')}</span>
@@ -112,10 +132,15 @@ export function renderFooter(extra = {}) {
       </div>
       <span class="copy">© ${new Date().getFullYear()} ${esc(SITE.name)}. All rights reserved.</span>
     </div>`;
+  if (loaded) {
+    try { localStorage.setItem(BIZ_KEY, JSON.stringify({ company: b.company || '', owner: b.owner || '', regNo: b.regNo || '' })); } catch {}
+  } else {
+    loadSiteSettings().then((s) => renderFooter(s.business || {})).catch(() => { /* 오프라인이거나 아직 설정 전 */ });
+  }
 }
 
 // 마우스 커서: 관리 → 사이트 설정에서 올린 작은 PNG(data URL)를 모든 페이지의 커서로 씁니다.
-// 브라우저에 저장해 두고 즉시 적용한 뒤, 탭당 한 번만 Firestore 에서 최신 값을 받아옵니다.
+// 브라우저에 저장해 두고 즉시 적용한 뒤, 페이지마다 읽는 사이트 설정에서 최신 값으로 맞춥니다.
 const CURSOR_KEY = 'pw_cursor';
 export function applyCursor(cursor) {
   const root = document.documentElement;
@@ -132,11 +157,8 @@ export function applyCursor(cursor) {
 export async function syncCursor() {
   try { const c = JSON.parse(localStorage.getItem(CURSOR_KEY) || 'null'); if (c) applyCursor(c); } catch {}
   try {
-    if (sessionStorage.getItem('pw_cursor_checked')) return;
-    sessionStorage.setItem('pw_cursor_checked', '1');
-    const { db, doc, getDoc } = await import('./firebase.js');
-    const snap = await getDoc(doc(db, 'settings', 'site'));
-    applyCursor(snap.exists() ? snap.data().cursor || null : null);
+    const s = await loadSiteSettings();
+    applyCursor(s.cursor || null);
   } catch (e) { /* 오프라인이거나 아직 설정 전 */ }
 }
 

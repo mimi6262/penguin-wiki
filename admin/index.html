@@ -486,6 +486,7 @@
         updatedAt: serverTimestamp(), updatedBy: me.name,
       }, { merge: true });
       applyCursor(cursorState);
+      renderFooter({ company: v('company'), owner: v('owner'), regNo: v('regNo') }); // 하단 사업자 정보도 바로 반영
       s.heroImage = heroChoice; heroLibrary();
       toast('저장했습니다');
     });
