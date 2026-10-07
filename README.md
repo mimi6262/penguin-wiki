@@ -127,15 +127,18 @@ firestore.rules     Firestore 보안 규칙
 - 운영자 스크립트로 자동 갱신할 때는 서비스 계정으로 Firestore `prices/{아이템id}` 문서에 같은 필드를 쓰면 됩니다:
   `name, category, price, prevPrice, unit, history:[{d:'YYYY-MM-DD', p}], updatedAt`.
 
-## 커스텀 도메인 (wiki.penguinmc.kr · admin.penguinmc.kr)
+## 커스텀 도메인 (penguinwiki.kr · admin.penguinwiki.kr)
 
-위키는 `wiki.penguinmc.kr`, 관리 입구는 `admin.penguinmc.kr`(→ `wiki.penguinmc.kr/admin/`으로 넘겨 줌)로 씁니다.
+위키는 `penguinwiki.kr`(www 포함), 관리 입구는 `admin.penguinwiki.kr`(→ `penguinwiki.kr/admin/`으로 넘겨 줌)로 씁니다. 도메인은 가비아에서 등록, 네임서버는 가비아 기본.
 
-1. **도메인 구매**: `penguinmc.kr` (가비아·후이즈 등). 서버 접속 주소(`play.penguinmc.kr` 등)도 같은 도메인으로 쓸 수 있습니다.
-2. **DNS 레코드** (도메인 산 곳의 DNS 관리): CNAME `wiki` → `mimi6262.github.io.` / CNAME `admin` → `mimi6262.github.io.`
-3. **위키 저장소**(penguin-wiki) Settings → Pages → Custom domain에 `wiki.penguinmc.kr` → Save → 확인이 끝나면 **Enforce HTTPS** 체크.
-   설정하면 저장소에 `CNAME` 파일이 생기고, 옛 주소(`mimi6262.github.io/penguin-wiki/`)는 새 주소로 자동으로 넘어갑니다.
-4. **관리 입구 저장소**(penguin-wiki-admin, 공개): `index.html`·`404.html`(같은 내용, 경로·검색·#을 유지해 넘김)·`CNAME`(`admin.penguinmc.kr`).
-   Settings → Pages → Deploy from a branch `main` / root → Custom domain `admin.penguinmc.kr` → Enforce HTTPS.
-5. **Firebase** Authentication → 설정 → 승인된 도메인에 `wiki.penguinmc.kr` 추가 (로그인·비밀번호 재설정이 새 주소에서 동작하도록).
-6. 주소가 바뀌면 로그인 상태·커서 등 브라우저에 저장된 값은 새 주소 기준이라, 편집자는 새 주소에서 한 번 다시 로그인합니다.
+1. **DNS 레코드** (My가비아 → 서비스 관리 → 도메인 → DNS 관리):
+   - A `@` → `185.199.108.153` / `185.199.109.153` / `185.199.110.153` / `185.199.111.153` (4줄, GitHub Pages)
+   - CNAME `www` → `mimi6262.github.io.`
+   - CNAME `admin` → `mimi6262.github.io.`
+2. **위키 저장소**(penguin-wiki) Settings → Pages → Custom domain에 `penguinwiki.kr` → Save → 확인이 끝나면 **Enforce HTTPS** 체크.
+   설정하면 저장소에 `CNAME` 파일이 생기고, `www.penguinwiki.kr`과 옛 주소(`mimi6262.github.io/penguin-wiki/`)는 새 주소로 자동으로 넘어갑니다.
+3. **관리 입구 저장소**(penguin-wiki-admin, 공개): `index.html`·`404.html`(같은 내용, 경로·검색·#을 유지해 넘김)·`CNAME`(`admin.penguinwiki.kr`).
+   Settings → Pages → Deploy from a branch `main` / root → Custom domain `admin.penguinwiki.kr` → Enforce HTTPS.
+4. **Firebase** Authentication → 설정 → 승인된 도메인에 `penguinwiki.kr` 추가 (로그인·비밀번호 재설정이 새 주소에서 동작하도록).
+5. 주소가 바뀌면 로그인 상태·커서 등 브라우저에 저장된 값은 새 주소 기준이라, 편집자는 새 주소에서 한 번 다시 로그인합니다.
+6. 가비아 "안전잠금"은 DNS 설정이 끝난 뒤 켭니다. 도메인은 자동 연장 권장(.kr은 만료 30일 뒤 바로 삭제).
