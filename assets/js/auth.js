@@ -5,7 +5,7 @@ import {
   setPersistence, browserLocalPersistence, browserSessionPersistence,
   sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
 } from './firebase.js';
-import { $, $$, ROOT, toast } from './ui.js';
+import { ROOT, toast, paintAuth, rememberEditor } from './ui.js';
 
 // 현재 편집자 정보 { uid, email, name, role } 또는 null
 export let editor = null;
@@ -19,13 +19,9 @@ export function onEditorChange(cb) {
 
 function applyToDom() {
   // data-auth="editor" 요소는 편집자에게만, data-auth="admin"은 운영자에게만 보입니다.
-  $$('[data-auth]').forEach((el) => {
-    const need = el.getAttribute('data-auth');
-    const ok = editor && (need === 'editor' || (need === 'admin' && editor.role === 'admin'));
-    el.hidden = !ok;
-  });
-  $$('.user-chip .user-name').forEach((el) => (el.textContent = editor?.name || ''));
-  $$('.user-chip .role').forEach((el) => (el.textContent = editor ? (editor.role === 'admin' ? '운영자' : '가이드') : ''));
+  // 확인된 상태를 기억해 두면 다음 페이지에서 관리 메뉴가 처음부터 제자리에 그려집니다 (ui.js renderHeader).
+  paintAuth(editor);
+  rememberEditor(editor);
 }
 
 async function resolveEditor(user) {
@@ -93,6 +89,7 @@ export async function login(email, password, { remember = true } = {}) {
 
 export async function logout() {
   await signOut(auth);
+  rememberEditor(null); // 다음 페이지에서 관리 메뉴가 잠깐이라도 보이지 않게
   toast('로그아웃했습니다');
 }
 

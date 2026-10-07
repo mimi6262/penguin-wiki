@@ -46,6 +46,26 @@ const NAV = [
   { key: 'events', label: '이벤트', href: 'events.html' },
 ];
 
+// 로그인 상태 표시(관리 메뉴·이름표 등 data-auth 요소)
+// 페이지를 옮길 때마다 로그인 확인(0.5~1초)을 기다리는 동안 관리 메뉴가 숨었다 나타나면서 메뉴 줄 전체가 옆으로 밀리지 않도록,
+// 마지막 로그인 상태를 브라우저에 기억해 두고 처음부터 그 상태로 그립니다. 확인이 끝나면 auth.js 가 실제 상태로 다시 맞춥니다.
+// (미리 보여 주는 것일 뿐, 실제 권한은 로그인 확인과 데이터베이스 규칙이 지킵니다)
+const EDITOR_KEY = 'pw_editor';
+export function paintAuth(e) {
+  $$('[data-auth]').forEach((el) => {
+    const need = el.getAttribute('data-auth');
+    el.hidden = !(e && (need === 'editor' || (need === 'admin' && e.role === 'admin')));
+  });
+  $$('.user-chip .user-name').forEach((el) => (el.textContent = e?.name || ''));
+  $$('.user-chip .role').forEach((el) => (el.textContent = e ? (e.role === 'admin' ? '운영자' : '가이드') : ''));
+}
+export function rememberEditor(e) {
+  try { e ? localStorage.setItem(EDITOR_KEY, JSON.stringify({ name: e.name || '', role: e.role || 'guide' })) : localStorage.removeItem(EDITOR_KEY); } catch {}
+}
+function lastEditor() {
+  try { return JSON.parse(localStorage.getItem(EDITOR_KEY) || 'null'); } catch { return null; }
+}
+
 export function renderHeader(active = '') {
   syncCursor();
   const el = $('#site-header');
@@ -88,6 +108,8 @@ export function renderHeader(active = '') {
     </div>
     <div class="gold-line"></div>
     <div class="wood-line"></div>`;
+  const last = lastEditor();
+  if (last) paintAuth(last); // 지난번에 로그인해 있던 편집자면 관리 메뉴를 처음부터 자리 잡아 둡니다
 }
 
 // 저장·불러오기 오류를 사람이 읽을 수 있는 문장으로 (관리 화면 토스트용)
