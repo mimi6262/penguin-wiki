@@ -61,20 +61,69 @@ export function decorate(container) {
   return toc;
 }
 
-// images/{id} 를 읽어 <img data-pw-img> 에 src 를 넣습니다. 같은 세션에서는 한 번만 읽습니다.
+// 글 사이·표 칸 안에 들어간 그림(아이템 아이콘 등)은 "글줄 그림"으로 표시합니다.
+//  - 불러오는 동안 큰 빈 상자 대신 작은 자리만 차지 (화면이 덜컹거리지 않게)
+//  - 그림과 바로 뒤 이름이 서로 다른 줄로 갈라지지 않게 묶음
+function markInlineImages(container) {
+  container.querySelectorAll('img[data-pw-img]:not(.pw-inline):not(.pw-block)').forEach((img) => {
+    const parent = img.parentElement;
+    const hasText = parent && Array.from(parent.childNodes).some((n) => n.nodeType === 3 && n.textContent.trim());
+    if (!img.closest('td, th, li') && !hasText) { img.classList.add('pw-block'); return; }
+    img.classList.add('pw-inline');
+    const next = img.nextSibling;
+    if (next && next.nodeType === 3) {
+      const m = /^\s*\S+/.exec(next.textContent);
+      if (m) {
+        const rest = next.splitText(m[0].length);
+        const pair = document.createElement('span');
+        pair.className = 'pw-pair';
+        parent.insertBefore(pair, img);
+        pair.append(img, next);
+        void rest;
+      }
+    }
+  });
+}
+
+// images/{id} 를 읽어 <img data-pw-img> 에 src 를 넣습니다.
+// 올린 그림은 바뀌지 않으므로(규칙상 수정 불가) 작은 그림은 브라우저에 보관해 다음부터 데이터베이스를 읽지 않습니다.
 const imageCache = new Map();
+const LS_PREFIX = 'pw_img_';
+const LS_MAX = 64 * 1024; // 아이콘 같은 작은 그림만 보관
+function cachedImage(id) {
+  try { const v = localStorage.getItem(LS_PREFIX + id); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+function keepImage(id, v) {
+  if (!v || !v.data || v.data.length > LS_MAX) return;
+  try { localStorage.setItem(LS_PREFIX + id, JSON.stringify(v)); } catch { /* 저장 공간이 차면 그냥 넘어감 */ }
+}
 export async function resolveImages(container) {
+  markInlineImages(container);
   const imgs = Array.from(container.querySelectorAll('img[data-pw-img]:not([src])'));
   if (!imgs.length) return;
-  const { db, doc, getDoc } = await import('./firebase.js');
+  let fb = null;
+  const load = async (id) => {
+    const hit = cachedImage(id);
+    if (hit) return hit;
+    fb ||= await import('./firebase.js');
+    const s = await fb.getDoc(fb.doc(fb.db, 'images', id));
+    if (!s.exists()) return null;
+    const d = s.data();
+    const v = { data: d.data, w: d.w || 0, h: d.h || 0 };
+    keepImage(id, v);
+    return v;
+  };
   await Promise.all(imgs.map(async (img) => {
     const id = img.getAttribute('data-pw-img');
-    if (!imageCache.has(id)) {
-      imageCache.set(id, getDoc(doc(db, 'images', id)).then((s) => (s.exists() ? s.data().data : null)).catch(() => null));
-    }
-    const data = await imageCache.get(id);
-    if (data) img.src = data;
-    else { img.classList.add('missing'); img.alt = img.alt || '이미지를 찾을 수 없습니다'; }
+    if (!imageCache.has(id)) imageCache.set(id, load(id).catch(() => null));
+    const v = await imageCache.get(id);
+    if (v && v.data) {
+      // 64px 이하(마인크래프트 아이템 아이콘 등)는 테두리·둥근 모서리 없이 또렷하게
+      const small = (w) => w > 0 && w <= 64;
+      if (small(v.w)) img.classList.add('pw-icon');
+      else img.addEventListener('load', () => { if (small(img.naturalWidth)) img.classList.add('pw-icon'); }, { once: true });
+      img.src = v.data;
+    } else { img.classList.add('missing'); img.alt = img.alt || '이미지를 찾을 수 없습니다'; }
   }));
 }
 
