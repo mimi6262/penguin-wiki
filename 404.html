@@ -4,11 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>페이지를 찾을 수 없습니다 — 펭귄서버 위키</title>
+<script>
+  // 없는 주소는 어느 깊이에서든 이 화면이 뜨므로, 그림·글꼴·스크립트를 사이트 맨 앞 기준으로 찾게 합니다.
+  // 깃허브 기본 주소(…github.io/penguin-wiki/)와 자체 도메인(wiki.penguinmc.kr) 양쪽에서 동작합니다.
+  (function () {
+    var root = /\.github\.io$/.test(location.hostname) ? '/penguin-wiki/' : '/';
+    document.write('<base href="' + root + '">');
+    window.PW_ROOT = root;
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
 <link rel="stylesheet" href="assets/css/site.css">
-<script>window.PW_ROOT = './';</script>
 </head>
 <body>
 <header id="site-header"></header>

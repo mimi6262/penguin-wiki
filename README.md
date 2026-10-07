@@ -34,7 +34,7 @@ firestore.rules     Firestore 보안 규칙
    - **`firestore.rules`가 바뀔 때마다 다시 게시해야 합니다.** 사이트 코드는 깃허브에 올리면 자동 반영되지만, 규칙은 Firebase 콘솔에서 직접 게시해야만 바뀝니다. 게시하지 않으면 새 기능의 저장이 "권한 없음"으로 막힙니다.
    - 관리 화면은 들어갈 때마다 규칙이 최신인지 확인하고, 아니면 상단에 빨간 안내를 띄웁니다.
 4. **로그인 방식**: Authentication → Sign-in method → 이메일/비밀번호 사용 설정.
-5. **승인된 도메인**: Authentication → Settings → 승인된 도메인에 `mimi6262.github.io` 추가 (나중에 커스텀 도메인도 추가).
+5. **승인된 도메인**: Authentication → Settings → 승인된 도메인에 `mimi6262.github.io` 추가 (커스텀 도메인은 아래 "커스텀 도메인" 참고).
 6. **첫 운영자 등록** (한 번만 수동):
    - Authentication → Users → 사용자 추가 (이메일 + 비밀번호) → 만들어진 사용자의 **UID** 복사
    - Firestore → 컬렉션 `editors` → 문서 ID를 그 UID로 → 필드 `name`(문자열), `email`(문자열), `role` = `admin`
@@ -127,8 +127,15 @@ firestore.rules     Firestore 보안 규칙
 - 운영자 스크립트로 자동 갱신할 때는 서비스 계정으로 Firestore `prices/{아이템id}` 문서에 같은 필드를 쓰면 됩니다:
   `name, category, price, prevPrice, unit, history:[{d:'YYYY-MM-DD', p}], updatedAt`.
 
-## 커스텀 도메인 연결 (구입 후)
+## 커스텀 도메인 (wiki.penguinmc.kr · admin.penguinmc.kr)
 
-1. DNS에 CNAME 레코드: `wiki`(또는 원하는 서브도메인) → `mimi6262.github.io`
-2. 레포 Settings → Pages → Custom domain에 입력 → Enforce HTTPS 체크
-3. Firebase Authentication → 승인된 도메인에 같은 도메인 추가
+위키는 `wiki.penguinmc.kr`, 관리 입구는 `admin.penguinmc.kr`(→ `wiki.penguinmc.kr/admin/`으로 넘겨 줌)로 씁니다.
+
+1. **도메인 구매**: `penguinmc.kr` (가비아·후이즈 등). 서버 접속 주소(`play.penguinmc.kr` 등)도 같은 도메인으로 쓸 수 있습니다.
+2. **DNS 레코드** (도메인 산 곳의 DNS 관리): CNAME `wiki` → `mimi6262.github.io.` / CNAME `admin` → `mimi6262.github.io.`
+3. **위키 저장소**(penguin-wiki) Settings → Pages → Custom domain에 `wiki.penguinmc.kr` → Save → 확인이 끝나면 **Enforce HTTPS** 체크.
+   설정하면 저장소에 `CNAME` 파일이 생기고, 옛 주소(`mimi6262.github.io/penguin-wiki/`)는 새 주소로 자동으로 넘어갑니다.
+4. **관리 입구 저장소**(penguin-wiki-admin, 공개): `index.html`·`404.html`(같은 내용, 경로·검색·#을 유지해 넘김)·`CNAME`(`admin.penguinmc.kr`).
+   Settings → Pages → Deploy from a branch `main` / root → Custom domain `admin.penguinmc.kr` → Enforce HTTPS.
+5. **Firebase** Authentication → 설정 → 승인된 도메인에 `wiki.penguinmc.kr` 추가 (로그인·비밀번호 재설정이 새 주소에서 동작하도록).
+6. 주소가 바뀌면 로그인 상태·커서 등 브라우저에 저장된 값은 새 주소 기준이라, 편집자는 새 주소에서 한 번 다시 로그인합니다.
