@@ -128,6 +128,10 @@ def main():
     if msg:
         if webhook:
             print('디스코드 전송:', msg['title'], post(webhook, msg))
+        elif send_test:
+            # 연결 확인을 눌렀는데 비밀값이 없으면 실패로 표시해 바로 알 수 있게
+            print('웹훅 비밀값(DISCORD_WEBHOOK_STATUS)이 없습니다. 저장소 Settings → Secrets and variables → Actions 에 넣어 주세요.')
+            return 1
         else:
             print('웹훅 비밀값(DISCORD_WEBHOOK_STATUS)이 없어 전송은 건너뜀:', msg['title'])
 
