@@ -1,0 +1,66 @@
+# 펭귄서버 상태 알림: 약 5분마다 서버에 접속해 보고, 켜짐/꺼짐이 바뀌었을 때만 디스코드로 알립니다.
+# 필요한 것: 저장소 Settings → Secrets and variables → Actions → 비밀값 DISCORD_WEBHOOK_STATUS (웹훅 주소)
+# 연결 확인: Actions 탭 → "서버 상태 알림" → Run workflow → "지금 상태를 디스코드로 보내 보기" 체크
+name: 서버 상태 알림
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: '지금 상태를 디스코드로 한 번 보내 보기 (연결 확인용)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # 이전 상태(state.json)를 server-status 브랜치에 기록
+
+concurrency:
+  group: server-status
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 준비
+        run: pip install --quiet "mcstatus>=11,<13"
+
+      - name: 이전 상태 불러오기
+        run: |
+          if git fetch --quiet --depth=1 origin server-status 2>/dev/null; then
+            git show FETCH_HEAD:state.json > state.json || echo '{}' > state.json
+          else
+            echo '{}' > state.json
+          fi
+
+      - name: 서버 확인
+        env:
+          DISCORD_WEBHOOK_STATUS: ${{ secrets.DISCORD_WEBHOOK_STATUS }}
+          SERVER_ADDRESS: ${{ vars.SERVER_ADDRESS }}
+          QUIET_HOURS: ${{ vars.STATUS_QUIET_HOURS }}
+          SEND_TEST: ${{ inputs.test }}
+        run: python .github/scripts/server_status.py
+
+      - name: 상태 기록 (바뀌었을 때만)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f state.json.changed ]; then echo '변화 없음'; exit 0; fi
+          d=$(mktemp -d); cp state.json "$d/"; cd "$d"
+          git init -q -b server-status
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add state.json
+          git commit -q -m "서버 상태: $(python3 -c "import json;print('켜짐' if json.load(open('state.json'))['up'] else '꺼짐')")"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" server-status
