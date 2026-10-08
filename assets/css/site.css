@@ -1323,3 +1323,11 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 .prose img.pw-icon { border: 0; border-radius: 0; background: none; image-rendering: pixelated; max-height: 32px; width: auto; }
 /* 아이콘과 바로 뒤 이름은 한 줄에 */
 .prose .pw-pair { white-space: nowrap; }
+
+/* ---------- 홈 실시간 서버 상태 ---------- */
+.info-pill.off .dot { background: #b8ab92; }
+.info-pill.off .v { color: var(--muted); }
+.info-pill.live .dot { position: relative; }
+.info-pill.live .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: pw-live 2.4s ease-out infinite; }
+@keyframes pw-live { from { transform: scale(1); opacity: .55; } to { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .info-pill.live .dot::after { animation: none; } }

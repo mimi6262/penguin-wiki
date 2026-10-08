@@ -266,7 +266,9 @@
         </div>
         <div class="form-row">${F('serverAddress', '서버 주소 (비우면 "준비 중")', s.serverAddress, '예: play.example.kr')}${F('version', '버전', s.version, '예: 1.21.4')}</div>
         <div class="form-row">${F('mediaUrl', '홈 맨 아래 \'둘러보기\' 이미지 또는 유튜브 URL (비우면 숨김)', s.mediaUrl, 'https://…')}${F('howToSlug', '접속 방법 문서 슬러그', s.howToSlug, 'how-to-join')}</div>
-        <div class="form-row">${F('onlineCount', '접속 중 인원 (비우면 숨김)', s.onlineCount, '', 'number')}${F('inquiryUrl', '문의센터 링크 (비우면 버튼 숨김)', s.inquiryUrl, 'https://discord.com/…')}</div>
+        <div class="form-row"><div class="field"><label for="onlineCount">홈 "접속 중" 표시</label>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 6px"><input type="checkbox" id="liveStatus" ${s.liveStatus !== false ? 'checked' : ''}> 서버 주소로 실시간 확인 (켜짐/점검 중 · 접속 인원, 1분마다)</label>
+            <input class="input" id="onlineCount" type="number" value="${esc(s.onlineCount ?? '')}" placeholder="실시간 확인이 꺼져 있거나 안 될 때 보여 줄 인원 (비우면 숨김)"></div>${F('inquiryUrl', '문의센터 링크 (비우면 버튼 숨김)', s.inquiryUrl, 'https://discord.com/…')}</div>
         <h2 style="font-size: 20px; margin-top: 8px">홈 화면 문구</h2>
         <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">비워 두면 흐린 글씨로 보이는 기본 문구가 그대로 나옵니다. 큰 제목은 줄바꿈이 되고, <b>*별표*</b>로 감싼 부분은 강조색으로 바뀝니다.</div>
         <div class="form-row">${HF('heroEyebrow', '큰 제목 위 작은 문구')}${HF('heroEdition', '첫 화면 왼쪽 위 작은 영문 라벨')}</div>
@@ -423,7 +425,7 @@
       await setDoc(doc(db, 'settings', 'site'), {
         seasonTag: v('seasonTag'), tagline: v('tagline'), serverAddress: v('serverAddress'), version: v('version'),
         mediaUrl: v('mediaUrl'), howToSlug: v('howToSlug'), inquiryUrl: v('inquiryUrl'),
-        onlineCount: oc === '' ? null : Number(oc),
+        onlineCount: oc === '' ? null : Number(oc), liveStatus: $('#liveStatus').checked,
         discordUrl: v('discordUrl'), discordDesc: v('discordDesc'), minelistUrl: v('minelistUrl'), minelistDesc: v('minelistDesc'),
         business: { company: v('company'), owner: v('owner'), regNo: v('regNo') },
         cursor: cursorState,

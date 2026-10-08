@@ -165,7 +165,24 @@
       const a = $(id); if (url) a.href = url; else a.hidden = true;
     });
     if (s.howToSlug) $('#btn-howto').href = `guide.html?p=${encodeURIComponent(s.howToSlug)}`;
-    if (typeof s.onlineCount === 'number') { $('#online-count').textContent = `${s.onlineCount}명`; $('#online-pill').hidden = false; }
+    // 접속 중: 서버 주소로 실시간 확인(1분마다). 확인이 안 되면 관리 화면에 직접 넣은 숫자로 대신 표시
+    const pill = $('#online-pill');
+    const manual = () => {
+      pill.classList.remove('live', 'off');
+      if (typeof s.onlineCount === 'number') { pill.querySelector('.k').textContent = '접속 중'; $('#online-count').textContent = `${s.onlineCount}명`; pill.hidden = false; pill.title = ''; }
+      else pill.hidden = true;
+    };
+    const paintStatus = (st) => {
+      if (!st) return manual();
+      pill.hidden = false;
+      pill.classList.toggle('live', st.online); pill.classList.toggle('off', !st.online);
+      pill.querySelector('.k').textContent = st.online ? '접속 중' : '서버';
+      $('#online-count').textContent = st.online ? `${st.players ?? 0}명` : '점검 중';
+      pill.title = st.online ? '실시간 접속 인원 (1분마다 갱신)' : '지금은 서버에 접속할 수 없어요';
+    };
+    if (s.serverAddress && s.liveStatus !== false) {
+      import('./assets/js/serverstatus.js').then((m) => m.watchServerStatus(s.serverAddress, paintStatus)).catch(manual);
+    } else manual();
     if (s.mediaUrl) {
       $('#server-tour').hidden = false;
       const m = $('#hero-media');
