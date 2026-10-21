@@ -153,6 +153,7 @@ export function renderFooter(business) {
     <div class="body">
       <span class="logo">${esc(SITE.name)} <small>함께 쓰는 마을 이야기</small></span>
       <p>Minecraft는 Mojang AB 및 Microsoft의 상표이며, ${esc(SITE.name)}는 Mojang AB나 Microsoft와 제휴 관계가 아닙니다.</p>
+      <p>이 사이트에는 메이플스토리가 제공한 메이플스토리 서체가 적용되어 있습니다.</p>
       <div class="row"${known || loaded ? '' : ' style="visibility:hidden"'}>
         <span>상호: ${v(b.company, '상호')}</span>
         <span>대표: ${v(b.owner, '대표자명')}</span>

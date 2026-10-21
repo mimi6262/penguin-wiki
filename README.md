@@ -17,7 +17,8 @@ admin/login.html    관리자 로그인
 admin/index.html    관리 (#docs 문서 · #settings 사이트 설정 · #events 이벤트 · #patch 패치노트 · #popups 알림 · #commands 명령어 · #editors 편집자 · #history 이력)
 admin/panels2.js    관리 2차 패널 (이벤트 · 패치노트 · 알림 · 명령어)
 admin/editor.html   문서 편집기 (?p=슬러그)
-assets/css/site.css 공통 스타일 (블록 마을 · 하늘색). 색 기준값은 맨 위 :root, 글꼴(카페24 써라운드)은 맨 아래
+assets/css/site.css 공통 스타일 (블록 마을 · 하늘색). 색 기준값은 맨 위 :root, 글꼴(메이플스토리 Bold)은 맨 아래
+assets/fonts/       Maplestory-Bold.ttf (넥슨 무료 서체 — 수정 · 변환 금지, 저작권 안내 MAPLESTORY_FONT_LICENSE.txt 를 함께 둘 것)
 assets/images/      penguin-village.jpg (첫 화면 기본 그림, 1536×1024) · penguin-icon.png (상단 로고, 180×180)
 assets/js/          ui.js(헤더·푸터·펭귄 로고) firebase.js(초기화) auth.js(로그인·역할) pages.js(문서) markdown.js(렌더링)
                     content.js(패치노트·이벤트·명령어·팝업 데이터) time.js(KST 시간) popups.js(하단 알림) discord.js(웹훅)

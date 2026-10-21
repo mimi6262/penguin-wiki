@@ -1353,26 +1353,27 @@ body{background-color:var(--bg);background-image:linear-gradient(#7e9db108 1px,t
 /* Plump pastel icons */
 .nav-illustration{width:30px;height:32px;margin-right:5px}.nav-illustration svg{width:30px;height:30px}.g-tile .guide-mark{border-radius:22px;background:#e8f5ff;box-shadow:inset 0 2px 0 #fff,0 3px 0 #d6e7f3}.g-tile .guide-mark svg{width:50px;height:50px}.community .icon{border-radius:20px}
 
-/* 카페24 써라운드: 모든 화면(관리 · 입력창 포함) 공통 글꼴. OFL 무료 글꼴, 눈누 CDN 에서 받는다.
-   메이플스토리체는 넥슨 약관상 파일 수정 · 재배포가 막혀 있어 비슷한 둥근 글꼴로 바꿨다(2026-10-21). */
+/* 메이플스토리 Bold: 모든 화면(관리 · 입력창 포함) 공통 글꼴.
+   넥슨 약관: 무료 · 상업 사용 가능, 저작권 안내를 함께 두면 임베디드 폰트로 사용 가능, 수정 금지(배포된 형태 그대로).
+   그래서 TTF 를 변환 · 축소하지 않고 그대로 쓰고, 안내는 assets/fonts/MAPLESTORY_FONT_LICENSE.txt, 출처 문구는 하단에 둔다. */
 @font-face {
-  font-family: 'Cafe24Ssurround';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2105_2@1.0/Cafe24Ssurround.woff') format('woff');
+  font-family: 'Penguin MapleStory';
+  src: url('../fonts/Maplestory-Bold.ttf') format('truetype');
   font-style: normal;
   font-weight: 700;
   font-display: swap;
 }
 :root {
-  --font-head: 'Cafe24Ssurround', sans-serif;
-  --font-body: 'Cafe24Ssurround', sans-serif;
-  --font-mono: 'Cafe24Ssurround', sans-serif;
+  --font-head: 'Penguin MapleStory', sans-serif;
+  --font-body: 'Penguin MapleStory', sans-serif;
+  --font-mono: 'Penguin MapleStory', sans-serif;
 }
 html, body, body *, body *::before, body *::after {
-  font-family: 'Cafe24Ssurround', sans-serif !important;
+  font-family: 'Penguin MapleStory', sans-serif !important;
   font-weight: 700 !important;
   font-synthesis: none;
 }
 input::placeholder, textarea::placeholder {
-  font-family: 'Cafe24Ssurround', sans-serif;
+  font-family: 'Penguin MapleStory', sans-serif;
   font-weight: 700;
 }
