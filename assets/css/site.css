@@ -1344,7 +1344,7 @@ body{background-color:var(--bg);background-image:linear-gradient(#7e9db108 1px,t
 @media(max-width:760px){.hero{border-radius:18px}.hero-scene::after{background:linear-gradient(180deg,#eaf1f5 0%,#eaf1f565 26%,transparent 55%)}.hero-scene img{object-position:65% 60%}.hero-scene figcaption{font-size:11px;max-width:90%}.welcome-path{border-radius:14px}}
 
 /* Sky blue identity */
-.penguin-mark{width:54px;height:54px;padding:1px;background:#eaf6ff;border:1px solid #d0e9fb;border-radius:17px;box-shadow:0 3px 0 #d7eafa}.penguin-mark svg{width:100%;height:100%;display:block}.hero h1{color:#345a7b}.hero h1 em{color:#589cca}.plaque .name{color:#487caa}.hero .copy{gap:24px}.btn.primary{background:#68a8d5;border-color:#518fbf;box-shadow:inset 0 2px 0 #abd8f5,0 4px 0 #447da8}.btn.secondary{color:#5182a9}.scene-dot{background:#79b9e5}.hero-scene figcaption{color:#6488a3}.brand-sub{color:#7893a7}
+.penguin-mark{width:54px;height:54px;padding:1px;background:#eaf6ff;border:1px solid #d0e9fb;border-radius:17px;box-shadow:0 3px 0 #d7eafa}.penguin-mark svg{width:100%;height:100%;display:block}.hero h1{color:#345a7b}.hero h1 em{color:#589cca}.plaque .name{color:#487caa}.hero .copy{gap:24px}.btn.primary{background:#2f78ad;border-color:#286a99;box-shadow:inset 0 2px 0 #6fb0de,0 4px 0 #215a83}.btn.secondary{color:#5182a9}.scene-dot{background:#79b9e5}.hero-scene figcaption{color:#6488a3}.brand-sub{color:#7893a7}
 
 /* Reference farmer penguin header icon */
 .penguin-mark{width:60px;height:60px;flex:0 0 60px;padding:0;background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible}.penguin-mark img{display:block;width:100%;height:100%;object-fit:contain}
