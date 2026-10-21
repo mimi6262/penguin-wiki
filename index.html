@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>펭귄서버 위키</title>
 <meta name="description" content="펭귄서버 공식 위키 — 가이드, 명령어, 시세, 이벤트">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
 <link rel="stylesheet" href="assets/css/site.css">
 <script>window.PW_ROOT = './';</script>
 </head>
@@ -19,9 +16,8 @@
 
     <section class="hero"><span class="hero-edition" id="hero-edition" aria-hidden="true">PENGUIN VILLAGE · 마을 안내소</span>
       <div class="copy">
-        <span class="pill-info" id="season-tag" style="align-self: flex-start">펭귄서버 공식 위키</span>
         <span class="hero-eyebrow" id="hero-eyebrow">함께 머무는 작은 세상</span>
-        <h1 id="hero-title">오늘도,<br>우리 <em>마을에서.</em></h1>
+        <h1 id="hero-title">따뜻한<br><em>힐링서버</em></h1>
         <p class="subtitle" id="tagline" style="margin: 0; font-size: 16px; white-space: pre-line">농사짓고, 낚시하고, 모험하며.
 우리만의 이야기를 쌓아가는 작은 마을.</p>
         <div class="info-pills">
@@ -156,7 +152,7 @@
     if (home.heroTitle) $('#hero-title').innerHTML = titleHtml(home.heroTitle);
     // 첫 화면 그림 (사이트 설정 → 첫 화면 그림). 없거나 못 불러오면 기본 그림
     resolveHeroSrc(s.heroImage).then((src) => showHero(src, s.heroAlt)).catch(() => showHero(null));
-    put('#season-tag', s.seasonTag); put('#tagline', s.tagline);
+    put('#tagline', s.tagline);
     // 서버 주소·버전: 비워 두면 "확인 중"에 멈춰 있지 않도록 "준비 중"으로
     $('#server-address').textContent = s.serverAddress || '준비 중'; $('#server-version').textContent = s.version || '-';
     put('#discord-desc', s.discordDesc); put('#minelist-desc', s.minelistDesc);

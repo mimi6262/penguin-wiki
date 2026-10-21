@@ -5,7 +5,7 @@ import { esc } from './ui.js';
 export const HOME_TEXT_DEFAULTS = {
   heroEdition: 'PENGUIN VILLAGE · 마을 안내소',
   heroEyebrow: '함께 머무는 작은 세상',
-  heroTitle: '오늘도,\n우리 *마을에서.*',
+  heroTitle: '따뜻한\n*힐링서버*',
   heroCaption: '산 너머 작은 마을, 당신의 이야기가 시작되는 곳',
   guideKicker: '하나씩 알아가는 마을 생활',
   guideTitle: '당신의 하루를 골라보세요',
@@ -15,8 +15,8 @@ export const HOME_TEXT_DEFAULTS = {
 
 // 첫 화면 그림 기본값과 권장 크기 (교체용 그림을 이 크기·비율로 만들면 잘림이 가장 적습니다)
 export const HERO_DEFAULT = {
-  src: 'assets/images/penguin-village.webp',
-  alt: '갓을 쓴 펭귄과 농부 펭귄이 반기는 아늑한 한옥 마을',
+  src: 'assets/images/penguin-village.jpg',
+  alt: '모험가 펭귄과 농부 펭귄이 반기는 아기자기한 마인크래프트 블록 마을',
   width: 1536,
   height: 1024,
 };

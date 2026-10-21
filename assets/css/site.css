@@ -1,6 +1,6 @@
-/* 펭귄위키 공통 스타일 — 청록 한옥 (2026-10)
+/* 펭귄위키 공통 스타일 — 블록 마을 (2026-10)
    색·글꼴·크기 기준값은 바로 아래 :root 한 곳에서 바꾸면 전체에 반영됩니다.
-   파일 구성: 기본 뼈대(헤더~반응형) → 관리·패치노트 등 기능별 → 맨 아래 "청록 한옥 디자인" 덮어쓰기 */
+   파일 구성: 기본 뼈대(헤더~반응형) → 관리·패치노트 등 기능별 → 맨 아래 "블록 마을 디자인" 덮어쓰기 */
 :root {
   --bg: #f4f0e5;
   --card: #fffcf3;
@@ -8,17 +8,17 @@
   --line: #d9d1bc;
   --line-soft: #e3decd;
   --line-faint: #ebe7da;
-  --ink: #34453d;
-  --muted: #6c7263;
-  --label: #636e60;
+  --ink: #2d404c;
+  --muted: #507085;
+  --label: #4d6c81;
   --wood: #82654b;
-  --wood-dark: #2f493e;
-  --tile: #3b504e;
-  --tile-light: #627571;
+  --wood-dark: #2d3f4b;
+  --tile: #344957;
+  --tile-light: #517186;
   --gold: #b99257;
-  --accent: #4f715c;
+  --accent: #486578;
   --blue: #587786;
-  --green: #527365;
+  --green: #4a677b;
   --amber: #a6763e;
   --font-head: "Jua", sans-serif;
   --font-body: "Gowun Dodum", sans-serif;
@@ -27,7 +27,7 @@
   --radius-pill: 999px;
   --max: 1240px;
   --rose: #b37b63;
-  --mint-wash: #e9efe4;
+  --mint-wash: #e4ebef;
   --gold-wash: #f4ecd8;
   --paper-shadow: 0 4px 0 #e5dfce;
 }
@@ -130,7 +130,7 @@ main { flex-grow: 1; }
 .btn.dark { background: var(--wood-dark); color: var(--cream); }
 .btn.dark:hover { background: var(--accent); color: var(--card); }
 .btn.success { background: var(--green); color: var(--card); border-color: var(--green); }
-.btn.success:hover { background: #2F5239; border-color: #2F5239; color: var(--card); }
+.btn.success:hover { background: #2f4452; border-color: #2f4452; color: var(--card); }
 .btn[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
 .btn.icon { width: 32px; height: 32px; background: var(--cream); border-color: var(--line-soft); }
 .btn.icon:hover { background: var(--wood); border-color: var(--wood); }
@@ -832,7 +832,7 @@ main > .container { animation: pw-enter .45s cubic-bezier(.22, 1, .36, 1) both; 
 .sr-snip { font-size: 13px; color: var(--ink); line-height: 1.6; }
 mark { background: #F5D98A; color: var(--wood-dark); border-radius: 3px; padding: 0 2px; }
 
-/* ===================== 청록 한옥 디자인 (운영자 리디자인 · 2026-09-30) =====================
+/* ===================== 블록 마을 디자인 (운영자 리디자인 · 2026-09-30) =====================
    위쪽 기본 스타일을 덮어씁니다. 선택자·인증 표시·DB 연결은 그대로입니다. */
 a { color: var(--wood-dark); text-underline-offset: 4px; }
 a:hover { color: var(--accent); }
@@ -1041,7 +1041,7 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 .site-header { background: #fffcf5; position: relative; border-bottom: 1px solid var(--line); }
 .site-header .tile-band, .site-header .tile-edge { display: none; }
 .site-header .bar { max-width: 1360px; margin: auto; height: 94px; padding: 16px 36px; gap: 30px; }
-.brand-sub { font-size: 11px; letter-spacing: .2px; color: #737866; }
+.brand-sub { font-size: 11px; letter-spacing: .2px; color: #53758b; }
 .plaque .name { font-size: 28px; letter-spacing: -.7px; }
 .penguin-mark { background: #eee8d8; border-radius: 50%; width: 49px; height: 49px; padding: 5px; }
 .nav { gap: 8px; }
@@ -1074,21 +1074,21 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   overflow: hidden;
 }
 .hero::after { content: ""; position: absolute; inset: 12px; border: 1px solid #fff9e485; z-index: -1; pointer-events: none; }
-.hero-edition { position: absolute; top: 25px; left: 54px; font-size: 11px; color: #626f5d; letter-spacing: 2px; z-index: 2; }
+.hero-edition { position: absolute; top: 25px; left: 54px; font-size: 11px; color: #4d6b80; letter-spacing: 2px; z-index: 2; }
 .hero .copy { display: flex; position: relative; z-index: 1; width: 520px; max-width: 50%; padding: 0; gap: 22px; align-items: flex-start; }
 .hero #season-tag {
   padding: 0 10px;
   height: 25px;
-  border: 1px solid #80907966;
+  border: 1px solid #668ba366;
   border-radius: 3px;
   background: transparent;
   letter-spacing: 1px;
   font-size: 12px;
 }
-.hero-eyebrow { font-size: 13px; color: #66745e; margin-bottom: -12px; letter-spacing: 3px; }
-.hero h1 { font-size: clamp(48px,5vw,72px); line-height: 1.13; letter-spacing: -3px; color: #2d463b; }
-.hero h1 em { color: #557356; }
-.hero #tagline { color: #53604e; font-size: 16px !important; line-height: 1.9; }
+.hero-eyebrow { font-size: 13px; color: #4f6e83; margin-bottom: -12px; letter-spacing: 3px; }
+.hero h1 { font-size: clamp(48px,5vw,72px); line-height: 1.13; letter-spacing: -3px; color: #2b3c48; }
+.hero h1 em { color: #4b697d; }
+.hero #tagline { color: #415b6d; font-size: 16px !important; line-height: 1.9; }
 .hero-scene {
   position: absolute;
   z-index: -2;
@@ -1106,7 +1106,7 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg,#eae9d9 0%,#eae9d9e8 15%,#eae9d95e 36%,transparent 57%),linear-gradient(0deg,#273e3a33,transparent 35%);
+  background: linear-gradient(90deg,#eae9d9 0%,#eae9d9e8 15%,#eae9d95e 36%,transparent 57%),linear-gradient(0deg,#26353f33,transparent 35%);
 }
 .hero-scene img { height: 100%; width: 100%; object-fit: cover; border-radius: 0; aspect-ratio: auto; object-position: 66% 52%; }
 .hero-scene figcaption {
@@ -1125,7 +1125,7 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 .hero .info-pill { border: 0; background: #fffdf2b8; height: 34px; padding: 0 8px; border-radius: 4px; }
 .hero .info-pills { margin: 0; gap: 6px; }
 .btn { border-radius: 5px; font-size: 14px; height: 47px; padding-left: 24px; padding-right: 24px; }
-.btn.primary { background: var(--wood-dark); box-shadow: inset 0 0 0 3px #ffffff0f,0 3px 0 #21392f; }
+.btn.primary { background: var(--wood-dark); box-shadow: inset 0 0 0 3px #ffffff0f,0 3px 0 #212f39; }
 .btn.secondary { background: #fffaf0b8; border-color: #b9b69e; }
 .welcome-path {
   margin-top: -92px;
@@ -1134,7 +1134,7 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   background: #fffcf4;
   border-radius: 6px;
   border: 1px solid #cec5af;
-  box-shadow: 0 7px 0 #ded6c3,0 18px 25px #3a46200a;
+  box-shadow: 0 7px 0 #ded6c3,0 18px 25px #2037460a;
   min-height: 110px;
   padding: 22px 28px;
   gap: 16px;
@@ -1175,28 +1175,28 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   bottom: 25px;
   width: 65px;
   height: 65px;
-  background: #e7ead9;
-  border: 1px solid #b5c1a666;
+  background: #d9e3ea;
+  border: 1px solid #a1b7c666;
   border-radius: 50%;
-  color: #5a7454;
+  color: #4b697d;
   box-shadow: inset 0 0 0 5px #ffffff70;
 }
 .g-tile:nth-child(4n/**/+2) .guide-mark { background: #efe2c6; }
-.g-tile:nth-child(4n/**/+3) .guide-mark { background: #e0e9e5; }
+.g-tile:nth-child(4n/**/+3) .guide-mark { background: #dee6eb; }
 .g-tile h3 { font-size: 24px; }
-.g-tile p { font-size: 13px; color: #6a715f; line-height: 1.8; }
+.g-tile p { font-size: 13px; color: #4e6d82; line-height: 1.8; }
 .g-tile .row { justify-content: flex-start; gap: 12px; }
 .g-tile .arrow { font-size: 12px; color: #7c775b; letter-spacing: .2px; }
-.g-tile:hover { transform: translateY(-4px); border-color: #8f9f80; box-shadow: 0 7px 0 #dad6c2; }
+.g-tile:hover { transform: translateY(-4px); border-color: #7495ab; box-shadow: 0 7px 0 #dad6c2; }
 .community { gap: 18px; }
-.community .item { border-radius: 6px; padding: 30px; background: #e3e8db; border-color: #cbd3bb; box-shadow: none; }
+.community .item { border-radius: 6px; padding: 30px; background: #dae3e9; border-color: #b9cad5; box-shadow: none; }
 .community .item:nth-child(2) { background: #eae2cb; border-color: #d5c8a8; }
 .community h3 { font-size: 25px; }
-.community p { font-size: 13px; color: #626e59; }
+.community p { font-size: 13px; color: #4b687c; }
 .community .btn { font-size: 12px; border-radius: 5px; padding: 0 18px; }
 .site-footer { border-top: 0; }
-.site-footer .gold-line { height: 7px; background: repeating-linear-gradient(90deg,#70846c 0 15px,#536b56 15px 17px); }
-.site-footer .body { background: #30463c; padding-top: 45px; padding-bottom: 42px; }
+.site-footer .gold-line { height: 7px; background: repeating-linear-gradient(90deg,#5a7e96 0 15px,#476477 15px 17px); }
+.site-footer .body { background: #2c3e4a; padding-top: 45px; padding-bottom: 42px; }
 .site-footer .logo { font-size: 27px; }
 @media (min-width:761px) and (max-width:1200px) {
   .site-header .bar { height: auto; flex-wrap: wrap; gap: 12px; }
@@ -1222,7 +1222,7 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   .brand-sub { font-size: 11px; }
   .penguin-mark { width: 40px; height: 40px; }
   .nav a[aria-current=page]::after { display: none; }
-  .site-header .nav a[aria-current=page] { background: #e5eadc; border-radius: 4px; }
+  .site-header .nav a[aria-current=page] { background: #dce4ea; border-radius: 4px; }
   .home-content { padding: 14px 18px 42px; gap: 38px; }
   .hero { width: 100%; max-width: none; min-height: 740px; padding: 63px 25px 290px; border-radius: 5px; overflow: hidden; }
   .hero-edition { left: 25px; top: 24px; font-size: 11px; letter-spacing: 1.3px; }
@@ -1331,3 +1331,48 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 .info-pill.live .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: pw-live 2.4s ease-out infinite; }
 @keyframes pw-live { from { transform: scale(1); opacity: .55; } to { transform: scale(2.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .info-pill.live .dot::after { animation: none; } }
+
+/* Minecraft village theme — shared desktop and mobile surfaces */
+:root{--bg:#f3f6f8;--card:#fff;--cream:#e9f1f6;--line:#d1dce4;--line-soft:#dfe7ec;--line-faint:#ecf1f4;--ink:#2f414e;--muted:#54768d;--label:#486578;--wood:#9a7653;--wood-dark:#395f79;--tile:#466376;--tile-light:#7c9cb1;--gold:#e3ad5e;--accent:#4d7793;--blue:#578fba;--green:#4d7793;--mint-wash:#e6eef4;--gold-wash:#fff1d9;--paper-shadow:0 4px 0 #dbe4ea;--font-body:"Gowun Dodum",system-ui,sans-serif}
+body{background-color:var(--bg);background-image:linear-gradient(#7e9db108 1px,transparent 1px),linear-gradient(90deg,#7e9db108 1px,transparent 1px);background-size:24px 24px}
+.site-header{background:#ffffffed;border-bottom:2px solid #dce4ea}.penguin-mark{background:#e2f2ff;border-radius:14px}.search{background:#eef2f5;border-radius:12px}.nav a{border-radius:10px}.nav a:hover,.nav a[aria-current=page]{background:#ecf3f7;color:#395f79}.nav a[aria-current=page]::after{background:#729ebc}
+.hero{background:#eaf1f5;border:2px solid #d1dce4;border-radius:22px;box-shadow:0 7px 0 #dbe4ea}.hero::after{border-color:#ffffff80;border-radius:13px}.hero-scene::after{background:linear-gradient(90deg,#eaf1f5 0%,#eaf1f5f5 15%,#eaf1f590 36%,transparent 61%)}.hero h1{color:#293f4d}.hero h1 em{color:#487491}.hero-eyebrow,.hero-edition{color:#4b687c}.hero #tagline{color:#415b6d}.hero #season-tag{background:#fff9;border:1px solid #acc1cf;border-radius:8px}.hero-scene figcaption{background:#fffffff0;border-color:#dfe8ee;border-radius:10px}.hero .info-pill{background:#ffffffc9;border:1px solid #d6e0e7;border-radius:8px}
+.btn{border-radius:10px}.btn.primary{background:#52758d;border:1px solid #3c5e75;box-shadow:inset 0 2px 0 #98bbd2,0 4px 0 #355163}.btn.secondary{background:#fff;border-color:#bbcbd6;box-shadow:0 3px 0 #d4dee5}.btn:hover{filter:brightness(1.04)}
+.welcome-path{background:#fff;border-color:#c9d6df;border-radius:16px;box-shadow:0 6px 0 #dce4ea,0 14px 24px #354c5b10}.mini-stamp{background:#fff0dc;border-color:#e2b97e;color:#9b6930;border-radius:8px}.step-num{color:#5f859e}.welcome-path>a{border-color:#e0e8ed}.section-head .seal{width:9px;height:28px;background:#7ba6c3;border-radius:3px;box-shadow:4px 4px 0 #cee1ed}.section-head>a{background:#e5ecf1;border-radius:10px}
+.g-tile{background:#fff;border:1px solid #cfdbe3;border-radius:16px;box-shadow:0 4px 0 #dbe4ea}.g-tile:nth-child(3n+2){background:#f1f8ff}.g-tile:nth-child(3n+3){background:#fff8ed}.g-tile::before{color:#698da5}.g-tile::after{border-radius:8px;border-color:#b9ccd850;transform:rotate(-12deg)}.g-tile .guide-mark{border-radius:13px;background:#dfebf3;border-color:#b9d0df}.g-tile:nth-child(4n+2) .guide-mark{background:#ffe9ce}.g-tile:nth-child(4n+3) .guide-mark{background:#dceefb}.g-tile p{color:#517186}.g-tile:hover{border-color:#8aa9bd;box-shadow:0 7px 0 #cfdbe3}
+.community .item{border-radius:16px;background:#e4f2ff;border-color:#c7dfef}.community .item:nth-child(2){background:#fff0e5;border-color:#eed6c1}.community p{color:#4e6e83}.site-footer .gold-line{height:9px;background:repeating-linear-gradient(90deg,#729dba 0 16px,#87b2cf 16px 32px,#638ca8 32px 48px)}.site-footer .body{background:#364c5b}
+@media(max-width:760px){.hero{border-radius:18px}.hero-scene::after{background:linear-gradient(180deg,#eaf1f5 0%,#eaf1f565 26%,transparent 55%)}.hero-scene img{object-position:65% 60%}.hero-scene figcaption{font-size:11px;max-width:90%}.welcome-path{border-radius:14px}}
+
+/* Sky blue identity */
+.penguin-mark{width:54px;height:54px;padding:1px;background:#eaf6ff;border:1px solid #d0e9fb;border-radius:17px;box-shadow:0 3px 0 #d7eafa}.penguin-mark svg{width:100%;height:100%;display:block}.hero h1{color:#345a7b}.hero h1 em{color:#589cca}.plaque .name{color:#487caa}.hero .copy{gap:24px}.btn.primary{background:#68a8d5;border-color:#518fbf;box-shadow:inset 0 2px 0 #abd8f5,0 4px 0 #447da8}.btn.secondary{color:#5182a9}.scene-dot{background:#79b9e5}.hero-scene figcaption{color:#6488a3}.brand-sub{color:#7893a7}
+
+/* Reference farmer penguin header icon */
+.penguin-mark{width:60px;height:60px;flex:0 0 60px;padding:0;background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible}.penguin-mark img{display:block;width:100%;height:100%;object-fit:contain}
+@media(max-width:760px){.penguin-mark{width:50px;height:50px;flex-basis:50px}}
+
+/* Plump pastel icons */
+.nav-illustration{width:30px;height:32px;margin-right:5px}.nav-illustration svg{width:30px;height:30px}.g-tile .guide-mark{border-radius:22px;background:#e8f5ff;box-shadow:inset 0 2px 0 #fff,0 3px 0 #d6e7f3}.g-tile .guide-mark svg{width:50px;height:50px}.community .icon{border-radius:20px}
+
+/* 카페24 써라운드: 모든 화면(관리 · 입력창 포함) 공통 글꼴. OFL 무료 글꼴, 눈누 CDN 에서 받는다.
+   메이플스토리체는 넥슨 약관상 파일 수정 · 재배포가 막혀 있어 비슷한 둥근 글꼴로 바꿨다(2026-10-21). */
+@font-face {
+  font-family: 'Cafe24Ssurround';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2105_2@1.0/Cafe24Ssurround.woff') format('woff');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+:root {
+  --font-head: 'Cafe24Ssurround', sans-serif;
+  --font-body: 'Cafe24Ssurround', sans-serif;
+  --font-mono: 'Cafe24Ssurround', sans-serif;
+}
+html, body, body *, body *::before, body *::after {
+  font-family: 'Cafe24Ssurround', sans-serif !important;
+  font-weight: 700 !important;
+  font-synthesis: none;
+}
+input::placeholder, textarea::placeholder {
+  font-family: 'Cafe24Ssurround', sans-serif;
+  font-weight: 700;
+}

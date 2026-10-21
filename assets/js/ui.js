@@ -252,6 +252,6 @@ document.addEventListener('click', (e) => {
 });
 
 // Decorative UI only. No database fields or persistence are changed.
-const PENGUIN = `<svg viewBox="0 0 48 52" fill="none"><ellipse cx="24" cy="30" rx="17" ry="20" fill="#344f4b"/><ellipse cx="24" cy="33" rx="12" ry="15" fill="#fffaf0"/><ellipse cx="14" cy="29" rx="3" ry="2" fill="#dca38e"/><ellipse cx="34" cy="29" rx="3" ry="2" fill="#dca38e"/><circle cx="18" cy="24" r="2" fill="#263b37"/><circle cx="30" cy="24" r="2" fill="#263b37"/><path d="m20 29 4 4 4-4" fill="#d6a35b"/><path d="M13 37q11 9 22 0l-3 11H16z" fill="#799788"/><path d="m21 38 5 4 5-4-3 9h-4z" fill="#d6ba80"/><path d="M6 15Q24 9 42 15L40 18H8Z" fill="#34413f"/><path d="M15 13 18 3h12l3 10" fill="#34413f"/><ellipse cx="17" cy="48" rx="5" ry="2" fill="#d6a35b"/><ellipse cx="31" cy="48" rx="5" ry="2" fill="#d6a35b"/></svg>`;
+const PENGUIN = `<img src="${ROOT}assets/images/penguin-icon.png" width="60" height="60" alt="" decoding="async">`;
 export const guideIcon = guideIllustration;
 export { illustration };
