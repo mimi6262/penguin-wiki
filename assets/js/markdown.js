@@ -41,7 +41,20 @@ export function renderMarkdown(md) {
   const raw = marked.parse(transformUploadedImages(md));
   // 표는 감싸는 상자 안에서만 가로 스크롤 (표 자체는 본문 폭을 꽉 채움)
   const html = transformCommands(transformCallouts(raw)).replace(/<table>/g, '<div class="table-wrap"><table>').replace(/<\/table>/g, '</table></div>');
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['data-cmd', 'data-pw-img', 'target'] });
+  const clean = DOMPurify.sanitize(html, { ADD_ATTR: ['data-cmd', 'data-pw-img', 'target'] });
+  return labelTableCells(clean);
+}
+
+// 표 칸마다 머리글 이름을 data-label 로 붙임 — 휴대폰에서 칸이 4개 이상인 표를 줄마다 카드로 보여 줄 때 씀 (site.css 「휴대폰 표」)
+function labelTableCells(html) {
+  if (!html.includes('<table')) return html;
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  tpl.content.querySelectorAll('table').forEach((t) => {
+    const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => { if (heads[i]) td.dataset.label = heads[i]; }));
+  });
+  return tpl.innerHTML;
 }
 
 // 렌더된 컨테이너에 목차 id 부여 + 목차 목록 반환 (업로드 이미지도 여기서 채웁니다)

@@ -960,7 +960,7 @@ a:hover { color: var(--accent); }
 .prose pre { max-width: 100%; overflow-x: auto; }
 .prose img { max-width: 100%; height: auto; border-radius: 12px; }
 .prose .table-wrap { overflow-x: auto; margin: 0 0 18px; }
-.prose .table-wrap > table { margin: 0; min-width: 480px; }
+.prose .table-wrap > table { margin: 0; }
 .pn-card { padding: 27px 30px 16px; }
 .pn-head { gap: 12px; }
 .pn-head h2 { font-size: 26px; color: var(--wood-dark); }
@@ -1323,6 +1323,24 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 .prose img.pw-icon { border: 0; border-radius: 0; background: none; image-rendering: pixelated; max-height: 32px; width: auto; }
 /* 아이콘과 바로 뒤 이름은 한 줄에 */
 .prose .pw-pair { white-space: nowrap; }
+
+/* ---------- 휴대폰 표 ---------- */
+/* 표는 본문 폭에 맞춘다(예전 min-width 480px 때문에 휴대폰에서 모든 표가 옆으로 넘쳤다).
+   칸이 4개 이상인 표는 휴대폰에서 줄마다 카드로: 첫 칸이 카드 제목, 나머지는 「머리글 · 값」 (머리글은 markdown.js 가 data-label 로 붙임).
+   :has 를 모르는 옛 브라우저는 예전처럼 표 상자 안에서 가로 스크롤. */
+@media (max-width:760px) {
+  .prose th, .prose td { padding: 9px 10px; }
+  .prose table:has(tr > :nth-child(4)),
+  .prose table:has(tr > :nth-child(4)) tbody,
+  .prose table:has(tr > :nth-child(4)) tr { display: block; }
+  .prose table:has(tr > :nth-child(4)) thead { display: none; }
+  .prose table:has(tr > :nth-child(4)) tr { padding: 12px 14px; border-bottom: 1px solid var(--line-faint); }
+  .prose table:has(tr > :nth-child(4)) tr:last-child { border-bottom: 0; }
+  .prose table:has(tr > :nth-child(4)) td { display: grid; grid-template-columns: 5.5em 1fr; gap: 10px; align-items: baseline; padding: 2px 0; border: 0; }
+  .prose table:has(tr > :nth-child(4)) td::before { content: attr(data-label); color: var(--label); font-size: 12px; }
+  .prose table:has(tr > :nth-child(4)) td:first-child { display: block; padding: 0 0 6px; font-size: 15px; color: var(--wood-dark); }
+  .prose table:has(tr > :nth-child(4)) td:first-child::before { content: none; }
+}
 
 /* ---------- 홈 실시간 서버 상태 ---------- */
 .info-pill.off .dot { background: #b8ab92; }
