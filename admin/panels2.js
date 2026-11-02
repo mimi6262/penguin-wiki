@@ -545,11 +545,22 @@ export async function renderPrices(ctx) {
   const { head, me } = ctx;
   let panel = ctx.freshPanel();
   panel.innerHTML = head('시세 데이터') + '<div class="loading">불러오는 중</div>';
-  const [items, note] = await Promise.all([C.listPrices(), C.getPriceNote()]);
+  const [items, ps] = await Promise.all([C.listPrices(), C.getPriceSettings()]);
+  const note = ps.note || '';
   const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
   const fmtNum = (n) => Number(n).toLocaleString('ko-KR');
+  const soonText = (on) => (on
+    ? '지금 유저에게는 시세 대신 「준비 중」 화면이 보여요. 편집자는 그대로 보면서 확인할 수 있어요.'
+    : '지금 유저에게 시세가 공개되어 있어요.');
   panel = ctx.freshPanel();
   panel.innerHTML = head('시세 데이터', `아이템 ${items.length}개 · 분류 ${cats.length}개`) + `
+    <div class="card plain soon-switch${ps.comingSoon ? ' on' : ''}" id="pr-soon-card" style="margin-bottom: 20px">
+      <div class="grow">
+        <h2>시세 페이지 「준비 중」으로 가리기</h2>
+        <p id="pr-soon-text">${soonText(!!ps.comingSoon)}</p>
+      </div>
+      ${toggle(!!ps.comingSoon, 'id="pr-soon" aria-label="시세 페이지를 준비 중으로 가리기"')}
+    </div>
     <div class="admin-split">
       <div class="stack" style="gap: 20px">
         <div class="card plain table" style="--tmin: 640px">
@@ -600,6 +611,18 @@ export async function renderPrices(ctx) {
       </form>
     </div>`;
   const f = (id) => $('#' + id, panel);
+  // 「준비 중」 스위치: 누르면 바로 저장 (실패하면 되돌림)
+  bindToggles(f('pr-soon-card'));
+  f('pr-soon').addEventListener('change', async () => {
+    const on = isOn(f('pr-soon'));
+    f('pr-soon-card').classList.toggle('on', on); f('pr-soon-text').textContent = soonText(on);
+    try { await C.setPricesComingSoon(on, me.name); toast(on ? '시세 페이지를 「준비 중」으로 가렸습니다' : '시세 페이지를 공개했습니다'); }
+    catch (err) {
+      console.warn(err); toast('저장하지 못했습니다. 잠시 후 다시 시도해 주세요');
+      f('pr-soon').classList.toggle('on', !on); f('pr-soon').setAttribute('aria-checked', String(!on));
+      f('pr-soon-card').classList.toggle('on', !on); f('pr-soon-text').textContent = soonText(!on);
+    }
+  });
   const fill = (i) => {
     f('pr-name').value = i?.name || ''; f('pr-name').readOnly = !!i; f('pr-cat').value = i?.category || ''; f('pr-unit').value = i?.unit || ''; f('pr-price').value = i?.price ?? '';
     f('pr-form-title').textContent = i ? '시세 갱신' : '아이템 추가';

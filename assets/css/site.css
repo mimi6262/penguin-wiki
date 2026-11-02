@@ -342,7 +342,7 @@ main { flex-grow: 1; }
 }
 .toc { display: flex; flex-direction: column; gap: 10px; padding: 18px 16px; position: sticky; top: 16px; }
 .toc .label { font-size: 12px; color: var(--label); letter-spacing: 1px; margin-bottom: 4px; }
-.toc a { font-size: 13px; text-decoration: none; color: var(--wood-dark); }
+.toc a { font-size: 13px; line-height: 1.45; text-decoration: none; color: var(--wood-dark); word-break: keep-all; overflow-wrap: anywhere; }
 .toc a.h3 { padding-left: 12px; color: var(--muted); }
 .toc a:hover { color: var(--accent); }
 .page-nav { display: flex; justify-content: space-between; gap: 16px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); }
@@ -1342,6 +1342,29 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   .site-header .bar:has(.user-chip:not([hidden])) .search { width: 140px; }
 }
 
+/* ---------- 오른쪽 문서 목차 ----------
+   164px 은 제목이 길면 「주세/요」처럼 글자 단위로 끊겨서, 화면이 넓을 땐 칸을 넓히고 낱말 단위로만 줄을 바꿈. 길면 목차 안에서 스크롤 */
+.toc { max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+@media (min-width: 1280px) {
+  .container.guide-layout { grid-template-columns: 232px minmax(0, 1fr) 220px; }
+}
+
+/* ---------- 시세 「준비 중」 ----------
+   관리 → 시세 데이터의 스위치가 켜지면 유저에게는 시세 대신 이 상자만 (prices.html 이 .soon 을 붙임) */
+.price-soon { display: none; flex-direction: column; align-items: center; gap: 10px; padding: 56px 24px 60px; text-align: center; }
+.price-soon h2 { font-size: 22px; color: var(--wood-dark); }
+.price-soon p { font-size: 14px; line-height: 1.7; color: var(--label); }
+.price-soon-ico { display: inline-flex; width: 84px; height: 84px; }
+.price-soon-ico svg { width: 84px; height: 84px; }
+#prices-page.soon .price-soon { display: flex; }
+#prices-page.soon .price-body, #prices-page.soon #updated { display: none !important; }
+/* 관리 화면 스위치 줄 */
+.soon-switch { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-left: 4px solid var(--line); }
+.soon-switch.on { border-left-color: #e0a64b; background: #fff8ec; }
+.soon-switch .grow { flex: 1; min-width: 0; }
+.soon-switch h2 { font-size: 17px; }
+.soon-switch p { margin-top: 4px; font-size: 12px; color: var(--label); }
+
 /* ---------- 페이지 전환 ----------
    같은 사이트 안에서 페이지를 옮길 때 머리글은 제자리에 둔 채 본문만 바뀌는 것처럼 보이게 (모르는 브라우저는 평소대로) */
 @view-transition { navigation: auto; }
@@ -1420,7 +1443,8 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 
 /* 이용약관 · 개인정보 처리방침 · 펭귄법전: 왼쪽 목차 없이 본문 + 오른쪽 문서 목차 */
 .guide-layout.standalone #tree, .guide-layout.standalone #tree-toggle { display: none !important; }
-.container.guide-layout.standalone { max-width: 1220px; grid-template-columns: minmax(0, 1fr) 164px; }
+.container.guide-layout.standalone { max-width: 1220px; grid-template-columns: minmax(0, 1fr) 240px; }
+@media (max-width: 1279px) { .container.guide-layout.standalone { grid-template-columns: minmax(0, 1fr) 210px; } }
 @media (max-width: 1024px) { .container.guide-layout.standalone { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- 글 속 그림: 글줄 그림(아이콘)·표 칸 ---------- */

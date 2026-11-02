@@ -12,7 +12,8 @@
 <script src="assets/js/header-cache.js"></script>
 
 <main>
-  <div class="container narrow stack" style="gap: 22px">
+  <div class="container narrow stack" style="gap: 22px" id="prices-page">
+    <script>/* 지난번에 「준비 중」이었으면 그리기 전에 가려 둠 (편집자는 그대로 봄). 실제 상태는 아래에서 서버 값으로 다시 맞춤 */ try { if (localStorage.getItem('pw_prices_soon') === '1' && !localStorage.getItem('pw_editor')) document.currentScript.parentElement.classList.add('soon'); } catch (e) {}</script>
     <div class="row-between">
       <div class="stack" style="gap: 12px">
         <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>시세</h1></div>
@@ -24,6 +25,14 @@
       </div>
     </div>
 
+    <section class="card plain price-soon" id="price-soon" aria-live="polite">
+      <span class="price-soon-ico" aria-hidden="true" id="price-soon-ico"></span>
+      <h2>시세 페이지를 준비하고 있어요</h2>
+      <p>아이템 시세와 변동을 한눈에 볼 수 있도록 다듬는 중이에요.<br>열리면 공지로 알려 드릴게요!</p>
+    </section>
+    <div class="notice-box" id="soon-editor" hidden>지금 유저에게는 이 페이지가 「준비 중」으로 가려져 있어요. 편집자라서 그대로 보여요 — 공개는 관리 → 시세 데이터에서.</div>
+
+    <div class="price-body stack" style="gap: 22px">
     <div class="stat-grid">
       <div class="card plain stat"><span class="k">등록 아이템</span><span class="v" id="st-total">-</span></div>
       <div class="card plain stat"><span class="k">오늘 상승</span><span class="v" id="st-up" style="color: var(--accent)">-</span></div>
@@ -40,6 +49,7 @@
 
     <div class="card plain table" id="list" style="--tmin: 700px"><div class="loading" style="padding: 20px">불러오는 중입니다</div></div>
     <div class="notice-box" id="note" hidden></div>
+    </div>
   </div>
 </main>
 
@@ -47,14 +57,26 @@
 
 <script type="module">
   import { renderHeader, renderFooter, $, esc, fmtDate } from './assets/js/ui.js';
+  import { illustration } from './assets/js/illustrations.js';
   renderHeader('prices');
   renderFooter();
+  $('#price-soon-ico').innerHTML = illustration('market');
   try {
     const { watchAuth } = await import('./assets/js/auth.js');
-    watchAuth();
+    const authReady = watchAuth();
     import('./assets/js/popups.js');
     const C = await import('./assets/js/content.js');
-    const [items, note] = await Promise.all([C.listPrices(), C.getPriceNote()]);
+    // 관리 → 시세 데이터의 「준비 중으로 가리기」가 켜져 있으면 유저에게는 준비 중 화면만 (편집자는 안내와 함께 그대로)
+    const ps = await C.getPriceSettings();
+    try { localStorage.setItem('pw_prices_soon', ps.comingSoon ? '1' : '0'); } catch {}
+    if (ps.comingSoon) {
+      const editor = await authReady;
+      $('#prices-page').classList.toggle('soon', !editor);
+      $('#soon-editor').hidden = !editor;
+      if (!editor) throw 'soon';
+    } else $('#prices-page').classList.remove('soon');
+    const items = await C.listPrices();
+    const note = ps.note || '';
     if (note) { $('#note').textContent = note; $('#note').hidden = false; }
     const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
     let active = '', q = '';
@@ -107,8 +129,10 @@
     }
     draw();
   } catch (e) {
-    console.warn(e);
-    $('#list').innerHTML = '<div class="empty">시세를 불러오지 못했습니다.</div>';
+    if (e !== 'soon') {
+      console.warn(e);
+      $('#list').innerHTML = '<div class="empty">시세를 불러오지 못했습니다.</div>';
+    }
   }
 </script>
 </body>

@@ -150,7 +150,7 @@ export function toggleHeart(id) {
 
 // ---------- 시세 ----------
 // prices/{id}: { name, category, price, prevPrice, unit, history: [{ d:'YYYY-MM-DD', p }], updatedAt, updatedBy, source }
-// settings/prices: { note }  — 데이터 출처·갱신 주기 안내 문구
+// settings/prices: { note, comingSoon }  — 데이터 출처·갱신 주기 안내 문구 · 「준비 중」으로 가리기(유저에게 시세 대신 준비 중 화면)
 export function priceId(name) {
   return String(name || '').trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 60) || 'item';
 }
@@ -160,6 +160,13 @@ export async function listPrices() {
 export async function getPriceNote() {
   const snap = await getDoc(doc(db, 'settings', 'prices'));
   return snap.exists() ? (snap.data().note || '') : '';
+}
+export async function getPriceSettings() {
+  const snap = await getDoc(doc(db, 'settings', 'prices'));
+  return snap.exists() ? snap.data() : {};
+}
+export async function setPricesComingSoon(on, by) {
+  await setDoc(doc(db, 'settings', 'prices'), { comingSoon: !!on, ...stamp(by) }, { merge: true });
 }
 export async function savePriceNote(note, by) {
   await setDoc(doc(db, 'settings', 'prices'), { note, ...stamp(by) }, { merge: true });
