@@ -10,6 +10,7 @@
 </head>
 <body>
 <header id="site-header"></header>
+<script src="assets/js/header-cache.js"></script>
 
 <main>
   <div class="container narrow stack" style="gap: 22px">
@@ -17,7 +18,7 @@
       <div class="page-title"><span class="seal" aria-hidden="true"></span><h1>검색</h1></div>
       <form class="search" role="search" action="search.html" method="get" style="border-color: var(--line); background: var(--card); width: 100%; max-width: 560px; height: 48px">
         <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6A4529" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input type="search" name="q" id="q" aria-label="검색어" placeholder="가이드 · 명령어 · 패치노트 · 이벤트 검색" autocomplete="off">
+        <input type="search" name="q" id="q" aria-label="검색어" placeholder="컨텐츠 · 명령어 · 패치노트 · 이벤트 검색" autocomplete="off">
       </form>
       <span class="subtitle" id="summary"></span>
     </div>
@@ -65,7 +66,7 @@
     const secName = (id) => { const s = sections.find((x) => x.id === id); if (!s) return ''; const par = s.parentId ? sections.find((x) => x.id === s.parentId) : null; return par ? `${par.name} › ${s.name}` : s.name; };
 
     const groups = [
-      { title: '가이드 문서', items: pages.map((p) => ({ s: score(p.title, plain(p.markdown)), html: `<a class="sr-item" href="guide.html?p=${encodeURIComponent(p.id)}"><span class="sr-title">${mark(p.title)}${p.public === false ? ' <span class="tag gray">비공개</span>' : ''}</span><span class="sr-meta">${esc(secName(p.sectionId))}</span><span class="sr-snip">${snippet(p.markdown)}</span></a>` })) },
+      { title: '컨텐츠 문서', items: pages.map((p) => ({ s: score(p.title, plain(p.markdown)), html: `<a class="sr-item" href="guide.html?p=${encodeURIComponent(p.id)}"><span class="sr-title">${mark(p.title)}${p.public === false ? ' <span class="tag gray">비공개</span>' : ''}</span><span class="sr-meta">${esc(secName(p.sectionId))}</span><span class="sr-snip">${snippet(p.markdown)}</span></a>` })) },
       { title: '명령어', items: cmds.map((c) => ({ s: score(`${c.command} ${c.aliases || ''}`, c.desc), html: `<a class="sr-item" href="commands.html"><span class="sr-title"><code class="cmd-chip">${mark(c.command)}</code></span><span class="sr-meta">${esc(c.category || '')}${c.permission ? ` · ${esc(c.permission)}` : ''}</span><span class="sr-snip">${mark(c.desc || '')}</span></a>` })) },
       { title: '패치노트', items: notes.map((n) => ({ s: score(n.title, n.body), html: `<a class="sr-item" href="patch.html"><span class="sr-title">${mark(n.title || '')}</span><span class="sr-meta">${esc(n.date || '')}</span><span class="sr-snip">${snippet(n.body)}</span></a>` })) },
       { title: '이벤트', items: events.map((ev) => ({ s: score(ev.name, ev.note), html: `<a class="sr-item" href="events.html"><span class="sr-title">${mark(ev.name)}</span><span class="sr-snip">${mark(ev.note || '')}</span></a>` })) },

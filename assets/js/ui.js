@@ -53,15 +53,19 @@ const ICONS = {
 };
 export { ICONS };
 
+// 홈은 왼쪽 위 펭귄서버 로고로 갑니다(메뉴에 따로 두지 않음)
 const NAV = [
-  { key: 'home', label: '마을 입구', href: 'index.html' },
+  { key: 'law', label: '펭귄법전', href: 'guide.html?p=rules' },
   { key: 'patch', label: '패치노트', href: 'patch.html' },
   { key: 'guide', label: '컨텐츠', href: 'guide.html' },
   { key: 'commands', label: '명령어', href: 'commands.html' },
   { key: 'prices', label: '시세', href: 'prices.html' },
   { key: 'events', label: '이벤트', href: 'events.html' },
-  { key: 'law', label: '펭귄법전', href: 'guide.html?p=rules' },
 ];
+const NAV_ICON = { patch: 'book', guide: 'adventure', commands: 'chat', prices: 'market', events: 'star', law: 'law' };
+// 머리글은 모든 페이지가 같아서 브라우저에 기억해 둡니다. 다음 페이지에서는 header-cache.js 가 화면을 그리기 전에 이걸 바로 넣어
+// 메뉴가 사라졌다 나타나지 않게 하고, renderHeader 는 모양이 같으면 다시 그리지 않고 켜진 메뉴만 맞춥니다
+const HEADER_KEY = 'pw_header:' + ROOT;
 
 // 로그인 상태 표시(관리 메뉴·이름표 등 data-auth 요소)
 // 페이지를 옮길 때마다 로그인 확인(0.5~1초)을 기다리는 동안 관리 메뉴가 숨었다 나타나면서 메뉴 줄 전체가 옆으로 밀리지 않도록,
@@ -88,12 +92,11 @@ export function renderHeader(active = '') {
   const el = $('#site-header');
   if (!el) return;
   const links = NAV.map((n) =>
-    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}><span class="nav-illustration" aria-hidden="true">${illustration(({home:'village',patch:'book',guide:'adventure',commands:'chat',prices:'market',events:'star',law:'law'})[n.key])}</span>${n.label}</a>`
+    `<a href="${ROOT}${n.href}" data-nav="${n.key}"><span class="nav-illustration" aria-hidden="true">${illustration(NAV_ICON[n.key])}</span>${n.label}</a>`
   ).join('');
   const main = document.querySelector('main');
   if (main && !main.id) main.id = 'main-content';
-  el.className = 'site-header';
-  el.innerHTML = `
+  const html = `
     <a class="skip-link" href="#main-content">본문 바로가기</a><div class="tile-band" aria-hidden="true"></div>
     <svg class="tile-edge" aria-hidden="true" viewBox="0 0 1280 12" preserveAspectRatio="none">
       <defs>
@@ -107,7 +110,7 @@ export function renderHeader(active = '') {
       <a class="plaque" href="${ROOT}index.html"><span class="penguin-mark" aria-hidden="true">${PENGUIN}</span><span class="brand-copy"><span class="name">${esc(SITE.name)}</span><span class="brand-sub">함께 살아가는 작은 세상</span></span></a>
       <nav class="nav" aria-label="주요 메뉴">
         ${links}
-        <a class="nav-admin" data-auth="editor" hidden href="${ROOT}admin/index.html"${active === 'admin' ? ' aria-current="page"' : ''}>${ICONS.gear} 관리</a>
+        <a class="nav-admin" data-auth="editor" hidden href="${ROOT}admin/index.html" data-nav="admin">${ICONS.gear} 관리</a>
       </nav>
       <form class="search" role="search" action="${ROOT}search.html" method="get">
         ${ICONS.search}
@@ -125,6 +128,12 @@ export function renderHeader(active = '') {
     </div>
     <div class="gold-line"></div>
     <div class="wood-line"></div>`;
+  let cached = null;
+  try { cached = localStorage.getItem(HEADER_KEY); } catch {}
+  if (!(el.dataset.pre === '1' && cached === html)) { el.className = 'site-header'; el.innerHTML = html; }
+  if (cached !== html) { try { localStorage.setItem(HEADER_KEY, html); } catch {} }
+  el.querySelectorAll('[aria-current]').forEach((a) => a.removeAttribute('aria-current'));
+  if (active) el.querySelector(`[data-nav="${active}"]`)?.setAttribute('aria-current', 'page');
   const last = lastEditor();
   if (last) paintAuth(last); // 지난번에 로그인해 있던 편집자면 관리 메뉴를 처음부터 자리 잡아 둡니다
 }

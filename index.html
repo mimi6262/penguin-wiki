@@ -10,6 +10,7 @@
 </head>
 <body class="home-page">
 <header id="site-header"></header>
+<script src="assets/js/header-cache.js"></script>
 
 <main>
   <div class="container stack home-content">
@@ -113,7 +114,7 @@
 <script type="module">
   import { renderHeader, renderFooter, loadSiteSettings, $, esc, safeUrl, copyText, toast, initReveal, guideIcon, illustration } from './assets/js/ui.js';
   document.querySelectorAll('.community .icon').forEach((el,i)=>{el.innerHTML=illustration(i ? 'star' : 'chat');});
-  renderHeader('home');
+  renderHeader('');
   renderFooter();
   initReveal();
 

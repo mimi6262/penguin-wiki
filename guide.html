@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>가이드 — 펭귄서버 위키</title>
+<title>컨텐츠 — 펭귄서버 위키</title>
 <link rel="stylesheet" href="assets/css/site.css">
 <script>window.PW_ROOT = './';</script>
 </head>
 <body>
 <header id="site-header"></header>
+<script src="assets/js/header-cache.js"></script>
 
 <main>
   <div class="container guide-layout">
@@ -16,18 +17,18 @@
 
     <div style="display: contents">
     <button type="button" class="btn sm secondary tree-toggle" id="tree-toggle" aria-expanded="false" aria-controls="tree">목차 보기</button>
-    <aside class="card tree" aria-label="가이드 목차" id="tree">
-      <div class="head"><span class="seal sm" aria-hidden="true"></span>가이드</div>
+    <aside class="card tree" aria-label="컨텐츠 목차" id="tree">
+      <div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠</div>
       <div class="loading">목차를 불러오는 중입니다</div>
     </aside>
     </div>
 
     <article id="article">
       <nav class="breadcrumb" aria-label="현재 위치" id="breadcrumb">
-        <a href="index.html">홈</a><span aria-hidden="true">›</span><a href="guide.html">가이드</a>
+        <a href="index.html">홈</a><span aria-hidden="true">›</span><a href="guide.html">컨텐츠</a>
       </nav>
       <div class="article-head">
-        <h1 id="title">가이드</h1>
+        <h1 id="title">컨텐츠</h1>
         <div style="display: flex; gap: 8px; flex-shrink: 0" data-auth="editor" hidden id="edit-actions">
           <a class="btn sm secondary" id="btn-edit" href="admin/editor.html">
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -103,7 +104,7 @@
     const isOpen = (id, hasCurrent) => !!q || hasCurrent || treeOpen[id] === 1;
     // 섹션 줄: 펼침 화살표 · (최상위만) 홈 카드와 같은 아이콘 · 이름 · 문서 수
     const secHead = (s, level, count, open) => `<div class="sec ${level}${open ? ' open' : ''}" data-toggle data-sec="${esc(s.id)}" role="button" tabindex="0" aria-expanded="${open}" aria-label="${esc(s.name)} (문서 ${count}개)">${CHEV}${level === 'top' ? `<span class="sec-ico" aria-hidden="true">${guideIllustration(s.name, s.icon)}</span>` : ''}<span class="sec-name">${esc(s.name)}</span><span class="cnt" aria-hidden="true">${count}</span></div>`;
-    let html = `<div class="head"><span class="seal sm" aria-hidden="true"></span>가이드${q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : ''}</div>`;
+    let html = `<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠${q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : ''}</div>`;
     tree.forEach((t) => {
       const own = t.pages.filter(matches);
       let kidCount = 0;
@@ -153,7 +154,7 @@
       $('#title').textContent = '문서를 찾을 수 없습니다';
       content.innerHTML = '<p>주소가 바뀌었거나 아직 공개되지 않은 문서입니다.</p>';
     } else if (!current) {
-      $('#title').textContent = q ? '검색 결과' : '가이드';
+      $('#title').textContent = q ? '검색 결과' : '컨텐츠';
       content.innerHTML = q
         ? (flat.filter(matches).length ? '<p>왼쪽 목차에서 검색된 문서를 선택해 주세요.</p>' : '<p>검색 결과가 없습니다.</p>')
         : '<p>왼쪽 목차에서 문서를 선택해 주세요.</p>';
@@ -166,7 +167,7 @@
       const sec = sections.find((s) => s.id === current.sectionId);
       const parent = sec && sec.parentId ? sections.find((s) => s.id === sec.parentId) : null;
       $('#breadcrumb').innerHTML = `<a href="index.html">홈</a>`
-        + (isFooterDoc(current.id) ? '' : `<span aria-hidden="true">›</span><a href="guide.html">가이드</a>`)
+        + (isFooterDoc(current.id) ? '' : `<span aria-hidden="true">›</span><a href="guide.html">컨텐츠</a>`)
         + (parent ? `<span aria-hidden="true">›</span><span>${esc(parent.name)}</span>` : '')
         + (sec ? `<span aria-hidden="true">›</span><span>${esc(sec.name)}</span>` : '')
         + `<span aria-hidden="true">›</span><span class="cur">${esc(current.title)}</span>`;
@@ -194,7 +195,7 @@
     }
   } catch (e) {
     console.warn(e);
-    $('#tree').innerHTML = '<div class="head"><span class="seal sm" aria-hidden="true"></span>가이드</div><div class="empty">목차를 불러오지 못했습니다.</div>';
+    $('#tree').innerHTML = '<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠</div><div class="empty">목차를 불러오지 못했습니다.</div>';
     $('#content').innerHTML = '<p>문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
   }
 </script>
