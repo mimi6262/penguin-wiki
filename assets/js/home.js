@@ -11,7 +11,21 @@ export const HOME_TEXT_DEFAULTS = {
   guideTitle: '당신의 하루를 골라보세요',
   communityKicker: '발걸음이 모여 이야기가 되는 곳',
   communityTitle: '우리 마을 사랑방',
+  welcomeTitle: '처음 오셨나요?',
+  welcomeSub: '천천히, 하나씩 알아가요.',
 };
+
+// 「처음 오셨나요?」 세 칸의 기본값 (settings/site.welcome = [{ label, to }]).
+// to 는 가이드 문서 슬러그 또는 아래 사이트 페이지 파일 이름. 비워 두면 이 기본값
+export const WELCOME_DEFAULTS = [
+  { label: '접속 준비', to: 'how-to-join' },
+  { label: '마을 첫걸음', to: 'quick-start' },
+  { label: '함께 지킬 약속', to: 'rules' },
+];
+export const WELCOME_SITE_PAGES = { 'patch.html': '패치노트', 'events.html': '이벤트', 'commands.html': '명령어', 'prices.html': '시세' };
+export function welcomeHref(to) {
+  return WELCOME_SITE_PAGES[to] ? to : `guide.html?p=${encodeURIComponent(to)}`;
+}
 
 // 첫 화면 그림 기본값과 권장 크기 (교체용 그림을 이 크기·비율로 만들면 잘림이 가장 적습니다)
 export const HERO_DEFAULT = {

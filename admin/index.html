@@ -357,13 +357,36 @@
   async function renderSettings() {
     freshPanel();
     panel.innerHTML = head('사이트 설정', '홈 화면과 푸터에 표시되는 값') + '<div class="loading">불러오는 중</div>';
-    const snap = await getDoc(doc(db, 'settings', 'site'));
+    const [snap, allPages] = await Promise.all([getDoc(doc(db, 'settings', 'site')), P.listPages({ editorView: true }).catch(() => [])]);
     const s = snap.exists() ? snap.data() : {};
     const b = s.business || {};
     const F = (id, label, val, ph = '', type = 'text') => `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(val ?? '')}" placeholder="${esc(ph)}"></div>`;
-    const { HOME_TEXT_DEFAULTS, HERO_DEFAULT, resolveHeroSrc } = await import('../assets/js/home.js');
+    const { HOME_TEXT_DEFAULTS, HERO_DEFAULT, resolveHeroSrc, WELCOME_DEFAULTS, WELCOME_SITE_PAGES } = await import('../assets/js/home.js');
     const home = s.home || {};
     const HF = (key, label) => `<div class="field"><label for="home-${key}">${label}</label><input class="input" id="home-${key}" value="${esc(home[key] ?? '')}" placeholder="${esc(HOME_TEXT_DEFAULTS[key])}"></div>`;
+    // 「처음 오셨나요?」 세 칸: 이름 + 연결 페이지(공개 문서 · 사이트 페이지). 지금 값이 비공개이거나 없는 문서면 그대로 보여 주고 표시
+    const welcome = Array.isArray(s.welcome) ? s.welcome : [];
+    const pubDocs = allPages.filter((p) => p.public).sort((a, b) => String(a.title || a.id).localeCompare(String(b.title || b.id), 'ko'));
+    const toName = (to) => {
+      if (WELCOME_SITE_PAGES[to]) return WELCOME_SITE_PAGES[to];
+      const p = allPages.find((x) => x.id === to);
+      return !p ? `${to} (없는 문서)` : p.public ? (p.title || to) : `${p.title || to} (비공개)`;
+    };
+    const welcomeSelect = (i) => {
+      const cur = welcome[i]?.to || '';
+      const known = !cur || WELCOME_SITE_PAGES[cur] || pubDocs.some((p) => p.id === cur);
+      const opt = (val, label) => `<option value="${esc(val)}"${val === cur ? ' selected' : ''}>${esc(label)}</option>`;
+      return `<select class="select" id="welcome-to-${i}">
+        ${opt('', `기본: ${toName(WELCOME_DEFAULTS[i].to)}`)}
+        ${known ? '' : opt(cur, toName(cur))}
+        <optgroup label="사이트 페이지">${Object.entries(WELCOME_SITE_PAGES).map(([v, n]) => opt(v, n)).join('')}</optgroup>
+        <optgroup label="가이드 문서">${pubDocs.map((p) => opt(p.id, p.title || p.id)).join('')}</optgroup>
+      </select>`;
+    };
+    const welcomeRows = WELCOME_DEFAULTS.map((d, i) => `<div class="form-row">
+        <div class="field"><label for="welcome-label-${i}">0${i + 1} 이름</label><input class="input" id="welcome-label-${i}" value="${esc(welcome[i]?.label ?? '')}" placeholder="${esc(d.label)}"></div>
+        <div class="field"><label for="welcome-to-${i}">0${i + 1} 연결 페이지</label>${welcomeSelect(i)}</div>
+      </div>`).join('');
     panel.innerHTML = head('사이트 설정', '홈 화면과 푸터에 표시되는 값') + `
       <form class="card plain form-card" id="settings-form" style="border-color: var(--line)">
         <h2 style="font-size: 20px">홈 화면</h2>
@@ -384,6 +407,11 @@
         </div>
         <div class="form-row">${HF('guideTitle', '가이드 영역 제목')}${HF('guideKicker', '가이드 영역 제목 위 작은 문구')}</div>
         <div class="form-row">${HF('communityTitle', '커뮤니티 영역 제목')}${HF('communityKicker', '커뮤니티 영역 제목 위 작은 문구')}</div>
+
+        <h2 style="font-size: 20px; margin-top: 8px">「처음 오셨나요?」 안내</h2>
+        <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6">첫 화면 그림 바로 아래 세 칸입니다. 이름을 비워 두면 흐린 기본 이름이, 연결 페이지를 「기본」으로 두면 원래 연결된 문서가 그대로 쓰입니다. 목록에는 공개 문서만 나옵니다.</div>
+        <div class="form-row">${HF('welcomeTitle', '제목')}${HF('welcomeSub', '제목 아래 작은 문구')}</div>
+        ${welcomeRows}
 
         <h2 style="font-size: 20px; margin-top: 8px">첫 화면 그림</h2>
         <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.7">
@@ -536,6 +564,7 @@
         business: { company: v('company'), owner: v('owner'), regNo: v('regNo') },
         cursor: cursorState,
         home: Object.fromEntries(Object.keys(HOME_TEXT_DEFAULTS).map((k) => [k, ($('#home-' + k).value || '').trim()])),
+        welcome: WELCOME_DEFAULTS.map((d, i) => ({ label: v('welcome-label-' + i), to: $('#welcome-to-' + i).value })),
         heroImage: heroChoice, heroAlt: v('heroAlt'),
         updatedAt: serverTimestamp(), updatedBy: me.name,
       }, { merge: true });

@@ -936,6 +936,7 @@ a:hover { color: var(--accent); }
   border-radius: 6px;
 }
 .welcome-path > a:hover { background: var(--mint-wash); }
+.welcome-path[data-wait] > * { visibility: hidden; } /* 사이트 설정(이름 · 연결 문서)을 읽을 때까지 */
 .step-num { font-family: var(--font-head); }
 .section-head { border: 0; padding: 0 0 4px; align-items: center; }
 .section-head .title { gap: 12px; }

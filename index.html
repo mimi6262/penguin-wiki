@@ -51,11 +51,12 @@
       </figure>
     </section>
 
-    <nav class="welcome-path" aria-label="처음 오신 분을 위한 안내">
-      <div class="welcome-label"><span class="mini-stamp" aria-hidden="true">첫걸음</span><div><strong>처음 오셨나요?</strong><span>천천히, 하나씩 알아가요.</span></div></div>
-      <a href="guide.html?p=how-to-join"><span class="step-num">01</span> 접속 준비 <span aria-hidden="true">↗</span></a>
-      <a href="guide.html?p=quick-start"><span class="step-num">02</span> 마을 첫걸음 <span aria-hidden="true">↗</span></a>
-      <a href="guide.html?p=rules"><span class="step-num">03</span> 함께 지킬 약속 <span aria-hidden="true">↗</span></a>
+    <!-- 이름 · 연결 문서는 관리 → 사이트 설정 → 「처음 오셨나요?」 안내. 설정을 읽기 전엔 글자를 가려 기본 이름이 잠깐 보였다 바뀌지 않게 -->
+    <nav class="welcome-path" id="welcome-path" data-wait aria-label="처음 오신 분을 위한 안내">
+      <div class="welcome-label"><span class="mini-stamp" aria-hidden="true">첫걸음</span><div><strong id="welcome-title">처음 오셨나요?</strong><span id="welcome-sub">천천히, 하나씩 알아가요.</span></div></div>
+      <a id="welcome-1" href="guide.html?p=how-to-join"><span class="step-num">01</span> <span class="step-label">접속 준비</span> <span aria-hidden="true">↗</span></a>
+      <a id="welcome-2" href="guide.html?p=quick-start"><span class="step-num">02</span> <span class="step-label">마을 첫걸음</span> <span aria-hidden="true">↗</span></a>
+      <a id="welcome-3" href="guide.html?p=rules"><span class="step-num">03</span> <span class="step-label">함께 지킬 약속</span> <span aria-hidden="true">↗</span></a>
     </nav>
 
     <section class="card plain home-patch reveal" id="home-patch" hidden>
@@ -120,7 +121,9 @@
   initReveal();
 
   // 첫 화면 그림: 설정을 읽은 뒤 한 번만 넣어서 기본 그림이 잠깐 보였다 바뀌는 일이 없게 합니다
-  const { HERO_DEFAULT, titleHtml, resolveHeroSrc } = await import('./assets/js/home.js');
+  const { HERO_DEFAULT, titleHtml, resolveHeroSrc, welcomeHref } = await import('./assets/js/home.js');
+  const showWelcome = () => $('#welcome-path').removeAttribute('data-wait');
+  setTimeout(showWelcome, 4000); // 설정이 너무 늦으면 기본 이름으로
   let heroShown = false;
   function showHero(src, alt) {
     if (heroShown) return; heroShown = true;
@@ -153,6 +156,14 @@
     put('#guide-kicker', home.guideKicker); put('#guide-title', home.guideTitle);
     put('#community-kicker', home.communityKicker); put('#community-title', home.communityTitle);
     if (home.heroTitle) $('#hero-title').innerHTML = titleHtml(home.heroTitle);
+    // 「처음 오셨나요?」 (사이트 설정 → 「처음 오셨나요?」 안내). 이름 · 연결 문서를 비워 두면 기본값
+    put('#welcome-title', home.welcomeTitle); put('#welcome-sub', home.welcomeSub);
+    (Array.isArray(s.welcome) ? s.welcome : []).slice(0, 3).forEach((w, i) => {
+      const a = $(`#welcome-${i + 1}`);
+      if (w?.label) a.querySelector('.step-label').textContent = w.label;
+      if (w?.to) a.href = welcomeHref(w.to);
+    });
+    showWelcome();
     // 첫 화면 그림 (사이트 설정 → 첫 화면 그림). 없거나 못 불러오면 기본 그림
     resolveHeroSrc(s.heroImage).then((src) => showHero(src, s.heroAlt)).catch(() => showHero(null));
     put('#tagline', s.tagline);
@@ -219,7 +230,7 @@
     } catch (e) { console.warn('patch strip', e); }
   } catch (e) {
     console.warn(e);
-    showHero(null);
+    showHero(null); showWelcome();
     $('#guide-cards').innerHTML = '<div class="loading">가이드 목록을 불러오지 못했습니다.</div>';
   }
 </script>
