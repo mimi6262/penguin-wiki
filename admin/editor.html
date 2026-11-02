@@ -35,7 +35,7 @@
 
     <div class="card plain editor-meta">
       <span style="display: inline-flex; align-items: center; gap: 8px">섹션 <select class="select" id="section" aria-label="섹션"><option value="">미배치</option></select></span>
-      <span style="font-size: 12px; color: var(--muted)" id="order-hint" title="순서는 관리 → 문서 관리의 ▲▼로 바꿉니다">새 문서는 섹션 맨 아래에 놓입니다</span>
+      <span style="font-size: 12px; color: var(--muted)" id="order-hint" title="순서는 관리 → 문서 관리의 목차에서 끌어서 바꿉니다">새 문서는 섹션 맨 아래에 놓입니다</span>
       <span style="display: inline-flex; align-items: center; gap: 8px">주소 /guide/ <input class="input" id="slug" aria-label="문서 슬러그" style="width: 220px; font-family: var(--font-mono)" placeholder="예: how-to-join"></span>
       <label style="display: inline-flex; align-items: center; gap: 8px; margin-left: auto; cursor: pointer">공개 <span class="toggle on" id="public" role="switch" aria-checked="true" tabindex="0"></span></label>
     </div>
@@ -141,7 +141,7 @@
     el.title.value = (dm ? dm.title : existing.title) || '';
     el.md.value = existing.draft || existing.markdown || '';
     el.section.value = (dm ? dm.sectionId : existing.sectionId) || '';
-    $('#order-hint').textContent = '순서는 관리 → 문서 관리에서 ▲▼로 바꿉니다';
+    $('#order-hint').textContent = '순서는 관리 → 문서 관리의 목차에서 끌어서 바꿉니다';
     el.slug.value = existing.id; el.slug.disabled = true;
     setPublic(existing.public !== false);
     el.crumb.textContent = existing.title;

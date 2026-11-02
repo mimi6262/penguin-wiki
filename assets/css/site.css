@@ -1347,6 +1347,81 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
   .site-header .bar:has(.user-chip:not([hidden])) .nav { order: 5; flex-basis: 100%; justify-content: center; }
 }
 
+/* ---------- 컨텐츠 목차 트리 ----------
+   섹션 줄은 크고 진하게 + 문서 수, 문서는 작고 옅게. 펼친 섹션 아래는 왼쪽 세로줄로 묶어 어디에 속하는지 보이게 */
+.tree .sec { gap: 6px; padding-left: 6px; padding-right: 8px; }
+.tree .sec.top { font-size: 15px; min-height: 42px; }
+.tree .children .sec.sub { font-size: 14px; padding-left: 4px; }
+.tree .sec .sec-ico { display: inline-flex; width: 26px; height: 26px; flex-shrink: 0; }
+.tree .sec .sec-ico svg { width: 26px; height: 26px; }
+.tree .sec .sec-name { min-width: 0; overflow-wrap: anywhere; }
+.tree .sec .cnt { margin-left: auto; flex-shrink: 0; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: #edf3f7; color: var(--label); font-size: 11px; line-height: 18px; text-align: center; }
+.tree .sec.open .cnt { background: #dbe8f1; color: var(--wood-dark); }
+.tree .sec + .children { margin: 2px 0 6px 12px; padding-left: 6px; border-left: 2px solid #e3ebf1; }
+.tree .sec.sub + .children { margin-left: 10px; }
+.tree .page, .tree .children .page, .tree .children .children .page { padding-left: 10px; font-size: 13px; color: var(--label); }
+.tree .page .page-name { min-width: 0; overflow-wrap: anywhere; }
+.tree .page.active { background: var(--mint-wash); color: var(--accent); box-shadow: inset 3px 0 0 #729ebc; }
+/* 문서 줄 앞 작은 점 = 더 펼칠 것 없는 문서 (섹션 줄은 화살표 · 문서 수) */
+.tree .page::before, .tree .page.active::before { content: ""; display: block; flex-shrink: 0; width: 5px; height: 5px; margin: 0; border-radius: 50%; background: #b9c8d3; }
+.tree .page.active::before { background: #729ebc; }
+.tree .sec:focus-visible, .tree .page:focus-visible { outline: 2px solid #729ebc; outline-offset: 1px; }
+.tree .children.loose { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-faint); }
+
+/* ---------- 관리 → 문서 관리: 목차 한 장 ----------
+   섹션 줄 아래에 그 섹션의 문서 · 하위 섹션(왼쪽 세로줄). 손잡이(점 6개)를 끌어 같은 묶음 안에서 순서를 바꿈 */
+.otree-card { padding: 18px 18px 14px; }
+.otree-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 16px; margin-bottom: 10px; }
+.otree-head h2 { font-size: 20px; }
+.otree-head .subtitle { display: block; font-size: 12px; margin-top: 4px; }
+.otree-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.otree-tools .btn svg { margin-right: 2px; }
+.otree .grp, .otree .kids { display: flex; flex-direction: column; gap: 2px; }
+.otree .kids { margin: 2px 0 6px 20px; padding-left: 8px; border-left: 2px solid #e3ebf1; }
+.otree .kids[hidden] { display: none; }
+.orow { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 3px 6px 3px 2px; border-radius: 8px; }
+.orow:hover { background: #f3f7fa; }
+.orow.fixed { padding-left: 8px; border-bottom: 1px solid var(--line-faint); border-radius: 0; }
+.orow.fixed:last-child { border-bottom: 0; }
+.orow .otoggle { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; padding: 4px 0; border: 0; background: none; font: inherit; color: var(--wood-dark); text-align: left; cursor: pointer; }
+.orow.sec.top { min-height: 44px; }
+.orow.sec.top .otoggle { font-size: 15px; }
+.orow.sec.sub .otoggle { font-size: 14px; }
+.orow .chev { width: 12px; height: 12px; flex-shrink: 0; transition: transform .15s; }
+.orow.open .chev { transform: rotate(90deg); }
+.orow .sec-ico { display: inline-flex; width: 26px; height: 26px; flex-shrink: 0; }
+.orow .sec-ico svg { width: 26px; height: 26px; }
+.orow .cnt { flex-shrink: 0; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: #edf3f7; color: var(--label); font-size: 11px; line-height: 18px; text-align: center; }
+.orow .odesc { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.orow .oname { min-width: 0; overflow-wrap: anywhere; }
+.orow.page .oname, .orow.fixed .oname { flex: 1 1 auto; font-size: 13.5px; color: var(--ink); text-decoration: none; }
+.orow.fixed .oname { font-size: 14px; }
+.orow.fixed .oname .odesc { display: inline; white-space: normal; }
+.orow.page .oname:hover, .orow.fixed .oname:hover { color: var(--accent); text-decoration: underline; }
+.orow .ometa { display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; color: var(--muted); }
+.orow .owhere { margin-right: 4px; }
+.orow .actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: auto; }
+.orow.page .ometa + .actions, .orow.fixed .ometa + .btn { margin-left: 0; }
+.orow.fixed .btn { min-width: 76px; }
+.drag-handle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: none; color: #a9b8c4; cursor: grab; touch-action: none; }
+.drag-handle:hover, .drag-handle:focus-visible { color: var(--accent); background: #e9f0f5; }
+.blk.dragging { position: relative; z-index: 5; }
+.blk.dragging > .orow { background: #fff; outline: 2px solid #729ebc; box-shadow: 0 10px 24px -10px rgba(45, 63, 75, .45); cursor: grabbing; }
+.blk.dragging > .kids { display: none; }
+.grp.sorting { user-select: none; }
+.otree .oempty { padding: 6px 8px; font-size: 12px; color: var(--muted); }
+.otree .olabel { margin: 12px 0 4px; padding: 10px 8px 0; border-top: 1px solid var(--line-faint); font-size: 12px; color: var(--label); }
+@media (min-width: 1025px) { .sticky-form { position: sticky; top: 16px; } }
+@media (max-width: 760px) {
+  .orow .odesc, .orow .odate, .orow .owhere { display: none; }
+  .orow.fixed .oname .odesc { display: none; }
+}
+
+/* 이용약관 · 개인정보 처리방침 · 펭귄법전: 왼쪽 목차 없이 본문 + 오른쪽 문서 목차 */
+.guide-layout.standalone #tree, .guide-layout.standalone #tree-toggle { display: none !important; }
+.container.guide-layout.standalone { max-width: 1220px; grid-template-columns: minmax(0, 1fr) 164px; }
+@media (max-width: 1024px) { .container.guide-layout.standalone { grid-template-columns: minmax(0, 1fr); } }
+
 /* ---------- 글 속 그림: 글줄 그림(아이콘)·표 칸 ---------- */
 /* 표 칸의 한글은 단어 중간에서 끊지 않음 (예: "1등급"이 "1등/급"으로 갈라지지 않게) */
 .prose th, .prose td { word-break: keep-all; overflow-wrap: break-word; }

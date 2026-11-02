@@ -167,6 +167,18 @@ export function buildTree(sections, pages) {
   return { tree, orphans: bySection['_none'] || [] };
 }
 
+// 목차에 보일 짧은 이름: 섹션 이름과 겹치는 부분을 뺍니다 (전체 제목은 문서 화면 · 마우스를 올리면 보임)
+//   어부 섹션의 "직업 - 어부" → "직업", "어부 - 스킬" → "스킬" / 커스텀 인챈트 섹션의 "커스텀 인챈트 종류" → "종류"
+export function treeTitle(title, sectionName = '') {
+  const t = String(title || '').trim(), s = String(sectionName || '').trim();
+  if (!s || !t) return t;
+  const parts = t.split(/\s+[-–—|:·]\s+/).map((x) => x.trim()).filter(Boolean);
+  const rest = parts.filter((x) => x !== s);
+  if (parts.length > 1 && rest.length && rest.length < parts.length) return rest.join(' - ');
+  if (t.startsWith(s + ' ') && t.length > s.length + 1) return t.slice(s.length + 1).trim();
+  return t;
+}
+
 // 트리 순서대로 문서를 평탄화 (이전/다음 이동용)
 export function flatten(tree, orphans) {
   const out = [];

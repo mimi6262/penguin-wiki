@@ -12,6 +12,7 @@
 
 <main>
   <div class="container guide-layout">
+    <script>/* 이용약관 · 개인정보 처리방침 · 펭귄법전은 왼쪽 목차 없이 (그리기 전에 정해 깜빡임 없게) */ if (/[?&]p=(terms|privacy|rules)(&|$)/.test(location.search)) document.currentScript.parentElement.classList.add('standalone');</script>
 
     <div style="display: contents">
     <button type="button" class="btn sm secondary tree-toggle" id="tree-toggle" aria-expanded="false" aria-controls="tree">목차 보기</button>
@@ -51,7 +52,10 @@
 
 <script type="module">
   import { renderHeader, renderFooter, $, esc, param, fmtDate, ICONS } from './assets/js/ui.js';
-  renderHeader(new URLSearchParams(location.search).get('p') === 'rules' ? 'law' : 'guide');
+  import { guideIllustration } from './assets/js/illustrations.js';
+  // 따로 보는 문서는 상단 메뉴에서 컨텐츠를 켜지 않음 (펭귄법전만 자기 메뉴)
+  const standalone = $('.guide-layout').classList.contains('standalone');
+  renderHeader(standalone ? (param('p') === 'rules' ? 'law' : '') : 'guide');
   renderFooter();
 
   const CHEV = '<svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#8A7D66" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
@@ -62,7 +66,7 @@
 
   try {
     const { watchAuth } = await import('./assets/js/auth.js');
-    const { listSections, listPages, getPage, buildTree, flatten } = await import('./assets/js/pages.js');
+    const { listSections, listPages, getPage, buildTree, flatten, treeTitle } = await import('./assets/js/pages.js');
     const { renderMarkdown, decorate } = await import('./assets/js/markdown.js');
 
     const editor = await watchAuth();
@@ -85,32 +89,51 @@
     else if (!q) current = flat[0] || null;
 
     // ---- 트리 ----
+    // 펼침 상태는 브라우저에 기억합니다 — 접은 섹션은 다른 문서로 옮겨도 접힌 채로. 지금 보는 문서가 든 섹션만은 늘 펼칩니다
+    const TREE_KEY = 'pw_tree_open';
+    let treeOpen = {};
+    try { treeOpen = JSON.parse(localStorage.getItem(TREE_KEY) || '{}') || {}; } catch {}
     const treeEl = $('#tree');
-    const pageLink = (p) => `<a class="page${current && p.id === current.id ? ' active' : ''}" href="guide.html?p=${encodeURIComponent(p.id)}">${esc(p.title)}${p.public === false ? '<span class="tag gray draft">비공개</span>' : ''}</a>`;
+    const pageLink = (p, secName = '') => {
+      const name = treeTitle(p.title, secName);
+      return `<a class="page${current && p.id === current.id ? ' active' : ''}" href="guide.html?p=${encodeURIComponent(p.id)}"${name !== p.title ? ` title="${esc(p.title)}"` : ''}><span class="page-name">${esc(name)}</span>${p.public === false ? '<span class="tag gray draft">비공개</span>' : ''}</a>`;
+    };
     const matches = (p) => !q || (p.title || '').toLowerCase().includes(q);
     const openId = current ? current.sectionId : sectionParam;
+    const isOpen = (id, hasCurrent) => !!q || hasCurrent || treeOpen[id] === 1;
+    // 섹션 줄: 펼침 화살표 · (최상위만) 홈 카드와 같은 아이콘 · 이름 · 문서 수
+    const secHead = (s, level, count, open) => `<div class="sec ${level}${open ? ' open' : ''}" data-toggle data-sec="${esc(s.id)}" role="button" tabindex="0" aria-expanded="${open}" aria-label="${esc(s.name)} (문서 ${count}개)">${CHEV}${level === 'top' ? `<span class="sec-ico" aria-hidden="true">${guideIllustration(s.name, s.icon)}</span>` : ''}<span class="sec-name">${esc(s.name)}</span><span class="cnt" aria-hidden="true">${count}</span></div>`;
     let html = `<div class="head"><span class="seal sm" aria-hidden="true"></span>가이드${q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : ''}</div>`;
     tree.forEach((t) => {
-      const childHasCurrent = t.children.some((c) => c.section.id === openId);
-      const open = q || t.section.id === openId || childHasCurrent;
-      const items = t.pages.filter(matches).map(pageLink).join('');
+      const own = t.pages.filter(matches);
+      let kidCount = 0;
       const kids = t.children.map((c) => {
-        const cItems = c.pages.filter(matches).map(pageLink).join('');
-        if (q && !cItems) return '';
-        return `<div class="sec${open ? ' open' : ''}" data-toggle>${CHEV}${esc(c.section.name)}</div><div class="children"${open ? '' : ' hidden'}>${cItems}</div>`;
+        const cPages = c.pages.filter(matches);
+        if (q && !cPages.length) return '';
+        kidCount += cPages.length;
+        const open = isOpen(c.section.id, c.section.id === openId);
+        return secHead(c.section, 'sub', cPages.length, open) + `<div class="children"${open ? '' : ' hidden'}>${cPages.map((p) => pageLink(p, c.section.name)).join('')}</div>`;
       }).join('');
-      if (q && !items && !kids) return;
-      html += `<div class="sec${open ? ' open' : ''}" data-toggle>${CHEV}${esc(t.section.name)}</div><div class="children"${open ? '' : ' hidden'}>${items}${kids}</div>`;
+      if (q && !own.length && !kidCount) return;
+      const open = isOpen(t.section.id, t.section.id === openId || t.children.some((c) => c.section.id === openId));
+      html += secHead(t.section, 'top', own.length + kidCount, open) + `<div class="children"${open ? '' : ' hidden'}>${own.map((p) => pageLink(p, t.section.name)).join('')}${kids}</div>`;
     });
-    if (orphans.length) html += `<div class="children">${orphans.filter(matches).map(pageLink).join('')}</div>`;
+    if (orphans.length) html += `<div class="children loose">${orphans.filter(matches).map((p) => pageLink(p)).join('')}</div>`;
     if (!tree.length && !orphans.length) html += '<div class="empty">아직 문서가 없습니다.</div>';
     treeEl.innerHTML = html;
-    treeEl.addEventListener('click', (e) => {
-      const sec = e.target.closest('[data-toggle]');
-      if (!sec) return;
-      sec.classList.toggle('open');
+    const toggleSec = (sec) => {
+      const open = sec.classList.toggle('open');
+      sec.setAttribute('aria-expanded', String(open));
       const ch = sec.nextElementSibling;
-      if (ch) ch.hidden = !ch.hidden;
+      if (ch) ch.hidden = !open;
+      if (q) return; // 검색 중 펼침은 기억하지 않음
+      treeOpen[sec.dataset.sec] = open ? 1 : 0;
+      try { localStorage.setItem(TREE_KEY, JSON.stringify(treeOpen)); } catch {}
+    };
+    treeEl.addEventListener('click', (e) => { const sec = e.target.closest('[data-toggle]'); if (sec) toggleSec(sec); });
+    treeEl.addEventListener('keydown', (e) => {
+      const sec = e.target.closest('[data-toggle]');
+      if (sec && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleSec(sec); }
     });
 
     // ---- 본문 ----

@@ -97,53 +97,19 @@
   const TRASH = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>';
 
   // ================= 문서 관리 =================
+  // 목차 한 장: 섹션 아래에 그 섹션의 문서와 하위 섹션이 든 모양(유저가 보는 목차와 같은 순서).
+  // 순서는 손잡이(점 6개)를 끌어서 바꿉니다 — 같은 묶음(같은 상위의 섹션끼리 / 같은 섹션의 문서끼리) 안에서만. 손잡이에 초점을 두고 ↑↓ 키로도 됩니다.
+  // 펼침 상태는 브라우저에 기억합니다(처음엔 최상위 섹션만 펼침)
+  const ADMIN_TREE_KEY = 'pw_admin_tree';
+  const GRIP = '<svg aria-hidden="true" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="8" r="1.6"/><circle cx="9" cy="8" r="1.6"/><circle cx="3" cy="13" r="1.6"/><circle cx="9" cy="13" r="1.6"/></svg>';
+  const TREE_CHEV = '<svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#8A7D66" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  const EYE = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const PLUS = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
   async function renderDocs() {
     freshPanel();
     panel.innerHTML = head('문서 관리', '섹션을 만들고, 문서를 섹션에 배치합니다', `<a class="btn primary" href="editor.html">새 문서</a>`) + '<div class="loading">불러오는 중</div>';
     const [sections, pages] = await Promise.all([P.listSections(), P.listPages({ editorView: true })]);
-    const secName = (id) => {
-      const s = sections.find((x) => x.id === id);
-      if (!s) return '<span style="color:#8A7D66">미배치</span>';
-      const p = s.parentId ? sections.find((x) => x.id === s.parentId) : null;
-      return esc(p ? `${p.name} › ${s.name}` : s.name);
-    };
     const top = sections.filter((s) => !s.parentId);
-    // 표는 목차 순서(상위 섹션 → 하위 섹션 → 문서)로 보여주고, ▲▼로 같은 묶음 안에서 순서를 바꿉니다
-    const { tree, orphans } = P.buildTree(sections, pages);
-    const orderedSections = tree.flatMap((t) => [t.section, ...t.children.map((c) => c.section)]);
-    const orderedPages = P.flatten(tree, orphans);
-    const MOVE = (attr, id, group, idx) => `
-      <div class="actions" style="gap: 2px">
-        <button type="button" class="icon-btn move" ${attr}="${id}" data-dir="-1" aria-label="위로" ${idx <= 0 ? 'disabled' : ''}>▲</button>
-        <button type="button" class="icon-btn move" ${attr}="${id}" data-dir="1" aria-label="아래로" ${idx >= group.length - 1 ? 'disabled' : ''}>▼</button>
-      </div>`;
-    const siblings = (s) => sections.filter((x) => (x.parentId || null) === (s.parentId || null));
-    const secRows = orderedSections.length ? orderedSections.map((s) => { const g = siblings(s); return `
-      <div class="tr" style="grid-template-columns: minmax(0,1fr) 140px 56px 72px">
-        <span title="${esc(s.desc || '')}">${s.parentId ? '<span style="color:#8A7D66; margin-left: 18px">└ </span>' : ''}${esc(s.name)}${s.desc ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(s.desc)}</span>` : ''}</span>
-        <span style="color:#8A7D66; font-size:12px">${s.parentId ? esc(sections.find((x) => x.id === s.parentId)?.name || '') : '최상위'}</span>
-        ${MOVE('data-move-sec', s.id, g, g.findIndex((x) => x.id === s.id))}
-        <div class="actions">
-          <button type="button" class="icon-btn" data-edit-sec="${s.id}" aria-label="섹션 편집">${EDIT}</button>
-          <button type="button" class="icon-btn danger" data-del-sec="${s.id}" aria-label="섹션 삭제">${TRASH}</button>
-        </div>
-      </div>`; }).join('') : '<div class="empty">섹션이 없습니다. 오른쪽에서 첫 섹션을 추가해 주세요.</div>';
-    const pageSiblings = (p) => pages.filter((x) => (x.sectionId || null) === (p.sectionId || null));
-    const pageRows = orderedPages.length ? orderedPages.map((p) => { const g = pageSiblings(p); return `
-      <div class="tr" style="grid-template-columns: minmax(0,1fr) 130px 92px 84px 56px 104px">
-        <span title="/${esc(p.id)}"><a href="../guide.html?p=${encodeURIComponent(p.id)}" style="text-decoration:none; color:inherit">${esc(p.title)}</a><span style="color:#8A7D66; font-size:12px"> /${esc(p.id)}</span></span>
-        <span style="font-size:13px">${secName(p.sectionId)}</span>
-        <span>${p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>'}${p.draft ? '<span class="tag" style="margin-left:4px">임시</span>' : ''}</span>
-        <span style="font-size:12px; color:#8A7D66" title="${fmtDate(p.updatedAt, true)}">${fmtDate(p.updatedAt)}</span>
-        ${MOVE('data-move-page', p.id, g, g.findIndex((x) => x.id === p.id))}
-        <div class="actions">
-          <a class="icon-btn" href="editor.html?p=${encodeURIComponent(p.id)}" aria-label="편집">${EDIT}</a>
-          <button type="button" class="icon-btn" data-toggle-pub="${p.id}" data-pub="${p.public ? 1 : 0}" aria-label="${p.public ? '비공개로' : '공개로'}" title="${p.public ? '비공개로 전환' : '공개로 전환'}">
-            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button type="button" class="icon-btn danger" data-del-page="${p.id}" data-title="${esc(p.title)}" aria-label="삭제">${TRASH}</button>
-        </div>
-      </div>`; }).join('') : '<div class="empty">문서가 없습니다. "새 문서"로 첫 문서를 만들어 주세요.</div>';
 
     // 주소가 정해진 문서: 상단 메뉴 · 하단 링크 · 홈 버튼이 이 주소로 연결됩니다. 없으면 「작성하기」가 주소와 제목을 채운 채로 편집기를 엽니다
     const FIXED = [
@@ -154,35 +120,77 @@
     const fixedRows = FIXED.map(([slug, name, what, where]) => {
       const p = pages.find((x) => x.id === slug);
       const state = !p ? '<span class="tag gray">아직 없음</span>'
-        : (p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>') + (p.draft ? '<span class="tag" style="margin-left:4px">임시</span>' : '');
+        : (p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>') + (p.draft ? '<span class="tag">임시</span>' : '');
       const go = p ? `editor.html?p=${encodeURIComponent(slug)}` : `editor.html?new=${encodeURIComponent(slug)}&title=${encodeURIComponent(name)}`;
       return `
-      <div class="tr" style="grid-template-columns: minmax(0,1fr) 150px 110px 96px">
-        <span><a href="../guide.html?p=${slug}" style="text-decoration:none; color:inherit">${name}</a><span style="color:#8A7D66; font-size:12px"> — ${what}</span></span>
-        <span style="font-size:12px; color:#8A7D66">${where}</span>
-        <span>${state}</span>
-        <a class="btn xs ${p ? 'secondary' : 'primary'}" href="${go}">${p ? '편집' : '작성하기'}</a>
-      </div>`;
+        <div class="orow fixed">
+          <a class="oname" href="../guide.html?p=${slug}">${name}<span class="odesc"> — ${what}</span></a>
+          <span class="ometa"><span class="owhere">${where}</span>${state}</span>
+          <a class="btn xs ${p ? 'secondary' : 'primary'}" href="${go}">${p ? '편집' : '작성하기'}</a>
+        </div>`;
     }).join('');
+
+    // ---- 목차 ----
+    const { tree, orphans } = P.buildTree(sections, pages.filter((p) => !FIXED.some(([slug]) => slug === p.id)));
+    let openState = {};
+    try { openState = JSON.parse(localStorage.getItem(ADMIN_TREE_KEY) || '{}') || {}; } catch {}
+    const isOpen = (s) => (Object.hasOwn(openState, s.id) ? openState[s.id] === 1 : !s.parentId);
+    const handle = (name) => `<button type="button" class="drag-handle" aria-label="${esc(name)} 순서 옮기기 (끌거나 ↑ ↓ 키)" title="끌어서 순서 바꾸기">${GRIP}</button>`;
+    const pageRow = (p) => `
+      <div class="blk" data-id="${esc(p.id)}">
+        <div class="orow page">
+          ${handle(p.title)}
+          <a class="oname" href="../guide.html?p=${encodeURIComponent(p.id)}" title="/${esc(p.id)}">${esc(p.title)}</a>
+          <span class="ometa">${p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>'}${p.draft ? '<span class="tag">임시</span>' : ''}<span class="odate" title="${fmtDate(p.updatedAt, true)}">${fmtDate(p.updatedAt)}</span></span>
+          <span class="actions">
+            <a class="icon-btn" href="editor.html?p=${encodeURIComponent(p.id)}" aria-label="편집" title="편집">${EDIT}</a>
+            <button type="button" class="icon-btn" data-toggle-pub="${esc(p.id)}" data-pub="${p.public ? 1 : 0}" aria-label="${p.public ? '비공개로' : '공개로'}" title="${p.public ? '비공개로 전환' : '공개로 전환'}">${EYE}</button>
+            <button type="button" class="icon-btn danger" data-del-page="${esc(p.id)}" data-title="${esc(p.title)}" aria-label="삭제" title="삭제">${TRASH}</button>
+          </span>
+        </div>
+      </div>`;
+    const pageGrp = (secId, list, emptyText = '') => (list.length || emptyText)
+      ? `<div class="grp" data-kind="page" data-sec="${esc(secId)}">${list.map(pageRow).join('') || `<div class="oempty">${emptyText}</div>`}</div>` : '';
+    const secRow = (s, count, level) => `
+        <div class="orow sec ${level}${isOpen(s) ? ' open' : ''}">
+          ${handle(s.name)}
+          <button type="button" class="otoggle" data-toggle-sec aria-expanded="${isOpen(s)}">${TREE_CHEV}${level === 'top' ? `<span class="sec-ico" aria-hidden="true">${guideIllustration(s.name, s.icon)}</span>` : ''}<span class="oname">${esc(s.name)}</span><span class="cnt" aria-label="문서 ${count}개">${count}</span></button>
+          ${s.desc ? `<span class="odesc" title="${esc(s.desc)}">${esc(s.desc)}</span>` : ''}
+          <span class="actions">
+            <a class="icon-btn" href="editor.html?s=${encodeURIComponent(s.id)}" aria-label="이 섹션에 새 문서" title="이 섹션에 새 문서">${PLUS}</a>
+            <button type="button" class="icon-btn" data-edit-sec="${esc(s.id)}" aria-label="섹션 편집" title="섹션 편집">${EDIT}</button>
+            <button type="button" class="icon-btn danger" data-del-sec="${esc(s.id)}" aria-label="섹션 삭제" title="섹션 삭제">${TRASH}</button>
+          </span>
+        </div>`;
+    const subBlk = (c) => `<div class="blk" data-id="${esc(c.section.id)}">${secRow(c.section, c.pages.length, 'sub')}<div class="kids"${isOpen(c.section) ? '' : ' hidden'}>${pageGrp(c.section.id, c.pages, '문서 없음')}</div></div>`;
+    const topBlk = (t) => {
+      const n = t.pages.length + t.children.reduce((a, c) => a + c.pages.length, 0);
+      return `<div class="blk" data-id="${esc(t.section.id)}">${secRow(t.section, n, 'top')}<div class="kids"${isOpen(t.section) ? '' : ' hidden'}>${pageGrp(t.section.id, t.pages, t.children.length ? '' : '문서 없음')}${t.children.length ? `<div class="grp" data-kind="sec" data-parent="${esc(t.section.id)}">${t.children.map(subBlk).join('')}</div>` : ''}</div></div>`;
+    };
 
     panel.innerHTML = head('문서 관리', `섹션 ${sections.length} · 문서 ${pages.length} (공개 ${pages.filter((p) => p.public).length})`, `<a class="btn primary" href="editor.html">새 문서</a>`) + `
       <div class="admin-split">
-        <div class="stack" style="gap: 20px">
-          <div class="card plain table" style="--tmin: 560px">
-            <div class="thead" style="grid-template-columns: minmax(0,1fr) 150px 110px 96px"><span>정해진 문서 (가이드 목차에는 안 보임)</span><span>연결된 곳</span><span>상태</span><span></span></div>
-            ${fixedRows}
+        <div class="stack" style="gap: 16px">
+          <div class="card plain otree-card">
+            <div class="otree-head"><div><h2>정해진 문서</h2><p class="subtitle">상단 메뉴 · 하단 링크가 이 주소로 연결돼요. 가이드 목차에는 안 보여요.</p></div></div>
+            <div class="otree">${fixedRows}</div>
           </div>
-          <div class="subtitle" style="font-size: 12px; margin-bottom: -8px">목차에 보이는 순서 그대로입니다. ▲▼로 자리를 바꾸세요 (하위 섹션은 같은 상위 안에서만).</div>
-          <div class="card plain table" style="--tmin: 500px">
-            <div class="thead" style="grid-template-columns: minmax(0,1fr) 140px 56px 72px"><span>섹션</span><span>상위</span><span>이동</span><span></span></div>
-            ${secRows}
-          </div>
-          <div class="card plain table" style="--tmin: 680px">
-            <div class="thead" style="grid-template-columns: minmax(0,1fr) 130px 92px 84px 56px 104px"><span>문서</span><span>섹션</span><span>상태</span><span>수정</span><span>이동</span><span></span></div>
-            ${pageRows}
+          <div class="card plain otree-card">
+            <div class="otree-head">
+              <div><h2>목차</h2><p class="subtitle">점 6개 손잡이를 끌어 순서를 바꿔요(같은 묶음 안에서). 문서를 다른 섹션으로 옮길 땐 문서 편집에서 섹션을 고르세요.</p></div>
+              <div class="otree-tools">
+                <button type="button" class="btn xs ghost" data-expand="1">모두 펼치기</button>
+                <button type="button" class="btn xs ghost" data-expand="0">모두 접기</button>
+                <button type="button" class="btn xs secondary" id="sec-new">${PLUS} 섹션 추가</button>
+              </div>
+            </div>
+            <div class="otree" id="otree">
+              ${tree.length ? `<div class="grp" data-kind="sec" data-parent="">${tree.map(topBlk).join('')}</div>` : '<div class="oempty">섹션이 없습니다. 「섹션 추가」로 첫 섹션을 만들어 주세요.</div>'}
+              ${orphans.length ? `<div class="olabel">미배치 문서 — 목차 맨 아래에 보여요</div>${pageGrp('', orphans)}` : ''}
+            </div>
           </div>
         </div>
-        <form class="card plain form-card" id="sec-form">
+        <form class="card plain form-card sticky-form" id="sec-form">
           <div class="row-between"><h2 style="font-size: 20px" id="sec-form-title">섹션 추가</h2><button type="button" class="btn xs ghost" id="sec-reset" hidden>새로</button></div>
           <input type="hidden" id="sec-id">
           <div class="field"><label for="sec-name">이름</label><input class="input" id="sec-name" required placeholder="예: 시작 가이드"></div>
@@ -196,7 +204,7 @@
               <span id="sec-icon-preview" style="width: 48px; height: 48px; flex-shrink: 0; display: inline-flex"></span>
             </div>
           </div>
-          <div class="notice-box" style="font-size: 12px">새 섹션은 맨 아래에 추가됩니다. 자리는 표의 ▲▼로 옮기세요.</div>
+          <div class="notice-box" style="font-size: 12px">새 섹션은 같은 상위의 맨 아래에 추가됩니다. 자리는 목차에서 끌어 옮기세요.</div>
           <div style="display: flex; gap: 8px"><button type="submit" class="btn primary" style="flex-grow: 1">저장</button></div>
         </form>
       </div>`;
@@ -213,6 +221,10 @@
       $('#sec-form-title').textContent = s ? '섹션 편집' : '섹션 추가';
       iconPreview();
       $('#sec-reset').hidden = !s;
+      // 양식이 화면 밖이면(좁은 화면에서 아래로 내려가 있을 때) 보이게
+      const r = $('#sec-form').getBoundingClientRect();
+      if (r.top < 0 || r.top > innerHeight - 120) $('#sec-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      f.name.focus({ preventScroll: true });
     };
     $('#sec-reset').addEventListener('click', () => fillSec(null));
     $('#sec-form').addEventListener('submit', async (e) => {
@@ -228,30 +240,98 @@
       toast('저장했습니다'); renderDocs();
     });
 
-    // ---- ▲▼ 순서 이동: 같은 묶음(같은 상위 섹션 / 같은 섹션의 문서) 안에서 자리를 바꾸고 10, 20, 30…으로 다시 매깁니다
-    const moveWithin = async (group, id, dir, col) => {
-      const i = group.findIndex((x) => x.id === id), j = i + dir;
-      if (i < 0 || j < 0 || j >= group.length) return false;
-      [group[i], group[j]] = [group[j], group[i]];
-      const batch = writeBatch(db);
-      group.forEach((x, k) => { const o = (k + 1) * 10; if ((x.order ?? 0) !== o) batch.update(doc(db, col, x.id), { order: o }); });
-      await batch.commit();
-      return true;
+    // ---- 펼치기 / 접기 ----
+    const saveOpen = () => { try { localStorage.setItem(ADMIN_TREE_KEY, JSON.stringify(openState)); } catch {} };
+    const setOpen = (blk, open) => {
+      const row = blk.firstElementChild;
+      row.classList.toggle('open', open);
+      row.querySelector('[data-toggle-sec]').setAttribute('aria-expanded', String(open));
+      const kids = blk.querySelector(':scope > .kids');
+      if (kids) kids.hidden = !open;
+      openState[blk.dataset.id] = open ? 1 : 0;
     };
 
+    // ---- 순서 바꾸기: 끌어서(마우스 · 터치) 또는 손잡이에서 ↑↓ 키. 놓으면 그 묶음을 10, 20, 30…으로 다시 매겨 저장 ----
+    const otree = $('#otree');
+    const blks = (grp) => [...grp.children].filter((x) => x.classList.contains('blk'));
+    const ids = (grp) => blks(grp).map((x) => x.dataset.id);
+    const saveOrder = async (grp) => {
+      const col = grp.dataset.kind === 'sec' ? 'sections' : 'pages';
+      const list = col === 'sections' ? sections : pages;
+      const batch = writeBatch(db);
+      let n = 0;
+      ids(grp).forEach((id, k) => {
+        const o = (k + 1) * 10, x = list.find((y) => y.id === id);
+        if (x && (x.order ?? 0) !== o) { batch.update(doc(db, col, id), { order: o }); x.order = o; n++; }
+      });
+      if (!n) return;
+      try { await batch.commit(); toast('순서를 바꿨습니다'); }
+      catch (err) { toast('순서를 저장하지 못했습니다 — ' + errText(err)); renderDocs(); }
+    };
+    let drag = null;
+    const follow = () => {
+      if (!drag) return;
+      const { blk, grp, y } = drag;
+      const heads = blks(grp).filter((x) => x !== blk).map((s) => { const r = s.firstElementChild.getBoundingClientRect(); return { s, mid: r.top + r.height / 2 }; });
+      // 포인터가 이웃 섹션 · 문서 머리줄의 가운데를 넘으면 그 자리로
+      const above = heads.find((h) => (blk.compareDocumentPosition(h.s) & Node.DOCUMENT_POSITION_PRECEDING) && y < h.mid);
+      if (above) grp.insertBefore(blk, above.s);
+      else {
+        const below = heads.filter((h) => (blk.compareDocumentPosition(h.s) & Node.DOCUMENT_POSITION_FOLLOWING) && y > h.mid).pop();
+        if (below) below.s.after(blk);
+      }
+      blk.style.transform = '';
+      blk.style.transform = `translateY(${y - drag.off - blk.getBoundingClientRect().top}px)`;
+    };
+    const tick = () => {
+      if (!drag) return;
+      // 화면 위 · 아래 끝에 가까우면 저절로 스크롤
+      const edge = 70, y = drag.y;
+      if (y < edge) scrollBy(0, -Math.ceil((edge - y) / 6));
+      else if (y > innerHeight - edge) scrollBy(0, Math.ceil((y - innerHeight + edge) / 6));
+      follow();
+      drag.raf = requestAnimationFrame(tick);
+    };
+    otree.addEventListener('pointerdown', (e) => {
+      const h = e.target.closest('.drag-handle');
+      if (!h || e.button > 0) return;
+      const blk = h.closest('.blk'), grp = blk.parentElement;
+      if (blks(grp).length < 2) return toast('같은 묶음에 하나뿐이라 옮길 자리가 없어요');
+      e.preventDefault();
+      h.setPointerCapture(e.pointerId);
+      blk.classList.add('dragging'); grp.classList.add('sorting');
+      drag = { blk, grp, y: e.clientY, off: e.clientY - blk.getBoundingClientRect().top, before: ids(grp).join() };
+      drag.raf = requestAnimationFrame(tick);
+    });
+    otree.addEventListener('pointermove', (e) => { if (drag) drag.y = e.clientY; });
+    const endDrag = async () => {
+      if (!drag) return;
+      const { blk, grp, before, raf } = drag;
+      drag = null;
+      cancelAnimationFrame(raf);
+      blk.style.transform = ''; blk.classList.remove('dragging'); grp.classList.remove('sorting');
+      if (ids(grp).join() !== before) await saveOrder(grp);
+    };
+    otree.addEventListener('pointerup', endDrag);
+    otree.addEventListener('pointercancel', endDrag);
+    otree.addEventListener('keydown', async (e) => {
+      const h = e.target.closest('.drag-handle');
+      if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+      e.preventDefault();
+      const blk = h.closest('.blk'), grp = blk.parentElement;
+      const list = blks(grp), i = list.indexOf(blk), j = i + (e.key === 'ArrowUp' ? -1 : 1);
+      if (j < 0 || j >= list.length) return;
+      if (j < i) grp.insertBefore(blk, list[j]); else list[j].after(blk);
+      h.focus();
+      await saveOrder(grp);
+    });
+
     panel.addEventListener('click', async (e) => {
-      const ms = e.target.closest('[data-move-sec]');
-      if (ms) {
-        const s = sections.find((x) => x.id === ms.dataset.moveSec);
-        if (s && await moveWithin(siblings(s), s.id, Number(ms.dataset.dir), 'sections')) renderDocs();
-        return;
-      }
-      const mp = e.target.closest('[data-move-page]');
-      if (mp) {
-        const p = pages.find((x) => x.id === mp.dataset.movePage);
-        if (p && await moveWithin(pageSiblings(p), p.id, Number(mp.dataset.dir), 'pages')) renderDocs();
-        return;
-      }
+      const tg = e.target.closest('[data-toggle-sec]');
+      if (tg) { const blk = tg.closest('.blk'); setOpen(blk, !blk.firstElementChild.classList.contains('open')); saveOpen(); return; }
+      const ex = e.target.closest('[data-expand]');
+      if (ex) { otree.querySelectorAll('.blk').forEach((b) => { if (b.firstElementChild.classList.contains('sec')) setOpen(b, ex.dataset.expand === '1'); }); saveOpen(); return; }
+      if (e.target.closest('#sec-new')) return fillSec(null);
       const es = e.target.closest('[data-edit-sec]'); if (es) return fillSec(sections.find((s) => s.id === es.dataset.editSec));
       const ds = e.target.closest('[data-del-sec]');
       if (ds) {
@@ -268,7 +348,7 @@
         if (!confirm(`"${dp.dataset.title}" 문서를 삭제할까요? 이력은 남지만 문서는 복구되지 않습니다.`)) return;
         await P.deletePage(dp.dataset.delPage, me.name, dp.dataset.title); toast('삭제했습니다'); renderDocs();
       }
-    }, { once: false });
+    });
   }
 
   // ================= 사이트 설정 =================
