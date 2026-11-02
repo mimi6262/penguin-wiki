@@ -63,14 +63,16 @@ function inline(text) {
 export function renderPatchBody(body, categories = []) {
   const color = (name) => safeColor(categories.find((c) => c.name === name)?.color);
   const lines = (body || '').replace(/\r/g, '').split('\n');
-  let html = '', depth = 0;
+  let html = '', depth = 0, gaps = 0;
   const closeTo = (d) => { while (depth > d) { html += '</ul>'; depth--; } };
   const openTo = (d) => { while (depth < d) { html += '<ul>'; depth++; } };
+  // 빈 줄은 한 줄 높이 간격으로 (엔터 두 번 = 빈 줄 하나). 본문 맨 앞 · 맨 뒤 빈 줄은 무시
+  const flushGaps = () => { if (html) html += '<div class="pn-gap" aria-hidden="true"></div>'.repeat(gaps); gaps = 0; };
   lines.forEach((raw) => {
     const line = raw.replace(/\t/g, '  ');
     const cat = line.match(/^\s*\[([^\]]{1,40})\]\s*(.*)$/);
     if (cat) {
-      closeTo(0);
+      closeTo(0); flushGaps();
       html += `<h3 class="pn-cat"><span class="tag fill" style="background:${color(cat[1].trim())};border-color:${color(cat[1].trim())}">${esc(cat[1].trim())}</span>${cat[2] ? `<span>${inline(cat[2])}</span>` : ''}</h3>`;
       return;
     }
@@ -78,12 +80,12 @@ export function renderPatchBody(body, categories = []) {
     if (li) {
       const d = li[1].length >= 2 || (li[2] === 'ㆍ' && /^ㆍ/.test(li[3])) ? 2 : 1;
       const text = li[3].replace(/^ㆍ\s*/, '');
-      closeTo(d); openTo(d);
+      closeTo(d); flushGaps(); openTo(d);
       html += `<li>${inline(text)}</li>`;
       return;
     }
-    if (!line.trim()) { closeTo(0); return; }
-    closeTo(0);
+    if (!line.trim()) { closeTo(0); gaps++; return; }
+    closeTo(0); flushGaps();
     html += `<p>${inline(line.trim())}</p>`;
   });
   closeTo(0);

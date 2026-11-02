@@ -789,6 +789,7 @@ main > .container { animation: pw-enter .45s cubic-bezier(.22, 1, .36, 1) both; 
 .pn-body li::before { content: "ㆍ"; position: absolute; left: 0; color: var(--muted); }
 .pn-body ul ul li::before { content: "–"; }
 .pn-body p { margin: 6px 0; }
+.pn-body .pn-gap { height: 1em; } /* 본문의 빈 줄 하나 */
 .pn-body code {
   font-family: var(--font-mono);
   font-size: 12px;
