@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """펭귄서버 상태 확인 → 켜짐/꺼짐이 바뀌었을 때만 디스코드 웹훅으로 알림.
 
-GitHub Actions(.github/workflows/server-status.yml)가 5분마다 실행합니다.
+GitHub Actions(.github/workflows/server-status.yml)에서 실행됩니다. 5분 간격은 구글 Apps Script
+(.github/scripts/apps_script_5min.gs)가 workflow_dispatch 로 맞추고, GitHub 자체 예약(cron)은 예비입니다.
 - 서버 주소: 위키 관리 → 사이트 설정의 "서버 주소"(settings/site.serverAddress)를 읽습니다.
   저장소 변수 SERVER_ADDRESS 를 넣으면 그 값을 우선 씁니다.
 - 웹훅 주소: 저장소 비밀값 DISCORD_WEBHOOK_STATUS (코드에 넣지 않습니다).
