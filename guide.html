@@ -196,6 +196,15 @@
       + `${SEP}<span class="cur">${esc(current.title)}</span>`;
     // 작성자는 편집자에게만 표시 (유저에게는 최종 수정일만). 날짜는 게시 기준 — 임시저장·공개 전환만으로는 바뀌지 않습니다
     $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.publishedAt || current.updatedAt)}</span>${editor && current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
+    $('#meta').dataset.doc = current.id;
+    // 조회수: 유저가 연 공개 문서만 셈(views.js), 편집자에게는 이 문서 숫자를 보여 줌(관리 → 조회수에 전체 표)
+    if (current.public !== false) import('./assets/js/views.js').then((m) => m.countView(current.id)).catch(() => {});
+    if (editor) {
+      import('./assets/js/views.js').then((m) => m.getViews(current.id)).then((s) => {
+        if ($('#meta').dataset.doc !== current.id || $('#meta').querySelector('.views')) return;
+        $('#meta').insertAdjacentHTML('beforeend', `<span aria-hidden="true">·</span><a class="views" href="admin/index.html#views" title="같은 브라우저에서 같은 날 다시 본 것과 편집자가 본 것은 빼고 셉니다">조회 오늘 ${s.today} · 7일 ${s.week} · 전체 ${s.total}</a>`);
+      }).catch(() => {});
+    }
     // 같은 문서 · 같은 내용이면 본문은 그대로 둡니다 (서버에서 다시 받아도 스크롤 · 그림이 흔들리지 않게)
     const text = current.markdown || current.draft || '';
     if (!(shown && shown.id === current.id && shown.text === text)) {

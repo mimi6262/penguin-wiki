@@ -20,7 +20,7 @@ export const db = getFirestore(app);
 // Firestore SDK 재export — 각 화면에서 이 파일 하나만 import하면 됩니다.
 export {
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, writeBatch, onSnapshot, deleteField,
+  query, where, orderBy, limit, serverTimestamp, writeBatch, onSnapshot, deleteField, increment,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 export {

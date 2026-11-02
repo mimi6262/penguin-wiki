@@ -116,6 +116,7 @@
   document.querySelectorAll('.community .icon').forEach((el,i)=>{el.innerHTML=illustration(i ? 'star' : 'chat');});
   renderHeader('');
   renderFooter();
+  import('./assets/js/views.js').then((m) => m.countView('_home')).catch(() => {}); // 조회수 (관리 → 조회수)
   initReveal();
 
   // 첫 화면 그림: 설정을 읽은 뒤 한 번만 넣어서 기본 그림이 잠깐 보였다 바뀌는 일이 없게 합니다

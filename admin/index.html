@@ -18,7 +18,7 @@
 <main>
   <div class="container" id="rules-warn" style="max-width: 1480px; padding-bottom: 0" hidden>
     <div class="notice-box" role="alert" style="display: block; line-height: 1.7; border-color: var(--accent); background: #fbeeea">
-      <b>데이터베이스 규칙이 최신이 아닙니다.</b> 이대로면 <b>그림 올리기(가이드 편집기·첫 화면 그림)</b>와 <b>편집자 등록 요청</b>이 저장되지 않고, 디스코드 웹훅 주소와 <b>공개 문서의 임시저장 원고</b>가 누구에게나 읽힐 수 있어요.<br>
+      <b>데이터베이스 규칙이 최신이 아닙니다.</b> 이대로면 <b>그림 올리기(가이드 편집기·첫 화면 그림)</b>와 <b>편집자 등록 요청</b>이 저장되지 않고, <b>조회수</b>가 세어지지 않고, 디스코드 웹훅 주소와 <b>공개 문서의 임시저장 원고</b>가 누구에게나 읽힐 수 있어요.<br>
       Firebase 콘솔 → Firestore Database → <b>규칙</b> 탭에서, 깃허브 저장소의 <code>firestore.rules</code> 내용 전체를 붙여넣고 <b>게시</b>를 눌러 주세요. 게시 후 이 화면을 새로고침하면 이 안내가 사라집니다.
     </div>
   </div>
@@ -27,6 +27,7 @@
     <aside class="card plain admin-nav" aria-label="관리 메뉴">
       <span class="label">관리</span>
       <a href="#docs" data-tab="docs">문서 관리</a>
+      <a href="#views" data-tab="views">조회수</a>
       <a href="#settings" data-tab="settings">사이트 설정</a>
       <a href="#events" data-tab="events">이벤트 관리</a>
       <a href="#patch" data-tab="patch">패치노트 관리</a>
@@ -73,11 +74,11 @@
   const { ICON_CHOICES, guideIllustration } = await import('../assets/js/illustrations.js');
 
   // 데이터베이스 규칙 점검: 저장소의 firestore.rules 가 Firebase 에 게시되지 않았으면 일부 저장이 조용히 막힙니다.
-  // 가장 최근에 추가된 규칙(images, pageDrafts, editorRequests)을 읽어 보고, 막히면 상단에 안내를 띄웁니다.
+  // 가장 최근에 추가된 규칙(images, pageDrafts, views, editorRequests)을 읽어 보고, 막히면 상단에 안내를 띄웁니다.
   // ※ firestore.rules 에 새 컬렉션을 추가하면 여기에도 점검 대상을 추가해 주세요.
   (async () => {
     const denied = (err) => String(err?.code || '').includes('permission-denied');
-    const probes = [getDoc(doc(db, 'images', '__rules_probe')), getDoc(doc(db, 'pageDrafts', '__rules_probe'))];
+    const probes = [getDoc(doc(db, 'images', '__rules_probe')), getDoc(doc(db, 'pageDrafts', '__rules_probe')), getDoc(doc(db, 'views', '__rules_probe'))];
     if (isAdmin) probes.push(getDocs(query(collection(db, 'editorRequests'), limit(1))));
     const results = await Promise.allSettled(probes);
     if (results.some((r) => r.status === 'rejected' && denied(r.reason))) $('#rules-warn').hidden = false;
@@ -804,6 +805,64 @@
       </div>` : ''}`;
   }
 
+  // ================= 조회수 =================
+  // views/{키}: 유저가 가이드 문서 · 주요 페이지를 연 횟수(같은 브라우저 하루 1번, 편집자 제외, 누가 봤는지는 없음).
+  // 세는 곳은 assets/js/views.js, 허용 범위는 firestore.rules 의 views
+  async function renderViews() {
+    freshPanel();
+    panel.innerHTML = head('조회수') + '<div class="loading">불러오는 중</div>';
+    const V = await import('../assets/js/views.js');
+    let raw;
+    try { raw = await V.listViews(); }
+    catch (err) {
+      panel.innerHTML = head('조회수') + `<div class="notice-box">조회수를 읽지 못했습니다 (${esc(errText(err))}). 데이터베이스 규칙을 게시하면 그때부터 셉니다.</div>`;
+      return;
+    }
+    const pages = await P.listPages({ editorView: true });
+    const dayLabel = (d) => {
+      const [y, m, dd] = d.split('-').map(Number);
+      return `${m}/${dd}(${'일월화수목금토'[new Date(Date.UTC(y, m - 1, dd)).getUTCDay()]})`;
+    };
+    const firstDay = Object.values(raw).flatMap((v) => Object.keys(v.days || {})).sort()[0];
+    const PAGE_HREF = { _home: '../index.html', _patch: '../patch.html', _events: '../events.html', _commands: '../commands.html', _prices: '../prices.html' };
+    const pageRows = Object.entries(V.PAGE_KEYS).map(([k, name]) => ({ name, href: PAGE_HREF[k], s: V.summarize(raw[k]) }));
+    const docRows = pages.filter((p) => p.public).map((p) => ({ name: p.title, href: `../guide.html?p=${encodeURIComponent(p.id)}`, s: V.summarize(raw[p.id]) }))
+      .sort((a, b) => b.s.week - a.s.week || b.s.total - a.s.total || a.name.localeCompare(b.name, 'ko'));
+
+    const COLS = 'minmax(0,1fr) 56px 56px 56px 64px 64px';
+    const N = (n) => `<span class="num">${n ? n.toLocaleString('ko-KR') : '<span class="zero">0</span>'}</span>`;
+    const table = (rows) => `
+      <div class="card plain table views-table" style="--tmin: 480px">
+        <div class="thead" style="grid-template-columns: ${COLS}"><span>이름</span><span class="num">오늘</span><span class="num">어제</span><span class="num">7일</span><span class="num">30일</span><span class="num">전체</span></div>
+        ${rows.map((r) => `<div class="tr" style="grid-template-columns: ${COLS}"><span><a href="${r.href}" title="${esc(r.name)}">${esc(r.name)}</a></span>${N(r.s.today)}${N(r.s.yesterday)}${N(r.s.week)}${N(r.s.month)}${N(r.s.total)}</div>`).join('')
+          || '<div class="empty">없음</div>'}
+      </div>`;
+    // 날짜별 합계 (최근 14일, 오늘이 맨 위)
+    const DCOLS = '72px 1fr 1fr 1fr';
+    const sumOn = (d, pick) => Object.entries(raw).reduce((a, [k, v]) => a + (pick(k) ? ((v.days || {})[d] || 0) : 0), 0);
+    const isPage = (k) => Object.hasOwn(V.PAGE_KEYS, k);
+    const dayRows = V.lastDays(14).filter((d) => !firstDay || d >= firstDay).map((d) => {
+      const p = sumOn(d, isPage), g = sumOn(d, (k) => !isPage(k));
+      return `<div class="tr" style="grid-template-columns: ${DCOLS}"><span>${dayLabel(d)}</span>${N(p)}${N(g)}${N(p + g)}</div>`;
+    }).join('');
+
+    panel.innerHTML = head('조회수', `${firstDay ? `${dayLabel(firstDay)}부터 셉니다` : '아직 기록이 없습니다'} · 같은 브라우저에서 같은 날 다시 본 것과 편집자가 본 것은 빼고 셉니다`) + `
+      <div class="admin-split">
+        <div class="stack" style="gap: 16px">
+          <div class="stack" style="gap: 8px"><h2 style="font-size: 20px">페이지</h2>${table(pageRows)}</div>
+          <div class="stack" style="gap: 8px"><h2 style="font-size: 20px">가이드 문서 <span class="subtitle" style="font-size: 12px">공개 문서 · 최근 7일 많이 본 순</span></h2>${table(docRows)}</div>
+        </div>
+        <div class="stack" style="gap: 8px">
+          <h2 style="font-size: 20px">날짜별</h2>
+          <div class="card plain table views-table">
+            <div class="thead" style="grid-template-columns: ${DCOLS}"><span>날짜</span><span class="num">페이지</span><span class="num">문서</span><span class="num">합계</span></div>
+            ${dayRows || '<div class="empty">아직 기록이 없습니다</div>'}
+          </div>
+          <div class="notice-box" style="font-size: 12px">「페이지」는 홈 · 패치노트 · 이벤트 · 명령어 · 시세, 「문서」는 가이드 문서입니다. 날짜는 한국 시간 기준이에요.</div>
+        </div>
+      </div>`;
+  }
+
   const SOON = (t) => head(t) + '<div class="notice-box">3차 작업에서 만들어지는 화면입니다. 운영자 쪽 데이터가 준비되면 연결합니다.</div>';
 
   function route() {
@@ -811,6 +870,7 @@
     const [tab, arg] = h.split(':');
     $$('.admin-nav [data-tab]').forEach((a) => { if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     if (tab === 'docs') return renderDocs();
+    if (tab === 'views') return renderViews();
     if (tab === 'settings') return renderSettings();
     if (tab === 'editors') return renderEditors();
     if (tab === 'account') return renderAccount();

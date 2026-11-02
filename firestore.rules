@@ -83,6 +83,25 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow update, delete: if false;
     }
+    // 조회수(assets/js/views.js): 누구나 "1 올리기"만. 칸은 total(전체) · days(날짜별, 'YYYY-MM-DD') · d(이번에 올린 날짜)뿐,
+    // 한 번에 total 과 days[d] 를 정확히 1씩. 새로 만들 땐 주요 페이지 키이거나 있는 문서만. 누가 봤는지는 남기지 않음. 편집자만 조회
+    function isDay(v) { return v is string && v.matches('^20[0-9]{2}-[01][0-9]-[0-3][0-9]$'); }
+    match /views/{key} {
+      allow read: if isEditor();
+      allow create: if (key in ['_home', '_patch', '_events', '_commands', '_prices'] || exists(/databases/$(database)/documents/pages/$(key)))
+        && request.resource.data.keys().hasOnly(['total', 'days', 'd'])
+        && isDay(request.resource.data.d)
+        && request.resource.data.total == 1
+        && request.resource.data.days.keys().hasOnly([request.resource.data.d])
+        && request.resource.data.days[request.resource.data.d] == 1;
+      allow update: if request.resource.data.keys().hasOnly(['total', 'days', 'd'])
+        && isDay(request.resource.data.d)
+        && request.resource.data.total == resource.data.total + 1
+        && request.resource.data.days.diff(resource.data.days).affectedKeys().hasOnly([request.resource.data.d])
+        && request.resource.data.days[request.resource.data.d] == resource.data.days.get(request.resource.data.d, 0) + 1;
+      allow delete: if isAdmin();
+    }
+
     // 수정 이력: 편집자 생성·조회, 수정·삭제 불가
     match /editLogs/{id} {
       allow create, read: if isEditor();

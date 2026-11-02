@@ -472,6 +472,11 @@ main { flex-grow: 1; }
 .table .cmd-chip { display: block; max-width: 100%; line-height: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table .actions { display: flex; gap: 4px; flex-shrink: 0; }
 .table .empty { padding: 28px 20px; color: var(--muted); font-size: 14px; text-align: center; }
+/* 숫자 칸(조회수 표): 오른쪽 정렬 · 자릿수 맞춤, 0 은 흐리게 */
+.table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.table .num .zero { color: var(--muted); }
+.table.views-table .tr { min-height: 44px; } /* 아래 .table .tr 68px 보다 촘촘하게 */
+.views-table .tr a { text-decoration: none; }
 .icon-btn {
   display: inline-flex;
   align-items: center;

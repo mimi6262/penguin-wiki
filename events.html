@@ -44,6 +44,7 @@
   import { renderHeader, renderFooter, $, esc, toast, safeUrl } from './assets/js/ui.js';
   renderHeader('events');
   renderFooter();
+  import('./assets/js/views.js').then((m) => m.countView('_events')).catch(() => {}); // 조회수 (관리 → 조회수)
   const HEART = (on) => `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="${on ? 'var(--accent)' : 'none'}" stroke="${on ? 'var(--accent)' : '#A6957A'}" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9z"/></svg>`;
   try {
     const { watchAuth } = await import('./assets/js/auth.js');

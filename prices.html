@@ -60,6 +60,7 @@
   import { illustration } from './assets/js/illustrations.js';
   renderHeader('prices');
   renderFooter();
+  import('./assets/js/views.js').then((m) => m.countView('_prices')).catch(() => {}); // 조회수 (관리 → 조회수)
   $('#price-soon-ico').innerHTML = illustration('market');
   try {
     const { watchAuth } = await import('./assets/js/auth.js');

@@ -14,7 +14,7 @@ commands.html       명령어 (분류 탭 · 검색 · 복사 버튼)
 prices.html         시세 (분류 탭 · 검색 · 전일 대비 · 7일 추이)
 search.html         통합 검색 (가이드 · 명령어 · 패치노트 · 이벤트)
 admin/login.html    관리자 로그인
-admin/index.html    관리 (#docs 문서 · #settings 사이트 설정 · #events 이벤트 · #patch 패치노트 · #popups 알림 · #commands 명령어 · #editors 편집자 · #history 이력)
+admin/index.html    관리 (#docs 문서 · #views 조회수 · #settings 사이트 설정 · #events 이벤트 · #patch 패치노트 · #popups 알림 · #commands 명령어 · #editors 편집자 · #history 이력)
 admin/panels2.js    관리 2차 패널 (이벤트 · 패치노트 · 알림 · 명령어)
 admin/editor.html   문서 편집기 (?p=슬러그)
 assets/css/site.css 공통 스타일 (블록 마을 · 하늘색). 색 기준값은 맨 위 :root, 글꼴(메이플스토리 Bold)은 맨 아래
@@ -22,7 +22,7 @@ assets/fonts/       Maplestory-Bold.ttf (넥슨 무료 서체 — 수정 · 변�
 assets/images/      penguin-village.jpg (첫 화면 기본 그림, 1536×1024) · penguin-icon.png (상단 로고, 180×180)
 assets/js/          ui.js(헤더·푸터·펭귄 로고) firebase.js(초기화) auth.js(로그인·역할) pages.js(문서) markdown.js(렌더링)
                     content.js(패치노트·이벤트·명령어·팝업 데이터) time.js(KST 시간) popups.js(하단 알림) discord.js(웹훅)
-                    home.js(홈 문구 기본값·첫 화면 그림) illustrations.js(컬러 소품 아이콘 9종)
+                    home.js(홈 문구 기본값·첫 화면 그림) illustrations.js(컬러 소품 아이콘 9종) views.js(조회수)
 firestore.rules     Firestore 보안 규칙
 ```
 
@@ -84,6 +84,14 @@ firestore.rules     Firestore 보안 규칙
 - 유저 목차(컨텐츠): 펼침 상태를 브라우저에 기억하고(지금 보는 문서가 든 섹션은 늘 펼침), 섹션 이름과 겹치는 문서 제목은 짧게 보여 줍니다(어부 섹션의 "직업 - 어부" → "직업"). 이용약관 · 개인정보 처리방침 · 펭귄법전은 왼쪽 목차 없이 보입니다.
 - 새 섹션·새 문서는 맨 아래에 놓이고, 문서의 섹션을 바꾸면 그 섹션 맨 아래로 갑니다. 홈의 서버 가이드 카드도 이 순서를 따릅니다.
 - 작성자 이름은 편집자에게만 보이고, 유저에게는 최종 수정일만 보입니다.
+
+## 조회수
+
+- 유저가 가이드 문서(공개)와 홈 · 패치노트 · 이벤트 · 명령어 · 시세를 열면 `views/{키}` 의 전체 · 그날(한국 시간) 숫자가 1 올라갑니다(`assets/js/views.js`). 키는 문서 슬러그, 페이지는 `_home` 같은 이름.
+- 누가 봤는지는 남기지 않습니다. 같은 브라우저에서 같은 날 같은 페이지는 한 번만(브라우저 저장소 `pw_seen`), 편집자로 로그인한 브라우저는 세지 않습니다.
+- 규칙은 "1 올리기"만 허용합니다(다른 칸 · 큰 숫자 · 없는 문서 키 막음). 읽기는 편집자만. 마음먹고 반복해서 올리는 것까지 막지는 못합니다.
+- 보는 곳: 관리 → 조회수(오늘 · 어제 · 7일 · 30일 · 전체, 날짜별 합계), 편집자는 문서 위 수정일 옆에도 보입니다.
+- 새 페이지를 세려면 `views.js` 의 `PAGE_KEYS`, `firestore.rules` 의 `views` 키 목록, 관리 화면 `PAGE_HREF` 에 같이 추가합니다.
 
 ## 이벤트 · 알림 규칙
 

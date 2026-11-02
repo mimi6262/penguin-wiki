@@ -33,6 +33,7 @@
   import { renderHeader, renderFooter, $, esc, fmtDate } from './assets/js/ui.js';
   renderHeader('patch');
   renderFooter();
+  import('./assets/js/views.js').then((m) => m.countView('_patch')).catch(() => {}); // 조회수 (관리 → 조회수)
   try {
     const { watchAuth } = await import('./assets/js/auth.js');
     const editor = await watchAuth();
