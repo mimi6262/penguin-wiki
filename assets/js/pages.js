@@ -1,7 +1,7 @@
 // 가이드 문서/섹션 데이터 접근
 import {
   db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, serverTimestamp, writeBatch,
+  query, where, orderBy, serverTimestamp, writeBatch, deleteField,
 } from './firebase.js';
 
 // ---------- 섹션 ----------
@@ -23,22 +23,38 @@ export async function deleteSection(id) {
 }
 
 // ---------- 문서 ----------
-// pages/{slug}: { slug, title, sectionId, order, markdown(게시본), draft(임시), public, updatedAt, updatedBy, createdAt }
+// pages/{slug}: { slug, title, sectionId, order, markdown(게시본), public, updatedAt, updatedBy, createdAt }
+// pageDrafts/{slug}: { draft(임시저장 원고), draftMeta(게시된 문서의 바뀐 제목 · 섹션 · 순서), updatedAt, updatedBy } — 편집자만 읽음.
+//   공개 문서는 pages 문서 전체가 누구에게나 읽혀서, 게시 전 원고는 따로 둔다(2026-11).
+//   규칙이 아직 게시되지 않았으면(권한 없음) 예전처럼 pages 문서의 draft · draftMeta 칸을 쓰고, 읽을 때도 그 칸을 본다.
+// 화면에는 예전과 같이 page.draft · page.draftMeta 로 합쳐서 돌려준다(편집자로 읽을 때만).
 // 복합 색인이 필요 없도록 조건만 걸고 정렬은 브라우저에서 합니다.
+const DRAFTS = 'pageDrafts';
+const denied = (e) => String(e?.code || '').includes('permission-denied');
+const withDraft = (p, d) => (d ? { ...p, draft: d.draft ?? '', draftMeta: d.draftMeta ?? null } : p);
+
 export async function listPages({ editorView = false } = {}) {
   const col = collection(db, 'pages');
-  const snap = await getDocs(editorView ? col : query(col, where('public', '==', true)));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.title || '').localeCompare(String(b.title || ''), 'ko'));
+  const [snap, drafts] = await Promise.all([
+    getDocs(editorView ? col : query(col, where('public', '==', true))),
+    editorView ? getDocs(collection(db, DRAFTS)).catch((e) => { if (!denied(e)) console.warn('drafts', e); return null; }) : null,
+  ]);
+  const byId = Object.fromEntries((drafts?.docs || []).map((d) => [d.id, d.data()]));
+  return snap.docs.map((d) => withDraft({ id: d.id, ...d.data() }, byId[d.id])).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.title || '').localeCompare(String(b.title || ''), 'ko'));
 }
-export async function getPage(slug) {
-  const snap = await getDoc(doc(db, 'pages', slug));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+export async function getPage(slug, { editor = false } = {}) {
+  const [snap, draft] = await Promise.all([
+    getDoc(doc(db, 'pages', slug)),
+    editor ? getDoc(doc(db, DRAFTS, slug)).catch((e) => { if (!denied(e)) console.warn('draft', e); return null; }) : null,
+  ]);
+  if (!snap.exists()) return null;
+  return withDraft({ id: snap.id, ...snap.data() }, draft?.exists() ? draft.data() : null);
 }
 export async function pageExists(slug) {
   return (await getDoc(doc(db, 'pages', slug))).exists();
 }
 
-// 임시저장: draft만 갱신 (유저에게 보이는 게시본은 그대로)
+// 임시저장: 원고만 갱신 (유저에게 보이는 게시본은 그대로)
 // 이미 게시된 문서는 제목·섹션 변경도 draftMeta 에만 담아 두고, "게시"할 때 함께 반영합니다.
 export async function saveDraft(slug, data, by) {
   const ref = doc(db, 'pages', slug);
@@ -46,14 +62,32 @@ export async function saveDraft(slug, data, by) {
   const exists = snap.exists();
   const live = exists && !!snap.data().markdown;
   const stamp = { updatedAt: serverTimestamp(), updatedBy: by };
+  const { draft: rawDraft, ...meta } = data; // meta: title · sectionId · order
+  const draft = rawDraft ?? '';
+  const draftMeta = live ? { title: data.title, sectionId: data.sectionId ?? null, order: data.order ?? 0 } : null;
+  // 원고는 pageDrafts 에. 규칙이 아직이면 예전 칸에 (이때는 공개 문서의 원고가 밖에서 읽힐 수 있음)
+  let separate = true;
+  try {
+    await setDoc(doc(db, DRAFTS, slug), { draft, draftMeta, ...stamp });
+  } catch (e) {
+    if (!denied(e)) throw e;
+    separate = false;
+    console.warn('pageDrafts 규칙이 게시되지 않아 예전 방식(pages 문서)으로 임시저장합니다');
+  }
+  const inPage = separate ? { draft: deleteField(), draftMeta: deleteField() } : live ? { draft, draftMeta } : { draft };
   if (live) {
-    await updateDoc(ref, { draft: data.draft ?? '', draftMeta: { title: data.title, sectionId: data.sectionId ?? null, order: data.order ?? 0 }, ...stamp });
+    await updateDoc(ref, { ...inPage, ...stamp });
   } else if (exists) {
-    await updateDoc(ref, { ...data, draft: data.draft ?? '', ...stamp });
+    await updateDoc(ref, { ...meta, ...inPage, ...stamp });
   } else {
-    await setDoc(ref, { ...data, draft: data.draft ?? '', ...stamp, slug, public: false, markdown: '', createdAt: serverTimestamp() });
+    await setDoc(ref, { ...meta, ...(separate ? {} : { draft }), ...stamp, slug, public: false, markdown: '', createdAt: serverTimestamp() });
   }
   await log({ pageId: slug, title: data.title, action: exists ? 'draft' : 'create', by });
+}
+
+// 게시 · 삭제 뒤 남은 원고 정리 (규칙이 아직이면 지울 원고도 없으니 조용히 넘어감)
+async function dropDraft(slug) {
+  try { await deleteDoc(doc(db, DRAFTS, slug)); } catch (e) { if (!denied(e)) console.warn('draft cleanup', e); }
 }
 
 // 게시: 게시본 교체 + 이전 게시본을 이력에 보관
@@ -71,13 +105,15 @@ export async function publish(slug, data, by, summary, extra = {}) {
     });
   }
   const payload = {
-    ...data, slug, markdown: data.markdown, draft: '', draftMeta: null, public: data.public !== false,
+    ...data, slug, markdown: data.markdown, public: data.public !== false,
     lastSummary: summary || '', restoredFrom: extra.restoredFrom || null,
     publishedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: by,
   };
-  if (prev.exists()) batch.update(ref, payload);
+  // 예전 방식으로 pages 문서에 남은 원고 칸도 함께 지움
+  if (prev.exists()) batch.update(ref, { ...payload, draft: deleteField(), draftMeta: deleteField() });
   else batch.set(ref, { ...payload, createdAt: serverTimestamp() });
   await batch.commit();
+  await dropDraft(slug);
   const rf = extra.restoredFrom;
   await log({ pageId: slug, title: data.title, action: rf ? 'restore' : 'publish', summary: rf ? `#${rf.num} 내용으로 되돌림${summary ? ` (${summary})` : ''}` : (summary || ''), by });
 }
@@ -89,6 +125,7 @@ export async function setPagePublic(slug, isPublic, by) {
 
 export async function deletePage(slug, by, title) {
   await deleteDoc(doc(db, 'pages', slug));
+  await dropDraft(slug);
   await log({ pageId: slug, title, action: 'delete', by });
 }
 

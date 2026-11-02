@@ -5,7 +5,7 @@
 //  - 마인리스트: 설정한 시간대에만, 추천하기/닫기 후 다음 날 다시
 import { listEvents, getPopupSettings, getHearts, popupWindows } from './content.js';
 import { popupActive, popupEndsAt, inDailyWindow, fmtRemaining, todayKST, fmtKST } from './time.js';
-import { esc, ROOT } from './ui.js';
+import { esc, ROOT, safeUrl } from './ui.js';
 
 const STAR = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>';
 const FLAME = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A63A2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 0-6 1-9z"/></svg>';
@@ -43,7 +43,7 @@ export async function initPopups() {
     el.className = 'toast';
     el.setAttribute('role', 'status');
     const endsAt = popupEndsAt(ev);
-    const link = ev.link ? (ev.link.startsWith('http') ? ev.link : `${ROOT}${ev.link}`) : `${ROOT}events.html`;
+    const link = safeUrl(ev.link ? (ev.link.startsWith('http') ? ev.link : `${ROOT}${ev.link}`) : '') || `${ROOT}events.html`;
     el.innerHTML = `${FLAME}
       <div class="grow">
         <a href="${esc(link)}" style="text-decoration:none; color:inherit; font-size:14px">${esc(ev.name)}</a>
@@ -81,7 +81,7 @@ export async function initPopups() {
         <div style="font-size:14px">${esc(w.text || settings.text || '마인리스트 추천으로 서버를 응원해 주세요')}</div>
         <div class="sub">${esc(w.start)} ~ ${esc(w.end)} · 추천은 하루 한 번</div>
       </div>
-      <a class="btn sm primary" href="${esc(settings.url)}" target="_blank" rel="noopener">추천하기</a>
+      <a class="btn sm primary" href="${esc(safeUrl(settings.url) || '#')}" target="_blank" rel="noopener">추천하기</a>
       <button type="button" class="close" aria-label="알림 닫기">${CLOSE}</button>`;
     el.querySelector('.close').addEventListener('click', () => { dismiss(`ml_${idx}`); el.remove(); mlEl = null; });
     el.querySelector('a.btn').addEventListener('click', () => { dismiss('ml_voted'); setTimeout(() => { el.remove(); mlEl = null; }, 300); });

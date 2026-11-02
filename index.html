@@ -110,7 +110,7 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, loadSiteSettings, $, esc, copyText, toast, initReveal, guideIcon, illustration } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, loadSiteSettings, $, esc, safeUrl, copyText, toast, initReveal, guideIcon, illustration } from './assets/js/ui.js';
   document.querySelectorAll('.community .icon').forEach((el,i)=>{el.innerHTML=illustration(i ? 'star' : 'chat');});
   renderHeader('home');
   renderFooter();
@@ -158,7 +158,7 @@
     put('#discord-desc', s.discordDesc); put('#minelist-desc', s.minelistDesc);
     // 링크 버튼: 주소가 있으면 연결, 비워 두면 버튼을 숨깁니다 (빈 링크로 같은 페이지가 새 탭에 열리지 않게)
     [['#btn-discord', s.discordUrl], ['#btn-minelist', s.minelistUrl], ['#btn-inquiry', s.inquiryUrl]].forEach(([id, url]) => {
-      const a = $(id); if (url) a.href = url; else a.hidden = true;
+      const a = $(id), u = safeUrl(url); if (u) a.href = u; else a.hidden = true;
     });
     if (s.howToSlug) $('#btn-howto').href = `guide.html?p=${encodeURIComponent(s.howToSlug)}`;
     // 접속 중: 서버 주소로 실시간 확인(1분마다). 확인이 안 되면 관리 화면에 직접 넣은 숫자로 대신 표시

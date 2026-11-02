@@ -76,7 +76,7 @@
 
     // 현재 문서 결정: ?p= > ?s=(섹션 첫 문서) > 첫 문서
     let current = null;
-    if (slugParam) current = pages.find((p) => p.id === slugParam) || (await getPage(slugParam).catch(() => null));
+    if (slugParam) current = pages.find((p) => p.id === slugParam) || (await getPage(slugParam, { editor: !!editor }).catch(() => null));
     else if (sectionParam) {
       // 홈 카드(?s=)에서 왔을 때: 그 섹션의 첫 문서, 섹션에 바로 든 문서가 없으면 하위 섹션의 첫 문서
       const childIds = sections.filter((c) => c.parentId === sectionParam).map((c) => c.id);

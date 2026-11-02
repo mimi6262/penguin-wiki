@@ -7,6 +7,8 @@ service cloud.firestore {
     function editorDoc() { return get(/databases/$(database)/documents/editors/$(request.auth.uid)); }
     function isEditor() { return signedIn() && exists(/databases/$(database)/documents/editors/$(request.auth.uid)); }
     function isAdmin() { return isEditor() && editorDoc().data.role == 'admin'; }
+    // 비었거나(null) n자 이하 글자
+    function optStr(v, n) { return v == null || (v is string && v.size() <= n); }
 
     // 가이드 문서: 공개 문서는 누구나, 비공개·임시본은 편집자만
     match /pages/{slug} {
@@ -16,6 +18,10 @@ service cloud.firestore {
     match /pageVersions/{id} {
       allow read, create: if isEditor();
       allow update, delete: if false;
+    }
+    // 임시저장 원고: 편집자만. 공개 문서는 pages 문서 전체가 공개라 게시 전 원고는 여기에 따로 둔다
+    match /pageDrafts/{slug} {
+      allow read, write: if isEditor();
     }
     match /sections/{id} {
       allow read: if true;
@@ -55,14 +61,25 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     // 명단 등록 요청: 로그인은 되지만 명단에 없는 계정이 본인 UID 로 남김. 운영자가 보고 승인/삭제
+    // 이메일은 실제 로그인한 계정의 이메일과 같아야 함(다른 사람 이메일로 꾸민 요청 차단), 칸은 email · at 만
     match /editorRequests/{uid} {
-      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'at'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.at == request.time;
       allow read, delete: if isAdmin();
     }
 
-    // 접속 이력: 본인 기록만 생성, 운영자만 조회
+    // 접속 이력: 편집자가 로그인할 때 본인 기록만. 정해진 칸 · 길이만, 가이드는 운영자로 적을 수 없음. 운영자만 조회
     match /loginLogs/{id} {
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow create: if isEditor()
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'role', 'at', 'ua'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at == request.time
+        && (request.resource.data.role == 'guide' || (request.resource.data.role == 'admin' && isAdmin()))
+        && optStr(request.resource.data.get('name', null), 100)
+        && optStr(request.resource.data.get('email', null), 200)
+        && optStr(request.resource.data.get('ua', null), 300);
       allow read: if isAdmin();
       allow update, delete: if false;
     }

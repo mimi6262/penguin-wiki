@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<!-- 다른 사이트 안에 몰래 띄워 버튼을 누르게 하는 수법(클릭재킹) 막기: 맨 위 창이 아니면 화면을 숨기고 이 페이지로 바로 연다 -->
+<style id="pw-frame-guard">html { display: none !important; }</style>
+<script>if (window.self === window.top) document.getElementById('pw-frame-guard').remove(); else window.top.location = window.self.location.href;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>관리 — 펭귄서버 위키</title>
 <meta name="robots" content="noindex">
@@ -14,7 +17,7 @@
 <main>
   <div class="container" id="rules-warn" style="max-width: 1480px; padding-bottom: 0" hidden>
     <div class="notice-box" role="alert" style="display: block; line-height: 1.7; border-color: var(--accent); background: #fbeeea">
-      <b>데이터베이스 규칙이 최신이 아닙니다.</b> 이대로면 <b>그림 올리기(가이드 편집기·첫 화면 그림)</b>와 <b>편집자 등록 요청</b>이 저장되지 않고, 디스코드 웹훅 주소가 누구에게나 읽힐 수 있어요.<br>
+      <b>데이터베이스 규칙이 최신이 아닙니다.</b> 이대로면 <b>그림 올리기(가이드 편집기·첫 화면 그림)</b>와 <b>편집자 등록 요청</b>이 저장되지 않고, 디스코드 웹훅 주소와 <b>공개 문서의 임시저장 원고</b>가 누구에게나 읽힐 수 있어요.<br>
       Firebase 콘솔 → Firestore Database → <b>규칙</b> 탭에서, 깃허브 저장소의 <code>firestore.rules</code> 내용 전체를 붙여넣고 <b>게시</b>를 눌러 주세요. 게시 후 이 화면을 새로고침하면 이 안내가 사라집니다.
     </div>
   </div>
@@ -44,7 +47,7 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast, applyCursor, errText } from '../assets/js/ui.js';
+  import { renderHeader, renderFooter, $, $$, esc, fmtDate, toast, applyCursor, errText, safeImageData } from '../assets/js/ui.js';
   renderHeader('admin');
   renderFooter();
   // 저장이 실패하면 조용히 넘어가지 않도록: 처리되지 않은 오류는 모두 화면에 알립니다
@@ -69,11 +72,11 @@
   const { ICON_CHOICES, guideIllustration } = await import('../assets/js/illustrations.js');
 
   // 데이터베이스 규칙 점검: 저장소의 firestore.rules 가 Firebase 에 게시되지 않았으면 일부 저장이 조용히 막힙니다.
-  // 가장 최근에 추가된 규칙(images, editorRequests)을 읽어 보고, 막히면 상단에 안내를 띄웁니다.
+  // 가장 최근에 추가된 규칙(images, pageDrafts, editorRequests)을 읽어 보고, 막히면 상단에 안내를 띄웁니다.
   // ※ firestore.rules 에 새 컬렉션을 추가하면 여기에도 점검 대상을 추가해 주세요.
   (async () => {
     const denied = (err) => String(err?.code || '').includes('permission-denied');
-    const probes = [getDoc(doc(db, 'images', '__rules_probe'))];
+    const probes = [getDoc(doc(db, 'images', '__rules_probe')), getDoc(doc(db, 'pageDrafts', '__rules_probe'))];
     if (isAdmin) probes.push(getDocs(query(collection(db, 'editorRequests'), limit(1))));
     const results = await Promise.allSettled(probes);
     if (results.some((r) => r.status === 'rejected' && denied(r.reason))) $('#rules-warn').hidden = false;
@@ -382,10 +385,10 @@
     });
 
     // ---- 커서 이미지: 브라우저에서 정사각형 PNG로 줄여 data URL 로 보관 (수 KB)
-    let cursorState = s.cursor && s.cursor.data ? { ...s.cursor } : null;
+    let cursorState = s.cursor && safeImageData(s.cursor.data) ? { ...s.cursor, size: Number(s.cursor.size) || 32 } : null;
     const cursorUI = () => {
       const pv = $('#cursor-preview'), st = $('#cursor-status');
-      if (cursorState) { pv.innerHTML = `<img src="${cursorState.data}" alt="" style="width: ${cursorState.size}px; height: ${cursorState.size}px; image-rendering: auto">`; st.textContent = `${cursorState.size}px · 저장을 누르면 적용됩니다`; }
+      if (cursorState) { pv.innerHTML = `<img src="${esc(safeImageData(cursorState.data))}" alt="" style="width: ${Number(cursorState.size) || 32}px; height: ${Number(cursorState.size) || 32}px; image-rendering: auto">`; st.textContent = `${cursorState.size}px · 저장을 누르면 적용됩니다`; }
       else { pv.innerHTML = '<span style="font-size: 11px; color: var(--muted)">없음</span>'; st.textContent = '기본 화살표를 씁니다'; }
     };
     $('#cursor-size').value = String(cursorState?.size || 32);
@@ -617,7 +620,7 @@
       const curNum = total + 1;
       const COLS = '64px 130px minmax(0,1fr) 100px 150px';
       const summaryCell = (summary, restoredFrom) => {
-        const tag = restoredFrom ? `<span class="tag" style="margin-right:6px">#${restoredFrom.num} 되돌림</span>` : '';
+        const tag = restoredFrom ? `<span class="tag" style="margin-right:6px">#${esc(restoredFrom.num)} 되돌림</span>` : '';
         return `<span title="${esc(summary || '')}">${tag}${esc(summary || (restoredFrom ? '' : '(요약 없음)'))}</span>`;
       };
       versionsHtml = `
@@ -627,7 +630,7 @@
           <div class="tr" style="grid-template-columns: ${COLS}; background:#F8F1E3">
             <span style="font-family: var(--font-head); color: var(--wood)">#${curNum}</span>
             <span style="font-size:12px">${fmtDate(page?.publishedAt, true)}</span>
-            <span title="${esc(page?.lastSummary || '')}"><span class="tag green" style="margin-right:6px">현재 게시본</span>${page?.restoredFrom ? `<span class="tag" style="margin-right:6px">#${page.restoredFrom.num} 되돌림</span>` : ''}${esc(page?.lastSummary || '')}</span>
+            <span title="${esc(page?.lastSummary || '')}"><span class="tag green" style="margin-right:6px">현재 게시본</span>${page?.restoredFrom ? `<span class="tag" style="margin-right:6px">#${esc(page.restoredFrom.num)} 되돌림</span>` : ''}${esc(page?.lastSummary || '')}</span>
             <span style="font-size:13px">${esc(page?.updatedBy || '')}</span><span></span>
           </div>
           ${versions.map((v) => `
@@ -678,7 +681,7 @@
         ${edits.docs.map((d) => { const x = d.data(); return `
           <div class="tr" style="grid-template-columns: 130px 80px minmax(0,1fr) 110px; min-height: 44px">
             <span style="font-size:12px">${fmtDate(x.at, true)}</span>
-            <span class="tag ${x.action === 'publish' ? 'green' : x.action === 'delete' ? 'accent' : ''}">${ACTION[x.action] || x.action}</span>
+            <span class="tag ${x.action === 'publish' ? 'green' : x.action === 'delete' ? 'accent' : ''}">${ACTION[x.action] || esc(x.action)}</span>
             <span title="${esc(x.summary || '')}">${x.pageId ? `<a href="#history:${encodeURIComponent(x.pageId)}" style="text-decoration:none">${esc(x.title || x.pageId)}</a>` : esc(x.title || '')}${x.summary ? `<span style="color:#8A7D66; font-size:12px"> — ${esc(x.summary)}</span>` : ''}</span>
             <span style="font-size:13px">${esc(x.by || '')}</span>
           </div>`; }).join('') || '<div class="empty">아직 기록이 없습니다.</div>'}

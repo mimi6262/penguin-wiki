@@ -17,6 +17,22 @@ export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// 편집자가 넣는 주소 · 색 · 그림 값 검사 (가이드 계정으로 운영자 화면에 코드를 심지 못하게)
+// 주소: http(s) 또는 사이트 안 주소만. javascript: 같은 다른 형식은 빈 값. 브라우저와 같은 방식(URL)으로 읽어서 판단
+export function safeUrl(u) {
+  const s = String(u ?? '').trim();
+  if (!s) return '';
+  try { return ['http:', 'https:'].includes(new URL(s, location.href).protocol) ? s : ''; } catch { return ''; }
+}
+// 색: #RGB · #RRGGBB(투명도 포함)만, 아니면 기본 회색
+export function safeColor(c, fallback = '#5F5E5A') {
+  return /^#[0-9a-f]{3,8}$/i.test(String(c ?? '')) ? c : fallback;
+}
+// 그림 data URL: 관리 화면이 만드는 png · webp · gif · jpeg base64 만
+export function safeImageData(d) {
+  return /^data:image\/(png|webp|gif|jpeg);base64,[A-Za-z0-9+/=]+$/.test(String(d ?? '')) ? d : '';
+}
+
 export function fmtDate(ts, withTime = false) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -177,9 +193,10 @@ export function renderFooter(business) {
 const CURSOR_KEY = 'pw_cursor';
 export function applyCursor(cursor) {
   const root = document.documentElement;
-  if (cursor && cursor.data) {
-    const hx = cursor.hx ?? 2, hy = cursor.hy ?? 2;
-    root.style.setProperty('--pw-cursor', `url("${cursor.data}") ${hx} ${hy}`);
+  const data = safeImageData(cursor?.data);
+  if (data) {
+    const num = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : 2);
+    root.style.setProperty('--pw-cursor', `url("${data}") ${num(cursor.hx ?? 2)} ${num(cursor.hy ?? 2)}`);
     root.classList.add('pw-cursor');
   } else {
     root.style.removeProperty('--pw-cursor');

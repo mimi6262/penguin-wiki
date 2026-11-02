@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<!-- 다른 사이트 안에 몰래 띄워 버튼을 누르게 하는 수법(클릭재킹) 막기: 맨 위 창이 아니면 화면을 숨기고 이 페이지로 바로 연다 -->
+<style id="pw-frame-guard">html { display: none !important; }</style>
+<script>if (window.self === window.top) document.getElementById('pw-frame-guard').remove(); else window.top.location = window.self.location.href;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>문서 편집 — 펭귄서버 위키</title>
 <meta name="robots" content="noindex">
@@ -129,7 +132,7 @@
   ).join('');
 
   if (slug) {
-    existing = await P.getPage(slug);
+    existing = await P.getPage(slug, { editor: true });
     if (!existing) { toast('문서를 찾을 수 없습니다'); slug = null; }
   }
   if (existing) {
@@ -265,7 +268,7 @@
   }
   async function afterSave(id) {
     dirty = false;
-    if (!existing) { existing = await P.getPage(id); slug = id; el.slug.disabled = true; history.replaceState(null, '', `editor.html?p=${encodeURIComponent(id)}`); $('#btn-history').hidden = false; $('#btn-history').href = `index.html#history:${encodeURIComponent(id)}`; $('#btn-view').hidden = false; $('#btn-view').href = `../guide.html?p=${encodeURIComponent(id)}`; }
+    if (!existing) { existing = await P.getPage(id, { editor: true }); slug = id; el.slug.disabled = true; history.replaceState(null, '', `editor.html?p=${encodeURIComponent(id)}`); $('#btn-history').hidden = false; $('#btn-history').href = `index.html#history:${encodeURIComponent(id)}`; $('#btn-view').hidden = false; $('#btn-view').href = `../guide.html?p=${encodeURIComponent(id)}`; }
     el.crumb.textContent = el.title.value.trim();
   }
 
@@ -284,7 +287,7 @@
     if (existing && existing.markdown && !summary && !confirm('변경 요약 없이 게시할까요?')) return;
     await P.publish(d.id, { title: d.title, sectionId: d.sectionId, order: d.order, markdown: d.markdown, public: d.public }, me.name, summary);
     await afterSave(d.id);
-    existing = await P.getPage(d.id);
+    existing = await P.getPage(d.id, { editor: true });
     el.summary.value = '';
     el.status.textContent = `게시 ${fmtDate(new Date(), true)}`;
     toast(d.public ? '게시했습니다' : '비공개 상태로 저장했습니다');

@@ -3,7 +3,7 @@ import {
   db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, serverTimestamp,
 } from './firebase.js';
-import { esc } from './ui.js';
+import { esc, safeColor } from './ui.js';
 import { todayKST } from './time.js';
 
 const rows = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -13,7 +13,7 @@ const stamp = (by) => ({ updatedAt: serverTimestamp(), updatedBy: by });
 // patchCategories/{id}: { name, color, order }
 export const DEFAULT_COLORS = ['#A63A2B', '#3F6B4F', '#3A5A78', '#BA7517', '#6E5A8C', '#3B2414', '#5F5E5A'];
 export async function listCategories() {
-  return rows(await getDocs(query(collection(db, 'patchCategories'), orderBy('order'))));
+  return rows(await getDocs(query(collection(db, 'patchCategories'), orderBy('order')))).map((c) => ({ ...c, color: safeColor(c.color) }));
 }
 export async function saveCategory(id, data) {
   if (id) { await updateDoc(doc(db, 'patchCategories', id), data); return id; }
@@ -61,7 +61,7 @@ function inline(text) {
 
 // 패치노트 본문 → HTML.  [카테고리] 줄은 색 배지 헤더, ㆍ/-/* 줄은 항목, 들여쓴 항목은 하위 항목
 export function renderPatchBody(body, categories = []) {
-  const color = (name) => categories.find((c) => c.name === name)?.color || '#5F5E5A';
+  const color = (name) => safeColor(categories.find((c) => c.name === name)?.color);
   const lines = (body || '').replace(/\r/g, '').split('\n');
   let html = '', depth = 0;
   const closeTo = (d) => { while (depth > d) { html += '</ul>'; depth--; } };

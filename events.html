@@ -40,7 +40,7 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, esc, toast } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, toast, safeUrl } from './assets/js/ui.js';
   renderHeader('events');
   renderFooter();
   const HEART = (on) => `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="${on ? 'var(--accent)' : 'none'}" stroke="${on ? 'var(--accent)' : '#A6957A'}" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9z"/></svg>`;
@@ -69,7 +69,7 @@
       if (!shown.length) { list.innerHTML = `<div class="empty">${T.STATUS_LABEL[status]} 이벤트가 없습니다.</div>`; return; }
       list.innerHTML = shown.map((ev) => {
         const on = hearts.has(ev.id);
-        const link = ev.link ? (ev.link.startsWith('http') ? ev.link : ev.link) : '';
+        const link = safeUrl(ev.link);
         const title = link ? `<a href="${esc(link)}" ${link.startsWith('http') ? 'target="_blank" rel="noopener"' : ''} style="text-decoration:none; color:inherit">${esc(ev.name)}</a>` : `<span>${esc(ev.name)}</span>`;
         return `
           <div class="tr ev-row" style="grid-template-columns: 76px minmax(0,1fr) 170px 44px" data-id="${ev.id}">

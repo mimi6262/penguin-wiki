@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<!-- 다른 사이트 안에 몰래 띄워 버튼을 누르게 하는 수법(클릭재킹) 막기: 맨 위 창이 아니면 화면을 숨기고 이 페이지로 바로 연다 -->
+<style id="pw-frame-guard">html { display: none !important; }</style>
+<script>if (window.self === window.top) document.getElementById('pw-frame-guard').remove(); else window.top.location = window.self.location.href;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>관리자 로그인 — 펭귄서버 위키</title>
 <meta name="robots" content="noindex">
