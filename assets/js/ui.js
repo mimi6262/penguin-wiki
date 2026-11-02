@@ -56,7 +56,7 @@ export { ICONS };
 const NAV = [
   { key: 'home', label: '마을 입구', href: 'index.html' },
   { key: 'patch', label: '패치노트', href: 'patch.html' },
-  { key: 'guide', label: '가이드', href: 'guide.html' },
+  { key: 'guide', label: '컨텐츠', href: 'guide.html' },
   { key: 'commands', label: '명령어', href: 'commands.html' },
   { key: 'prices', label: '시세', href: 'prices.html' },
   { key: 'events', label: '이벤트', href: 'events.html' },
