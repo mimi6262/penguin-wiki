@@ -52,60 +52,70 @@
 <footer id="site-footer"></footer>
 
 <script type="module">
-  import { renderHeader, renderFooter, $, esc, param, fmtDate, ICONS } from './assets/js/ui.js';
+  import { renderHeader, renderFooter, $, esc, param, fmtDate } from './assets/js/ui.js';
   import { guideIllustration } from './assets/js/illustrations.js';
+  import { buildTree, flatten, treeTitle } from './assets/js/tree.js';
   // 따로 보는 문서는 상단 메뉴에서 컨텐츠를 켜지 않음 (펭귄법전만 자기 메뉴)
   const standalone = $('.guide-layout').classList.contains('standalone');
   renderHeader(standalone ? (param('p') === 'rules' ? 'law' : '') : 'guide');
   renderFooter();
 
   const CHEV = '<svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#8A7D66" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
-  $('#tree-toggle').addEventListener('click', () => { const t = $('#tree'); const open = t.classList.toggle('open'); $('#tree-toggle').setAttribute('aria-expanded', String(open)); $('#tree-toggle').textContent = open ? '목차 닫기' : '목차 보기'; });
-  const slugParam = param('p');
-  const sectionParam = param('s');
-  const q = (param('q') || '').trim().toLowerCase();
+  const setTreeOpen = (open) => { $('#tree').classList.toggle('open', open); $('#tree-toggle').setAttribute('aria-expanded', String(open)); $('#tree-toggle').textContent = open ? '목차 닫기' : '목차 보기'; };
+  $('#tree-toggle').addEventListener('click', () => setTreeOpen(!$('#tree').classList.contains('open')));
 
-  try {
-    const { watchAuth } = await import('./assets/js/auth.js');
-    const { listSections, listPages, getPage, buildTree, flatten, treeTitle } = await import('./assets/js/pages.js');
-    const { renderMarkdown, decorate } = await import('./assets/js/markdown.js');
+  // 이용약관 · 개인정보 처리방침 · 펭귄법전은 주소가 정해진 따로 보는 문서(하단 링크 · 상단 메뉴 · 홈 버튼) — 목차와 이전/다음 이동에서는 뺍니다
+  const FOOTER_DOCS = { terms: '이용약관', privacy: '개인정보 처리방침', rules: '펭귄법전' };
+  const isFooterDoc = (id) => Object.hasOwn(FOOTER_DOCS, id);
 
-    const editor = await watchAuth();
-    import('./assets/js/popups.js');
-    const [sections, pages] = await Promise.all([listSections(), listPages({ editorView: !!editor })]);
-    // 이용약관 · 개인정보 처리방침 · 펭귄법전은 주소가 정해진 따로 보는 문서(하단 링크 · 상단 메뉴 · 홈 버튼) — 가이드 목차와 이전/다음 이동에서는 뺍니다
-    const FOOTER_DOCS = { terms: '이용약관', privacy: '개인정보 처리방침', rules: '펭귄법전' };
-    const isFooterDoc = (id) => Object.hasOwn(FOOTER_DOCS, id);
-    const { tree, orphans } = buildTree(sections, pages.filter((p) => !isFooterDoc(p.id)));
-    const flat = flatten(tree, orphans);
+  // 빨리 보이게 하는 두 가지
+  //  1) 목차 · 문서(공개분)를 브라우저에 기억해 두었다가 다음에 들어오면 먼저 그리고, 서버에서 받은 내용이 다르면 다시 그립니다
+  //  2) 목차 · 이전/다음 · 본문 속 링크로 다른 문서를 열 때는 페이지를 다시 불러오지 않고 본문만 바꿉니다
+  //     (주소는 그대로 바뀌어 뒤로 가기 · 새로고침 · 주소 공유가 됩니다)
+  const DATA_KEY = 'pw_guide_v1';
+  const TREE_KEY = 'pw_tree_open';
+  let treeOpen = {};
+  try { treeOpen = JSON.parse(localStorage.getItem(TREE_KEY) || '{}') || {}; } catch {}
+  const urlState = (u) => ({ slug: u.searchParams.get('p'), sec: u.searchParams.get('s'), q: (u.searchParams.get('q') || '').trim().toLowerCase() });
+  let at = urlState(new URL(location.href));
+  let data = null;   // { sections, pages, extra } 지금 그린 목차 · 문서
+  let editor = null; // 로그인 확인 전에는 null
+  let fresh = false; // 서버에서 받은 데이터로 그렸는지
+  let shown = null;  // 본문에 그린 문서 (같으면 다시 그리지 않음)
+  let treeHtml = '';
+  let md = null;
+  const mdReady = import('./assets/js/markdown.js').then((m) => (md = m));
 
-    // 현재 문서 결정: ?p= > ?s=(섹션 첫 문서) > 첫 문서
-    let current = null;
-    if (slugParam) current = pages.find((p) => p.id === slugParam) || (await getPage(slugParam, { editor: !!editor }).catch(() => null));
-    else if (sectionParam) {
+  const viewOf = () => {
+    const { tree, orphans } = buildTree(data.sections, data.pages.filter((p) => !isFooterDoc(p.id)));
+    return { tree, orphans, flat: flatten(tree, orphans) };
+  };
+  // 현재 문서: ?p= > ?s=(섹션 첫 문서) > 첫 문서
+  const pick = (v) => {
+    if (at.slug) return data.pages.find((p) => p.id === at.slug) || (data.extra && data.extra.id === at.slug ? data.extra : null);
+    if (at.sec) {
       // 홈 카드(?s=)에서 왔을 때: 그 섹션의 첫 문서, 섹션에 바로 든 문서가 없으면 하위 섹션의 첫 문서
-      const childIds = sections.filter((c) => c.parentId === sectionParam).map((c) => c.id);
-      current = flat.find((p) => p.sectionId === sectionParam) || flat.find((p) => childIds.includes(p.sectionId)) || null;
+      const childIds = data.sections.filter((c) => c.parentId === at.sec).map((c) => c.id);
+      return v.flat.find((p) => p.sectionId === at.sec) || v.flat.find((p) => childIds.includes(p.sectionId)) || null;
     }
-    else if (!q) current = flat[0] || null;
+    return at.q ? null : v.flat[0] || null;
+  };
 
-    // ---- 트리 ----
-    // 펼침 상태는 브라우저에 기억합니다 — 접은 섹션은 다른 문서로 옮겨도 접힌 채로. 지금 보는 문서가 든 섹션만은 늘 펼칩니다
-    const TREE_KEY = 'pw_tree_open';
-    let treeOpen = {};
-    try { treeOpen = JSON.parse(localStorage.getItem(TREE_KEY) || '{}') || {}; } catch {}
-    const treeEl = $('#tree');
+  // ---- 목차 ----
+  // 펼침 상태는 브라우저에 기억합니다 — 접은 섹션은 다른 문서로 옮겨도 접힌 채로. 지금 보는 문서가 든 섹션만은 늘 펼칩니다
+  function renderTree(v, current) {
+    const { q } = at;
     const pageLink = (p, secName = '') => {
       const name = treeTitle(p.title, secName);
       return `<a class="page${current && p.id === current.id ? ' active' : ''}" href="guide.html?p=${encodeURIComponent(p.id)}"${name !== p.title ? ` title="${esc(p.title)}"` : ''}><span class="page-name">${esc(name)}</span>${p.public === false ? '<span class="tag gray draft">비공개</span>' : ''}</a>`;
     };
     const matches = (p) => !q || (p.title || '').toLowerCase().includes(q);
-    const openId = current ? current.sectionId : sectionParam;
+    const openId = current ? current.sectionId : at.sec;
     const isOpen = (id, hasCurrent) => !!q || hasCurrent || treeOpen[id] === 1;
     // 섹션 줄: 펼침 화살표 · (최상위만) 홈 카드와 같은 아이콘 · 이름 · 문서 수
     const secHead = (s, level, count, open) => `<div class="sec ${level}${open ? ' open' : ''}" data-toggle data-sec="${esc(s.id)}" role="button" tabindex="0" aria-expanded="${open}" aria-label="${esc(s.name)} (문서 ${count}개)">${CHEV}${level === 'top' ? `<span class="sec-ico" aria-hidden="true">${guideIllustration(s.name, s.icon)}</span>` : ''}<span class="sec-name">${esc(s.name)}</span><span class="cnt" aria-hidden="true">${count}</span></div>`;
     let html = `<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠${q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : ''}</div>`;
-    tree.forEach((t) => {
+    v.tree.forEach((t) => {
       const own = t.pages.filter(matches);
       let kidCount = 0;
       const kids = t.children.map((c) => {
@@ -119,84 +129,169 @@
       const open = isOpen(t.section.id, t.section.id === openId || t.children.some((c) => c.section.id === openId));
       html += secHead(t.section, 'top', own.length + kidCount, open) + `<div class="children"${open ? '' : ' hidden'}>${own.map((p) => pageLink(p, t.section.name)).join('')}${kids}</div>`;
     });
-    if (orphans.length) html += `<div class="children loose">${orphans.filter(matches).map((p) => pageLink(p)).join('')}</div>`;
-    if (!tree.length && !orphans.length) html += '<div class="empty">아직 문서가 없습니다.</div>';
-    treeEl.innerHTML = html;
-    const toggleSec = (sec) => {
-      const open = sec.classList.toggle('open');
-      sec.setAttribute('aria-expanded', String(open));
-      const ch = sec.nextElementSibling;
-      if (ch) ch.hidden = !open;
-      if (q) return; // 검색 중 펼침은 기억하지 않음
-      treeOpen[sec.dataset.sec] = open ? 1 : 0;
-      try { localStorage.setItem(TREE_KEY, JSON.stringify(treeOpen)); } catch {}
-    };
-    treeEl.addEventListener('click', (e) => { const sec = e.target.closest('[data-toggle]'); if (sec) toggleSec(sec); });
-    treeEl.addEventListener('keydown', (e) => {
-      const sec = e.target.closest('[data-toggle]');
-      if (sec && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleSec(sec); }
-    });
+    if (v.orphans.length) html += `<div class="children loose">${v.orphans.filter(matches).map((p) => pageLink(p)).join('')}</div>`;
+    if (!v.tree.length && !v.orphans.length) html += '<div class="empty">아직 문서가 없습니다.</div>';
+    if (html !== treeHtml) { $('#tree').innerHTML = html; treeHtml = html; }
+  }
+  const toggleSec = (sec) => {
+    const open = sec.classList.toggle('open');
+    sec.setAttribute('aria-expanded', String(open));
+    const ch = sec.nextElementSibling;
+    if (ch) ch.hidden = !open;
+    treeHtml = ''; // 직접 바꾼 화면이라 다음엔 새로 그림
+    if (at.q) return; // 검색 중 펼침은 기억하지 않음
+    treeOpen[sec.dataset.sec] = open ? 1 : 0;
+    try { localStorage.setItem(TREE_KEY, JSON.stringify(treeOpen)); } catch {}
+  };
+  $('#tree').addEventListener('click', (e) => { const sec = e.target.closest('[data-toggle]'); if (sec) toggleSec(sec); });
+  $('#tree').addEventListener('keydown', (e) => {
+    const sec = e.target.closest('[data-toggle]');
+    if (sec && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleSec(sec); }
+  });
 
-    // ---- 본문 ----
-    const content = $('#content');
-    if (!current && slugParam && isFooterDoc(slugParam)) {
+  // ---- 본문 ----
+  const setDoc = (title, crumb, body) => {
+    document.title = `${title} — 펭귄서버 위키`;
+    $('#title').textContent = title;
+    $('#breadcrumb').innerHTML = crumb;
+    $('#meta').innerHTML = '';
+    $('#content').innerHTML = body;
+    $('#toc').hidden = true;
+    $('#page-nav').hidden = true;
+    $('#btn-history').style.display = '';
+    shown = null;
+  };
+  const HOME = '<a href="index.html">홈</a>';
+  const SEP = '<span aria-hidden="true">›</span>';
+  function renderBody(v, current) {
+    const { slug, q } = at;
+    if (!current && slug && !fresh) return; // 기억해 둔 목록에 없는 문서 — 서버 확인 뒤에 판단
+    if (!current && slug && isFooterDoc(slug)) {
       // 아직 작성 전인 약관 · 처리방침 · 펭귄법전
-      const name = FOOTER_DOCS[slugParam];
-      const createHref = `admin/editor.html?new=${encodeURIComponent(slugParam)}&title=${encodeURIComponent(name)}`;
+      const name = FOOTER_DOCS[slug];
+      const createHref = `admin/editor.html?new=${encodeURIComponent(slug)}&title=${encodeURIComponent(name)}`;
+      setDoc(name, `${HOME}${SEP}<span class="cur">${esc(name)}</span>`, '<p>준비 중인 문서입니다. 곧 이 자리에 올라옵니다.</p>'
+        + (editor ? `<div class="callout"><div><span class="callout-title">편집자 안내</span><p>이 문서는 주소가 <code>${esc(slug)}</code>로 정해져 있어요. <a href="${esc(createHref)}">여기서 새로 작성</a>하면 ${slug === 'rules' ? '상단 메뉴 · 홈 버튼 · 하단 링크의 「펭귄법전」이' : '하단 링크가'} 이 문서로 연결됩니다. 분류는 "미배치"로 두면 됩니다.</p></div></div>` : ''));
       $('#btn-edit').href = createHref;
       $('#btn-history').style.display = 'none';
-      document.title = `${name} — 펭귄서버 위키`;
-      $('#title').textContent = name;
-      $('#breadcrumb').innerHTML = `<a href="index.html">홈</a><span aria-hidden="true">›</span><span class="cur">${esc(name)}</span>`;
-      content.innerHTML = '<p>준비 중인 문서입니다. 곧 이 자리에 올라옵니다.</p>'
-        + (editor ? `<div class="callout"><div><span class="callout-title">편집자 안내</span><p>이 문서는 주소가 <code>${esc(slugParam)}</code>로 정해져 있어요. <a href="${esc(createHref)}">여기서 새로 작성</a>하면 ${slugParam === 'rules' ? '상단 메뉴 · 홈 버튼 · 하단 링크의 「펭귄법전」이' : '하단 링크가'} 이 문서로 연결됩니다. 분류는 "미배치"로 두면 됩니다.</p></div></div>` : '');
-    } else if (!current && slugParam) {
-      $('#title').textContent = '문서를 찾을 수 없습니다';
-      content.innerHTML = '<p>주소가 바뀌었거나 아직 공개되지 않은 문서입니다.</p>';
-    } else if (!current) {
-      $('#title').textContent = q ? '검색 결과' : '컨텐츠';
-      content.innerHTML = q
-        ? (flat.filter(matches).length ? '<p>왼쪽 목차에서 검색된 문서를 선택해 주세요.</p>' : '<p>검색 결과가 없습니다.</p>')
-        : '<p>왼쪽 목차에서 문서를 선택해 주세요.</p>';
-    } else if (current.public === false && !editor) {
-      $('#title').textContent = '비공개 문서';
-      content.innerHTML = '<p>아직 공개되지 않은 문서입니다.</p>';
-    } else {
-      document.title = `${current.title} — 펭귄서버 위키`;
-      $('#title').textContent = current.title;
-      const sec = sections.find((s) => s.id === current.sectionId);
-      const parent = sec && sec.parentId ? sections.find((s) => s.id === sec.parentId) : null;
-      $('#breadcrumb').innerHTML = `<a href="index.html">홈</a>`
-        + (isFooterDoc(current.id) ? '' : `<span aria-hidden="true">›</span><a href="guide.html">컨텐츠</a>`)
-        + (parent ? `<span aria-hidden="true">›</span><span>${esc(parent.name)}</span>` : '')
-        + (sec ? `<span aria-hidden="true">›</span><span>${esc(sec.name)}</span>` : '')
-        + `<span aria-hidden="true">›</span><span class="cur">${esc(current.title)}</span>`;
-      // 작성자는 편집자에게만 표시 (유저에게는 최종 수정일만). 날짜는 게시 기준 — 임시저장·공개 전환만으로는 바뀌지 않습니다
-      $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.publishedAt || current.updatedAt)}</span>${editor && current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
-      content.innerHTML = renderMarkdown(current.markdown || current.draft || '');
-      const toc = decorate(content);
-      if (toc.length) {
-        const tocEl = $('#toc');
-        tocEl.hidden = false;
-        tocEl.insertAdjacentHTML('beforeend', toc.map((t) => `<a class="${t.level === 3 ? 'h3' : ''}" href="#${t.id}">${esc(t.text)}</a>`).join(''));
-      }
-      $('#btn-edit').href = `admin/editor.html?p=${encodeURIComponent(current.id)}`;
-      $('#btn-history').href = `admin/index.html#history:${encodeURIComponent(current.id)}`;
-
-      // 이전/다음
-      const idx = flat.findIndex((p) => p.id === current.id);
-      if (idx >= 0) {
-        const prev = flat[idx - 1], next = flat[idx + 1];
-        const nav = $('#page-nav');
-        nav.hidden = !(prev || next);
-        nav.innerHTML = (prev ? `<a class="prev" href="guide.html?p=${encodeURIComponent(prev.id)}"><span class="k">이전</span><span>${esc(prev.title)}</span></a>` : '')
-          + (next ? `<a class="next" href="guide.html?p=${encodeURIComponent(next.id)}"><span class="k">다음</span><span>${esc(next.title)}</span></a>` : '');
-      }
+      return;
     }
+    const base = `${HOME}${SEP}<a href="guide.html">컨텐츠</a>`;
+    if (!current && slug) return setDoc('문서를 찾을 수 없습니다', base, '<p>주소가 바뀌었거나 아직 공개되지 않은 문서입니다.</p>');
+    if (!current) {
+      return setDoc(q ? '검색 결과' : '컨텐츠', base, q
+        ? (v.flat.some((p) => (p.title || '').toLowerCase().includes(q)) ? '<p>왼쪽 목차에서 검색된 문서를 선택해 주세요.</p>' : '<p>검색 결과가 없습니다.</p>')
+        : '<p>왼쪽 목차에서 문서를 선택해 주세요.</p>');
+    }
+    if (current.public === false && !editor) return setDoc('비공개 문서', base, '<p>아직 공개되지 않은 문서입니다.</p>');
+
+    document.title = `${current.title} — 펭귄서버 위키`;
+    $('#title').textContent = current.title;
+    const sec = data.sections.find((s) => s.id === current.sectionId);
+    const parent = sec && sec.parentId ? data.sections.find((s) => s.id === sec.parentId) : null;
+    $('#breadcrumb').innerHTML = HOME
+      + (isFooterDoc(current.id) ? '' : `${SEP}<a href="guide.html">컨텐츠</a>`)
+      + (parent ? `${SEP}<span>${esc(parent.name)}</span>` : '')
+      + (sec ? `${SEP}<span>${esc(sec.name)}</span>` : '')
+      + `${SEP}<span class="cur">${esc(current.title)}</span>`;
+    // 작성자는 편집자에게만 표시 (유저에게는 최종 수정일만). 날짜는 게시 기준 — 임시저장·공개 전환만으로는 바뀌지 않습니다
+    $('#meta').innerHTML = `<span>최종 수정 ${fmtDate(current.publishedAt || current.updatedAt)}</span>${editor && current.updatedBy ? `<span aria-hidden="true">·</span><span>${esc(current.updatedBy)}</span>` : ''}${current.public === false ? '<span class="tag gray">비공개</span>' : ''}`;
+    // 같은 문서 · 같은 내용이면 본문은 그대로 둡니다 (서버에서 다시 받아도 스크롤 · 그림이 흔들리지 않게)
+    const text = current.markdown || current.draft || '';
+    if (!(shown && shown.id === current.id && shown.text === text)) {
+      const content = $('#content');
+      content.innerHTML = md.renderMarkdown(text);
+      const toc = md.decorate(content);
+      $('#toc').hidden = !toc.length;
+      $('#toc').innerHTML = '<span class="label">목차</span>' + toc.map((t) => `<a class="${t.level === 3 ? 'h3' : ''}" href="#${t.id}">${esc(t.text)}</a>`).join('');
+      shown = { id: current.id, text };
+    }
+    $('#btn-edit').href = `admin/editor.html?p=${encodeURIComponent(current.id)}`;
+    $('#btn-history').href = `admin/index.html#history:${encodeURIComponent(current.id)}`;
+    $('#btn-history').style.display = '';
+
+    // 이전/다음
+    const idx = v.flat.findIndex((p) => p.id === current.id);
+    const prev = idx >= 0 ? v.flat[idx - 1] : null, next = idx >= 0 ? v.flat[idx + 1] : null;
+    const nav = $('#page-nav');
+    nav.hidden = !(prev || next);
+    nav.innerHTML = (prev ? `<a class="prev" href="guide.html?p=${encodeURIComponent(prev.id)}"><span class="k">이전</span><span>${esc(prev.title)}</span></a>` : '')
+      + (next ? `<a class="next" href="guide.html?p=${encodeURIComponent(next.id)}"><span class="k">다음</span><span>${esc(next.title)}</span></a>` : '');
+  }
+
+  function paint() {
+    if (!data || !md) return;
+    const v = viewOf();
+    const current = pick(v);
+    renderTree(v, current);
+    renderBody(v, current);
+  }
+
+  // ---- 페이지를 다시 불러오지 않고 다른 문서로 ----
+  const go = (href, push) => {
+    const u = new URL(href, location.href);
+    at = urlState(u);
+    if (push) history.pushState(null, '', u.pathname + u.search + u.hash);
+    paint();
+    if (push) {
+      if (u.hash) document.getElementById(decodeURIComponent(u.hash.slice(1)))?.scrollIntoView();
+      else scrollTo(0, 0);
+    }
+    if ($('#tree').classList.contains('open')) setTreeOpen(false); // 휴대폰에서 목차를 열고 골랐으면 닫기
+  };
+  if (!standalone) {
+    document.addEventListener('click', (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest('a[href]');
+      if (!a || a.target === '_blank' || !a.closest('#tree, #page-nav, #content, #breadcrumb') || !data) return;
+      const u = new URL(a.href, location.href);
+      if (u.origin !== location.origin || u.pathname !== location.pathname) return; // 다른 페이지(홈 등)는 평소대로
+      const p = u.searchParams.get('p');
+      if (p && isFooterDoc(p)) return; // 약관 · 처리방침 · 법전은 모양이 달라 새로 엶
+      if (u.search === location.search && u.hash) return; // 같은 문서 안 목차 이동
+      e.preventDefault();
+      go(u.href, true);
+    });
+    addEventListener('popstate', () => go(location.href, false));
+  }
+
+  // 1) 기억해 둔 공개 목차 · 문서로 바로 그림
+  try {
+    const c = JSON.parse(localStorage.getItem(DATA_KEY) || 'null');
+    if (c && Array.isArray(c.sections) && Array.isArray(c.pages)) data = { sections: c.sections, pages: c.pages, extra: null };
+  } catch {}
+  await mdReady;
+  paint();
+
+  // 2) 서버에서 새로 받아 다시 그림 (바뀐 곳만 화면이 바뀜)
+  try {
+    const [{ watchAuth }, P] = await Promise.all([import('./assets/js/auth.js'), import('./assets/js/pages.js')]);
+    let hinted = false;
+    try { hinted = !!localStorage.getItem('pw_editor'); } catch {}
+    // 지난번에 편집자가 아니었으면 로그인 확인을 기다리지 않고 공개 목록부터 받음
+    const early = hinted ? null : Promise.all([P.listSections(), P.listPages()]);
+    early?.catch(() => {});
+    editor = await watchAuth();
+    import('./assets/js/popups.js');
+    const [sections, pages] = (!editor && early) ? await early : await Promise.all([P.listSections(), P.listPages({ editorView: !!editor })]);
+    // 공개 문서만, 임시저장 원고는 빼고 기억 (날짜는 숫자로)
+    try {
+      const pub = pages.filter((p) => p.public !== false).map(({ draft, draftMeta, ...p }) => p);
+      localStorage.setItem(DATA_KEY, JSON.stringify({ sections, pages: pub }, function (k, val) {
+        const o = this[k];
+        return o && typeof o.toMillis === 'function' ? o.toMillis() : val;
+      }));
+    } catch { /* 저장 공간이 모자라면 기억 없이 */ }
+    data = { sections, pages, extra: null };
+    if (at.slug && !pages.some((p) => p.id === at.slug)) data.extra = await P.getPage(at.slug, { editor: !!editor }).catch(() => null);
+    fresh = true;
+    paint();
   } catch (e) {
     console.warn(e);
-    $('#tree').innerHTML = '<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠</div><div class="empty">목차를 불러오지 못했습니다.</div>';
-    $('#content').innerHTML = '<p>문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
+    if (!data) {
+      $('#tree').innerHTML = '<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠</div><div class="empty">목차를 불러오지 못했습니다.</div>';
+      $('#content').innerHTML = '<p>문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
+    }
   }
 </script>
 </body>
