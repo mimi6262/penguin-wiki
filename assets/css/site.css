@@ -762,6 +762,26 @@ main > .container { animation: pw-enter .45s cubic-bezier(.22, 1, .36, 1) both; 
 .pn-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .pn-head time { font-size: 13px; color: var(--muted); }
 .pn-body { font-size: 14px; line-height: 1.75; }
+/* 관리 · 패치노트 작성: 작성 칸은 전체 폭, 본문과 미리보기를 나란히 (좁으면 위아래) */
+.pn-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pn-write { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.pn-write .textarea { min-height: 480px; height: 100%; resize: vertical; line-height: 1.7; }
+.pn-preview-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pn-preview-label { font-size: 13px; color: var(--label); }
+.pn-preview-card { flex: 1; min-height: 480px; max-height: 720px; overflow: auto; padding: 14px 18px; }
+.pn-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.pn-actions .btn { min-width: 140px; }
+@container (max-width: 900px) {
+  .pn-meta, .pn-write { grid-template-columns: 1fr; }
+  .pn-write .textarea, .pn-preview-card { min-height: 300px; }
+  .pn-actions .btn { flex: 1; }
+}
+@supports not (container-type: inline-size) {
+  @media (max-width: 1100px) {
+    .pn-meta, .pn-write { grid-template-columns: 1fr; }
+    .pn-write .textarea, .pn-preview-card { min-height: 300px; }
+  }
+}
 .pn-body .pn-cat { display: flex; align-items: center; gap: 10px; font-family: var(--font-body); font-size: 15px; margin: 14px 0 6px; }
 .pn-body ul { margin: 0 0 6px; padding-left: 4px; list-style: none; }
 .pn-body ul ul { padding-left: 18px; }

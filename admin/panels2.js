@@ -166,8 +166,34 @@ export async function renderPatch(ctx) {
   panel = ctx.freshPanel();
   const nPub = notes.filter((n) => n.status === 'published' && !n.scheduled).length, nSch = notes.filter((n) => n.scheduled).length, nDraft = notes.filter((n) => n.status !== 'published').length;
   panel.innerHTML = head('패치노트 관리', `게시 ${nPub}${nSch ? ` · 예약 ${nSch}` : ''} · 임시저장 ${nDraft}`, '<button type="button" class="btn primary" id="pn-new">새 패치노트</button>') + `
-    <div class="admin-split">
-      <div class="stack" style="gap: 20px">
+    <div class="stack" style="gap: 20px">
+      <form class="card plain form-card" id="pn-form">
+        <div class="row-between"><h2 style="font-size: 20px" id="pn-form-title">새 패치노트</h2><button type="button" class="btn xs ghost" id="pn-reset">새로</button></div>
+        <input type="hidden" id="pn-id">
+        <div class="pn-meta">
+          ${F('pn-date', '날짜 <span style="color:var(--muted)">(미래 날짜로 게시하면 그날 0시(KST)부터 유저에게 보입니다)</span>', T.todayKST(), { type: 'date' })}
+          ${F('pn-title', '제목 (비우면 카테고리로 자동)', '', { ph: '자동 생성' })}
+        </div>
+        <div class="pn-write">
+          <div class="field">
+            <label for="pn-body">본문</label>
+            <textarea class="textarea" id="pn-body" style="font-family: var(--font-mono); font-size: 13px" placeholder="[신규]
+ㆍ추가된 내용
+ㆍ또 다른 내용
+[기타]
+ㆍ수정된 문제"></textarea>
+          </div>
+          <div class="pn-preview-col">
+            <span class="pn-preview-label">미리보기</span>
+            <div class="card plain pn-preview-card"><div class="pn-body" id="pn-preview"></div></div>
+          </div>
+        </div>
+        <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6"><b>양식</b> · [카테고리] 줄은 색 배지 헤더가 되고, ㆍ 또는 - 로 시작하는 줄은 항목이 됩니다. 두 칸 들여쓰면 하위 항목입니다.</div>
+        <div class="pn-actions">
+          <button type="button" class="btn secondary" id="pn-draft">임시저장</button>
+          <button type="button" class="btn primary" id="pn-publish">게시</button>
+        </div>
+      </form>
         <div class="card plain pad stack" style="gap: 14px">
           <div class="row-between" style="gap: 8px 16px"><h2 style="font-size: 20px">카테고리</h2><span class="subtitle" style="font-size: 12px">본문의 [카테고리] 줄과 이름이 같으면 이 색이 붙습니다</span></div>
           <div class="filter-row" id="cat-chips">
@@ -208,28 +234,6 @@ export async function renderPatch(ctx) {
             </div>`).join('') || '<div class="empty">패치노트가 없습니다.</div>'}
         </div>
       </div>
-      <form class="card plain form-card" id="pn-form">
-        <div class="row-between"><h2 style="font-size: 20px" id="pn-form-title">새 패치노트</h2><button type="button" class="btn xs ghost" id="pn-reset">새로</button></div>
-        <input type="hidden" id="pn-id">
-        <div class="stack" style="gap: 12px">
-          ${F('pn-date', '날짜 <span style="color:var(--muted)">(미래 날짜로 게시하면 그날 0시(KST)부터 유저에게 보입니다)</span>', T.todayKST(), { type: 'date' })}
-          ${F('pn-title', '제목 (비우면 카테고리로 자동)', '', { ph: '자동 생성' })}
-        </div>
-        <div class="field">
-          <label for="pn-body">본문</label>
-          <textarea class="textarea" id="pn-body" style="min-height: 300px; font-family: var(--font-mono); font-size: 13px" placeholder="[신규]
-ㆍ추가된 내용
-ㆍ또 다른 내용
-[기타]
-ㆍ수정된 문제"></textarea>
-        </div>
-        <div class="notice-box" style="font-size: 12px; display: block; line-height: 1.6"><b>양식</b> · [카테고리] 줄은 색 배지 헤더가 되고, ㆍ 또는 - 로 시작하는 줄은 항목이 됩니다. 두 칸 들여쓰면 하위 항목입니다.</div>
-        <div class="card plain" style="padding: 14px 16px"><span style="font-size: 12px; color: var(--label); letter-spacing: 1px">미리보기</span><div class="pn-body" id="pn-preview" style="margin-top: 8px"></div></div>
-        <div style="display: flex; gap: 8px">
-          <button type="button" class="btn secondary" id="pn-draft" style="flex-grow: 1">임시저장</button>
-          <button type="button" class="btn primary" id="pn-publish" style="flex-grow: 1">게시</button>
-        </div>
-      </form>
     </div>`;
 
   const f = (id) => $('#' + id, panel);
@@ -303,7 +307,9 @@ export async function renderPatch(ctx) {
   };
   f('pn-draft').addEventListener('click', () => save('draft'));
   f('pn-publish').addEventListener('click', () => save('published'));
-  f('pn-new').addEventListener('click', () => { fillNote(null); f('pn-body').focus(); });
+  // 작성 칸이 목록 위에 있어서, 편집 · 새로 만들기 때 작성 칸으로 올라감
+  const toForm = () => { f('pn-form').scrollIntoView({ behavior: 'smooth', block: 'start' }); f('pn-body').focus({ preventScroll: true }); };
+  f('pn-new').addEventListener('click', () => { fillNote(null); toForm(); });
   f('pn-reset').addEventListener('click', () => fillNote(null));
   panel.addEventListener('click', async (e) => {
     const nt = e.target.closest('[data-notify]');
@@ -313,7 +319,7 @@ export async function renderPatch(ctx) {
       try { (await D.notifyPatch(n)) ? toast('디스코드에 알렸습니다') : toast('알림 설정에서 웹훅 주소를 먼저 넣어 주세요'); } catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
       return;
     }
-    const ed = e.target.closest('[data-edit]'); if (ed) { fillNote(notes.find((x) => x.id === ed.dataset.edit)); f('pn-body').focus(); return; }
+    const ed = e.target.closest('[data-edit]'); if (ed) { fillNote(notes.find((x) => x.id === ed.dataset.edit)); toForm(); return; }
     const dl = e.target.closest('[data-del]');
     if (dl) {
       const n = notes.find((x) => x.id === dl.dataset.del);
