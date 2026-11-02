@@ -145,9 +145,33 @@
         </div>
       </div>`; }).join('') : '<div class="empty">문서가 없습니다. "새 문서"로 첫 문서를 만들어 주세요.</div>';
 
+    // 주소가 정해진 문서: 상단 메뉴 · 하단 링크 · 홈 버튼이 이 주소로 연결됩니다. 없으면 「작성하기」가 주소와 제목을 채운 채로 편집기를 엽니다
+    const FIXED = [
+      ['rules', '펭귄법전', '인게임 규칙 · 금지 행위 · 제재', '상단 메뉴 · 홈 버튼 · 하단'],
+      ['terms', '이용약관', '운영자와 유저 사이의 약속', '하단'],
+      ['privacy', '개인정보 처리방침', '모으는 정보와 보관 기간', '하단'],
+    ];
+    const fixedRows = FIXED.map(([slug, name, what, where]) => {
+      const p = pages.find((x) => x.id === slug);
+      const state = !p ? '<span class="tag gray">아직 없음</span>'
+        : (p.public ? '<span class="tag green">공개</span>' : '<span class="tag gray">비공개</span>') + (p.draft ? '<span class="tag" style="margin-left:4px">임시</span>' : '');
+      const go = p ? `editor.html?p=${encodeURIComponent(slug)}` : `editor.html?new=${encodeURIComponent(slug)}&title=${encodeURIComponent(name)}`;
+      return `
+      <div class="tr" style="grid-template-columns: minmax(0,1fr) 150px 110px 96px">
+        <span><a href="../guide.html?p=${slug}" style="text-decoration:none; color:inherit">${name}</a><span style="color:#8A7D66; font-size:12px"> — ${what}</span></span>
+        <span style="font-size:12px; color:#8A7D66">${where}</span>
+        <span>${state}</span>
+        <a class="btn xs ${p ? 'secondary' : 'primary'}" href="${go}">${p ? '편집' : '작성하기'}</a>
+      </div>`;
+    }).join('');
+
     panel.innerHTML = head('문서 관리', `섹션 ${sections.length} · 문서 ${pages.length} (공개 ${pages.filter((p) => p.public).length})`, `<a class="btn primary" href="editor.html">새 문서</a>`) + `
       <div class="admin-split">
         <div class="stack" style="gap: 20px">
+          <div class="card plain table" style="--tmin: 560px">
+            <div class="thead" style="grid-template-columns: minmax(0,1fr) 150px 110px 96px"><span>정해진 문서 (가이드 목차에는 안 보임)</span><span>연결된 곳</span><span>상태</span><span></span></div>
+            ${fixedRows}
+          </div>
           <div class="subtitle" style="font-size: 12px; margin-bottom: -8px">목차에 보이는 순서 그대로입니다. ▲▼로 자리를 바꾸세요 (하위 섹션은 같은 상위 안에서만).</div>
           <div class="card plain table" style="--tmin: 500px">
             <div class="thead" style="grid-template-columns: minmax(0,1fr) 140px 56px 72px"><span>섹션</span><span>상위</span><span>이동</span><span></span></div>

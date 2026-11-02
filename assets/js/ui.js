@@ -60,6 +60,7 @@ const NAV = [
   { key: 'commands', label: '명령어', href: 'commands.html' },
   { key: 'prices', label: '시세', href: 'prices.html' },
   { key: 'events', label: '이벤트', href: 'events.html' },
+  { key: 'law', label: '펭귄법전', href: 'guide.html?p=rules' },
 ];
 
 // 로그인 상태 표시(관리 메뉴·이름표 등 data-auth 요소)
@@ -87,7 +88,7 @@ export function renderHeader(active = '') {
   const el = $('#site-header');
   if (!el) return;
   const links = NAV.map((n) =>
-    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}><span class="nav-illustration" aria-hidden="true">${illustration(({home:'village',patch:'book',guide:'adventure',commands:'chat',prices:'market',events:'star'})[n.key])}</span>${n.label}</a>`
+    `<a href="${ROOT}${n.href}"${active === n.key ? ' aria-current="page"' : ''}><span class="nav-illustration" aria-hidden="true">${illustration(({home:'village',patch:'book',guide:'adventure',commands:'chat',prices:'market',events:'star',law:'law'})[n.key])}</span>${n.label}</a>`
   ).join('');
   const main = document.querySelector('main');
   if (main && !main.id) main.id = 'main-content';
@@ -178,6 +179,7 @@ export function renderFooter(business) {
       <div class="links">
         <a href="${ROOT}guide.html?p=terms">이용약관</a>
         <a class="privacy" href="${ROOT}guide.html?p=privacy">개인정보 처리방침</a>
+        <a href="${ROOT}guide.html?p=rules">펭귄법전</a>
       </div>
       <span class="copy">© ${new Date().getFullYear()} ${esc(SITE.name)}. All rights reserved.</span>
     </div>`;
