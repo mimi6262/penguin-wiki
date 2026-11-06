@@ -26,6 +26,12 @@ export async function deleteCategory(id) { await deleteDoc(doc(db, 'patchCategor
 // 복합 색인이 필요 없도록 조건만 걸고 날짜 정렬은 브라우저에서 합니다.
 // 게시 상태여도 날짜가 미래(KST)면 예약 게시: 유저에게는 그 날짜가 되어야 보이고, 편집자에게는 scheduled 표시로 보입니다.
 export const isScheduled = (n, today = todayKST()) => n.status === 'published' && String(n.date || '') > today;
+// 제목을 비우면 날짜로 「11월 5일 패치노트」. 비워 둔 글(titleManual false)은 저장된 제목 대신 항상 날짜 제목으로 보입니다.
+export function autoPatchTitle(date) {
+  const [, m, d] = String(date || '').split('-').map(Number);
+  return m && d ? `${m}월 ${d}일 패치노트` : '패치노트';
+}
+export const patchTitle = (n) => (n.titleManual && n.title ? n.title : autoPatchTitle(n.date));
 export async function listPatchNotes({ editorView = false, max = 100 } = {}) {
   const col = collection(db, 'patchNotes');
   const today = todayKST();
@@ -59,7 +65,22 @@ function inline(text) {
   return s;
 }
 
-// 패치노트 본문 → HTML.  [카테고리] 줄은 색 배지 헤더, ㆍ/-/* 줄은 항목, 들여쓴 항목은 하위 항목
+// 표: | 로 시작하는 줄이 두 줄 이상 이어지면 표. 둘째 줄이 |:---:|---| 같은 구분 줄이면 첫 줄은 머리글 (:---: 가운데 · ---: 오른쪽)
+export const isTableRow = (line) => /^\s*\|.*\|/.test(line);
+export const isTableSep = (line) => /^\s*\|?(\s*:?-+:?\s*\|)+\s*(:?-+:?\s*)?$/.test(line) && line.includes('-');
+export const tableCells = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, '|'));
+function renderTable(rows) {
+  const hasHead = rows.length > 1 && isTableSep(rows[1]);
+  const align = hasHead ? tableCells(rows[1]).map((c) => (/^:-+:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : '')) : [];
+  const head = hasHead ? tableCells(rows[0]) : null;
+  const body = rows.slice(hasHead ? 2 : 0).filter((r) => !isTableSep(r)).map(tableCells);
+  const cols = Math.max(head ? head.length : 0, ...body.map((r) => r.length));
+  const cell = (tag, text, i) => `<${tag}${align[i] ? ` style="text-align:${align[i]}"` : ''}>${inline(text || '')}</${tag}>`;
+  const tr = (cells, tag) => `<tr>${Array.from({ length: cols }, (_, i) => cell(tag, cells[i], i)).join('')}</tr>`;
+  return `<div class="pn-table"><table>${head ? `<thead>${tr(head, 'th')}</thead>` : ''}<tbody>${body.map((r) => tr(r, 'td')).join('')}</tbody></table></div>`;
+}
+
+// 패치노트 본문 → HTML.  [카테고리] 줄은 색 배지 헤더, ## 줄은 소제목, ㆍ/-/* 줄은 항목, 들여쓴 항목은 하위 항목, | 줄은 표
 export function renderPatchBody(body, categories = []) {
   const color = (name) => safeColor(categories.find((c) => c.name === name)?.color);
   const lines = (body || '').replace(/\r/g, '').split('\n');
@@ -68,26 +89,42 @@ export function renderPatchBody(body, categories = []) {
   const openTo = (d) => { while (depth < d) { html += '<ul>'; depth++; } };
   // 빈 줄은 한 줄 높이 간격으로 (엔터 두 번 = 빈 줄 하나). 본문 맨 앞 · 맨 뒤 빈 줄은 무시
   const flushGaps = () => { if (html) html += '<div class="pn-gap" aria-hidden="true"></div>'.repeat(gaps); gaps = 0; };
-  lines.forEach((raw) => {
-    const line = raw.replace(/\t/g, '  ');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\t/g, '  ');
+    if (isTableRow(line) && isTableRow(lines[i + 1] || '')) {
+      const rows = [];
+      while (i < lines.length && isTableRow(lines[i])) rows.push(lines[i++]);
+      i--;
+      closeTo(0); flushGaps();
+      html += renderTable(rows);
+      continue;
+    }
     const cat = line.match(/^\s*\[([^\]]{1,40})\]\s*(.*)$/);
     if (cat) {
       closeTo(0); flushGaps();
       html += `<h3 class="pn-cat"><span class="tag fill" style="background:${color(cat[1].trim())};border-color:${color(cat[1].trim())}">${esc(cat[1].trim())}</span>${cat[2] ? `<span>${inline(cat[2])}</span>` : ''}</h3>`;
-      return;
+      continue;
     }
-    const li = line.match(/^(\s*)(ㆍ|-|\*|•)\s*(.*)$/);
+    // ## 소제목 (# ~ ####)
+    const hd = line.match(/^\s*#{1,4}\s+(.+)$/);
+    if (hd) {
+      closeTo(0); flushGaps();
+      html += `<h4 class="pn-sub">${inline(hd[1].trim())}</h4>`;
+      continue;
+    }
+    // ** 로 시작하는 줄은 굵은 글씨지 항목이 아님 (*항목 · * 항목은 항목)
+    const li = line.match(/^(\s*)(ㆍ|-|\*(?!\*)|•)\s*(.*)$/);
     if (li) {
       const d = li[1].length >= 2 || (li[2] === 'ㆍ' && /^ㆍ/.test(li[3])) ? 2 : 1;
       const text = li[3].replace(/^ㆍ\s*/, '');
       closeTo(d); flushGaps(); openTo(d);
       html += `<li>${inline(text)}</li>`;
-      return;
+      continue;
     }
-    if (!line.trim()) { closeTo(0); gaps++; return; }
+    if (!line.trim()) { closeTo(0); gaps++; continue; }
     closeTo(0); flushGaps();
     html += `<p>${inline(line.trim())}</p>`;
-  });
+  }
   closeTo(0);
   return html;
 }

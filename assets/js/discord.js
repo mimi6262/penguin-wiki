@@ -2,6 +2,7 @@
 // 서버가 없어서 "예약된 시각에 자동 발송"은 못 하고, 편집자가 저장·게시하는 순간에 보냅니다.
 import { db, doc, getDoc, setDoc, serverTimestamp } from './firebase.js';
 import { ROOT } from './ui.js';
+import { patchTitle, isTableRow, isTableSep, tableCells } from './content.js';
 
 const COLOR = { patch: 0xA63A2B, event: 0xBA7517, guide: 0x3A5A78, test: 0x3F6B4F };
 let cache = null;
@@ -35,13 +36,21 @@ export async function postDiscord({ title, description = '', url = '', color = C
   return true;
 }
 
-// 패치노트 본문([카테고리] / ㆍ항목)을 디스코드용 텍스트로
+// 패치노트 본문([카테고리] / ㆍ항목 / | 표)을 디스코드용 텍스트로. 디스코드는 표를 못 그려서 표 줄은 「칸 · 칸」, 머리글은 굵게
 export function patchBodyToText(body, max = 1800) {
-  const lines = (body || '').replace(/\r/g, '').split('\n').map((l) => {
+  const src = (body || '').replace(/\r/g, '').split('\n');
+  const lines = src.map((l, i) => {
+    if (isTableRow(l) && (isTableRow(src[i - 1] || '') || isTableRow(src[i + 1] || ''))) {
+      if (isTableSep(l)) return null;
+      const row = tableCells(l).filter(Boolean).join(' · ');
+      return isTableSep(src[i + 1] || '') ? `**${row}**` : row;
+    }
     const m = l.match(/^\s*\[([^\]]{1,40})\]\s*$/);
     if (m) return `**[${m[1]}]**`;
-    return l.replace(/^(\s*)[ㆍ\-*]\s?/, '$1• ');
-  }).filter((l, i, arr) => !(l.trim() === '' && (arr[i - 1] || '').trim() === ''));
+    const hd = l.match(/^\s*#{1,4}\s+(.+)$/);
+    if (hd) return `**${hd[1].trim().replace(/^\*\*(.*)\*\*$/, '$1')}**`;
+    return l.replace(/^(\s*)(?:[ㆍ\-]|\*(?!\*))\s?/, '$1• ');
+  }).filter((l) => l !== null).filter((l, i, arr) => !(l.trim() === '' && (arr[i - 1] || '').trim() === ''));
   let out = lines.join('\n');
   if (out.length > max) out = out.slice(0, max - 1) + '…';
   return out;
@@ -49,7 +58,7 @@ export function patchBodyToText(body, max = 1800) {
 
 export async function notifyPatch(note) {
   return postDiscord({
-    title: `📋 패치노트 · ${note.date} · ${note.title || (note.categories || []).join(', ')}`,
+    title: `📋 패치노트 · ${note.date} · ${patchTitle(note)}`,
     description: patchBodyToText(note.body),
     url: siteUrl('patch.html'), color: COLOR.patch,
   });

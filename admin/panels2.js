@@ -172,7 +172,7 @@ export async function renderPatch(ctx) {
         <input type="hidden" id="pn-id">
         <div class="pn-meta">
           ${F('pn-date', '날짜 <span style="color:var(--muted)">(미래 날짜로 게시하면 그날 0시(KST)부터 유저에게 보입니다)</span>', T.todayKST(), { type: 'date' })}
-          ${F('pn-title', '제목 (비우면 카테고리로 자동)', '', { ph: '자동 생성' })}
+          ${F('pn-title', '제목 <span style="color:var(--muted)">(비우면 날짜로 자동)</span>', '', { ph: C.autoPatchTitle(T.todayKST()) })}
         </div>
         <div class="pn-write">
           <div class="field">
@@ -223,7 +223,7 @@ export async function renderPatch(ctx) {
           ${notes.map((n) => `
             <div class="tr" style="grid-template-columns: 96px minmax(0,1fr) 168px 68px 104px">
               <span style="font-size: 13px; color: var(--muted)">${esc(n.date)}</span>
-              <span title="${esc(n.title || '')}">${esc(n.title || (n.categories || []).join(', '))}</span>
+              <span title="${esc(C.patchTitle(n))}">${esc(C.patchTitle(n))}</span>
               <div style="display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0">${(n.categories || []).map((name) => { const c = cats.find((x) => x.name === name); return `<span class="tag fill" style="background:${c ? esc(c.color) : '#5F5E5A'};border-color:${c ? esc(c.color) : '#5F5E5A'}">${esc(name)}</span>`; }).join('')}</div>
               <span>${n.status !== 'published' ? '<span class="tag gray">임시</span>' : n.scheduled ? '<span class="tag blue" title="날짜가 되면 유저에게 보입니다">예약</span>' : '<span class="tag green">게시</span>'}</span>
               <div class="actions">
@@ -283,8 +283,11 @@ export async function renderPatch(ctx) {
   // 패치노트 폼
   const fillNote = (n) => {
     f('pn-id').value = n?.id || ''; f('pn-date').value = n?.date || T.todayKST(); f('pn-title').value = n?.titleManual ? n.title : ''; f('pn-body').value = n?.body || '';
-    f('pn-form-title').textContent = n ? '패치노트 편집' : '새 패치노트'; renderPreview();
+    f('pn-form-title').textContent = n ? '패치노트 편집' : '새 패치노트'; renderPreview(); syncTitlePh();
   };
+  // 제목 칸이 비었을 때 저장될 제목을 흐린 글씨로 보여 줌 (날짜를 바꾸면 따라 바뀜)
+  const syncTitlePh = () => { f('pn-title').placeholder = C.autoPatchTitle(f('pn-date').value); };
+  f('pn-date').addEventListener('input', syncTitlePh);
   const renderPreview = () => { f('pn-preview').innerHTML = C.renderPatchBody(f('pn-body').value, cats) || '<span style="color: var(--muted); font-size: 13px">본문을 입력하면 미리보기가 나타납니다</span>'; };
   f('pn-body').addEventListener('input', renderPreview);
   const collect = (status) => {
@@ -292,7 +295,7 @@ export async function renderPatch(ctx) {
     const manual = f('pn-title').value.trim();
     if (!f('pn-date').value) { toast('날짜를 선택해 주세요'); return null; }
     if (!body.trim()) { toast('본문을 입력해 주세요'); return null; }
-    return { date: f('pn-date').value, body, categories, title: manual || categories.join(', ') || '패치노트', titleManual: !!manual, status };
+    return { date: f('pn-date').value, body, categories, title: manual || C.autoPatchTitle(f('pn-date').value), titleManual: !!manual, status };
   };
   const save = async (status) => {
     const d = collect(status); if (!d) return;
@@ -315,7 +318,7 @@ export async function renderPatch(ctx) {
     const nt = e.target.closest('[data-notify]');
     if (nt && !nt.disabled) {
       const n = notes.find((x) => x.id === nt.dataset.notify);
-      if (!confirm(`"${n.title}" 패치노트를 디스코드에 알릴까요?`)) return;
+      if (!confirm(`"${C.patchTitle(n)}" 패치노트를 디스코드에 알릴까요?`)) return;
       try { (await D.notifyPatch(n)) ? toast('디스코드에 알렸습니다') : toast('알림 설정에서 웹훅 주소를 먼저 넣어 주세요'); } catch (err) { toast('디스코드 알림 실패: ' + (err.message || err)); }
       return;
     }
@@ -323,7 +326,7 @@ export async function renderPatch(ctx) {
     const dl = e.target.closest('[data-del]');
     if (dl) {
       const n = notes.find((x) => x.id === dl.dataset.del);
-      if (!confirm(`${n.date} "${n.title}" 패치노트를 삭제할까요?`)) return;
+      if (!confirm(`${n.date} "${C.patchTitle(n)}" 패치노트를 삭제할까요?`)) return;
       await C.deletePatchNote(n.id); toast('삭제했습니다'); renderPatch(ctx);
     }
   });

@@ -220,10 +220,10 @@
     initReveal(grid);
     // 최신 패치노트 2건
     try {
-      const { listPatchNotes } = await import('./assets/js/content.js');
+      const { listPatchNotes, patchTitle } = await import('./assets/js/content.js');
       const notes = await listPatchNotes({ max: 2 });
       if (notes.length) {
-        $('#home-patch-list').innerHTML = notes.map((n) => `<a class="item" href="patch.html"><span class="d">${esc(n.date)}</span><span class="t">${esc(n.title || (n.categories || []).join(', '))}</span></a>`).join('');
+        $('#home-patch-list').innerHTML = notes.map((n) => `<a class="item" href="patch.html"><span class="d">${esc(n.date)}</span><span class="t">${esc(patchTitle(n))}</span></a>`).join('');
         $('#home-patch').hidden = false;
         initReveal();
       }

@@ -794,6 +794,7 @@ main > .container { animation: pw-enter .45s cubic-bezier(.22, 1, .36, 1) both; 
 .pn-body li::before { content: "ㆍ"; position: absolute; left: 0; color: var(--muted); }
 .pn-body ul ul li::before { content: "–"; }
 .pn-body p { margin: 6px 0; }
+.pn-body .pn-sub { font-family: var(--font-body); font-size: 16px; color: var(--wood-dark); margin: 16px 0 6px; } /* ## 소제목 */
 .pn-body .pn-gap { height: 1em; } /* 본문의 빈 줄 하나 */
 .pn-body code {
   font-family: var(--font-mono);
@@ -804,6 +805,11 @@ main > .container { animation: pw-enter .45s cubic-bezier(.22, 1, .36, 1) both; 
   padding: 0 6px;
 }
 .pn-body strong { color: var(--wood-dark); }
+.pn-body .pn-table { overflow-x: auto; margin: 8px 0 10px; } /* 본문 표 (| 칸 | 칸 |) */
+.pn-body table { border-collapse: separate; border-spacing: 0; min-width: min(100%, 320px); background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 13px; line-height: 1.6; }
+.pn-body th { text-align: left; padding: 7px 16px; background: var(--cream); border-bottom: 1px solid var(--line); font-weight: 400; color: var(--label); font-size: 12px; white-space: nowrap; }
+.pn-body td { padding: 7px 16px; border-bottom: 1px solid var(--line-faint); }
+.pn-body tr:last-child td { border-bottom: 0; }
 .ev-row { min-height: 64px; }
 .icon-btn.heart.on { background: var(--card); }
 .icon-btn.heart:hover { background: var(--accent); border-color: var(--accent); }
