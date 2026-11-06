@@ -434,6 +434,12 @@ main { flex-grow: 1; }
 .admin-split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
 .admin-split.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .admin-split > * { min-width: 0; }
+/* 섹션 편집 · 카드 아이콘 그림 단추 */
+.icon-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; margin-top: 8px; }
+.icon-pick button { display: grid; place-items: center; aspect-ratio: 1; padding: 2px; background: var(--card); border: 1px solid var(--line-faint); border-radius: 8px; cursor: pointer; }
+.icon-pick button:hover { border-color: var(--wood); }
+.icon-pick button[aria-pressed="true"] { border-color: var(--accent); background: var(--cream); box-shadow: 0 0 0 2px var(--accent) inset; }
+.icon-pick svg { width: 30px; height: 30px; }
 .admin-nav { display: flex; flex-direction: column; gap: 4px; padding: 16px 12px; position: sticky; top: 16px; }
 .admin-nav .label { font-size: 12px; color: var(--label); letter-spacing: 1px; padding: 4px 12px 10px; }
 .admin-nav a, .admin-nav button {

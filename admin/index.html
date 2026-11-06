@@ -205,6 +205,7 @@
               <select class="select" id="sec-icon" style="flex: 1"><option value="">자동 (섹션 이름으로 고름)</option>${ICON_CHOICES.map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}</select>
               <span id="sec-icon-preview" style="width: 48px; height: 48px; flex-shrink: 0; display: inline-flex"></span>
             </div>
+            <div class="icon-pick" id="sec-icon-pick" role="group" aria-label="아이콘을 그림으로 고르기">${ICON_CHOICES.map(([k, label]) => `<button type="button" data-icon="${k}" title="${esc(label)}" aria-label="${esc(label)}" aria-pressed="false">${guideIllustration('', k)}</button>`).join('')}</div>
           </div>
           <div class="notice-box" style="font-size: 12px">새 섹션은 같은 상위의 맨 아래에 추가됩니다. 자리는 목차에서 끌어 옮기세요.</div>
           <div style="display: flex; gap: 8px"><button type="submit" class="btn primary" style="flex-grow: 1">저장</button></div>
@@ -214,7 +215,15 @@
     const f = {
       id: $('#sec-id'), name: $('#sec-name'), parent: $('#sec-parent'), desc: $('#sec-desc'), icon: $('#sec-icon'),
     };
-    const iconPreview = () => { $('#sec-icon-preview').innerHTML = guideIllustration(f.name.value, f.icon.value).replace('width="64" height="64"', 'width="48" height="48"'); };
+    const iconPreview = () => {
+      $('#sec-icon-preview').innerHTML = guideIllustration(f.name.value, f.icon.value).replace('width="64" height="64"', 'width="48" height="48"');
+      document.querySelectorAll('#sec-icon-pick [data-icon]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.icon === f.icon.value)));
+    };
+    // 그림 단추를 누르면 목록 값이 바뀜 (같은 그림을 다시 누르면 자동으로 되돌림)
+    $('#sec-icon-pick').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-icon]'); if (!b) return;
+      f.icon.value = f.icon.value === b.dataset.icon ? '' : b.dataset.icon; iconPreview();
+    });
     f.icon.addEventListener('change', iconPreview); f.name.addEventListener('input', iconPreview); iconPreview();
     let editingOrder = null; // 편집 중인 섹션의 기존 순서 (상위가 바뀌면 새 묶음의 맨 아래로)
     const fillSec = (s) => {
