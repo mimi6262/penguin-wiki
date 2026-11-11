@@ -1654,14 +1654,28 @@ input::placeholder, textarea::placeholder {
 .prose table.ench td:last-child { color: var(--label); font-size: 13.5px; }
 .prose table.ench tbody tr:nth-child(even) td { background: #faf7ee; }
 .prose table.ench tbody tr:hover td { background: var(--tier-wash); }
-.prose .ench-name { font-size: 15px; color: var(--wood-dark); }
-.prose .ench-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
-.prose .ench-tag { padding: 0 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--label); font-size: 11.5px; line-height: 1.7; white-space: nowrap; }
+.prose .ench-name { font-size: 17px; line-height: 1.35; color: #1f2f3a; letter-spacing: -0.2px; }
+.prose .ench-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.prose .ench-tag { padding: 0 6px; border: 1px solid var(--line-faint); border-radius: 5px; background: transparent; color: #7d93a2; font-size: 11px; line-height: 1.6; white-space: nowrap; }
 .prose .ench-lv { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 7px; background: var(--tier-wash); color: var(--tier-ink); box-shadow: inset 0 0 0 1px var(--tier-line); font-size: 12px; }
 @media (max-width:760px) {
   .prose table.ench td:nth-child(2) { text-align: left; }
   .prose table.ench td:last-child { font-size: 14px; }
-  .prose .ench-name { font-size: 16px; }
+  .prose .ench-name { font-size: 18px; }
   .prose .ench-tags { margin: 4px 0 2px; }
   .prose .ench-lv { justify-self: start; }
 }
+
+/* 인첸트 찾기 칸 · 검색 결과로 온 줄 강조 (markdown.js enchantFilter · highlightTerm) */
+.prose .ench-filter { position: sticky; top: 12px; z-index: 3; display: flex; align-items: center; gap: 10px; margin: 6px 0 18px; padding: 0 14px; height: 48px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: 0 4px 14px rgba(45, 64, 76, .08); }
+.prose .ench-filter:focus-within { border-color: var(--accent); }
+.prose .ench-filter svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--label); }
+.prose .ench-filter input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+.prose .ench-filter input::placeholder { color: #97a8b4; }
+.prose .ench-count { flex-shrink: 0; font-size: 13px; color: var(--accent); }
+.prose .ench-empty { margin: 0 0 18px; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; text-align: center; color: var(--label); font-size: 14px; }
+.prose tr[hidden], .prose .table-wrap[hidden], .prose h2[hidden], .prose h3[hidden], .prose h4[hidden], .prose .ench-empty[hidden] { display: none !important; }
+.prose .pw-hit, .prose .pw-hit > td { animation: pw-hit 2.6s ease-out; }
+@keyframes pw-hit { 0%, 55% { background-color: #f6e7b8; } 100% { background-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .prose .pw-hit, .prose .pw-hit > td { animation: none; background-color: #f6e7b8; } }
+@media (max-width:760px) { .prose .ench-filter { top: 8px; height: 46px; } .prose .ench-filter input { font-size: 16px; } }

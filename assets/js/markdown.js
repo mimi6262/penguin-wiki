@@ -137,7 +137,72 @@ export function decorate(container) {
     a.rel = 'noopener';
   });
   resolveImages(container);
+  enchantFilter(container);
   return toc;
+}
+
+// ---- 이름 찾기 (띄어쓰기 · 대소문자 무시, 「ㄴㄹ」 처럼 초성만 써도 됨) ----
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, '');
+const chosung = (s) => [...s].map((ch) => { const c = ch.charCodeAt(0) - 0xAC00; return c >= 0 && c < 11172 ? CHO[Math.floor(c / 588)] : ch; }).join('');
+function textMatches(text, q) {
+  const t = norm(text);
+  return t.includes(q) || (/^[ㄱ-ㅎ]+$/.test(q) && chosung(t).includes(q));
+}
+
+// 인첸트 표가 있는 문서: 첫 표 위에 찾기 칸 — 이름 · 장비로 줄을 걸러 냄 (맞는 줄이 없는 표는 제목과 함께 숨김)
+function enchantFilter(container) {
+  const tables = [...container.querySelectorAll('table.ench')];
+  if (!tables.length) return;
+  const groups = tables.map((t) => {
+    const wrap = t.closest('.table-wrap') || t;
+    const head = wrap.previousElementSibling && /^H[2-4]$/.test(wrap.previousElementSibling.tagName) ? wrap.previousElementSibling : null;
+    const rows = [...t.querySelectorAll('tbody tr')].map((tr) => ({
+      tr,
+      keys: [tr.querySelector('.ench-name')?.textContent || tr.children[0]?.textContent || '', ...[...tr.querySelectorAll('.ench-tag')].map((x) => x.textContent)],
+    }));
+    return { wrap, head, rows };
+  });
+  const box = document.createElement('div');
+  box.className = 'ench-filter';
+  box.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'
+    + '<input type="search" placeholder="인첸트 이름 · 장비로 찾기 (초성도 돼요: ㄴㄹ)" aria-label="인첸트 찾기" autocomplete="off" enterkeyhint="search">'
+    + '<span class="ench-count" aria-live="polite"></span>';
+  const first = groups[0];
+  (first.head || first.wrap).before(box);
+  const input = box.querySelector('input'), count = box.querySelector('.ench-count');
+  const empty = Object.assign(document.createElement('p'), { className: 'ench-empty', textContent: '찾는 인첸트가 없어요. 이름을 조금만 써 보세요.', hidden: true });
+  box.after(empty);
+  const run = () => {
+    const q = norm(input.value);
+    let total = 0;
+    groups.forEach((g) => {
+      let n = 0;
+      g.rows.forEach((r) => { const ok = !q || r.keys.some((k) => textMatches(k, q)); r.tr.hidden = !ok; if (ok) n++; });
+      g.wrap.hidden = !!q && !n;
+      if (g.head) g.head.hidden = !!q && !n;
+      total += n;
+    });
+    count.textContent = q ? `${total}개` : '';
+    empty.hidden = !q || total > 0;
+  };
+  input.addEventListener('input', run);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Escape' && input.value) { input.value = ''; run(); } });
+}
+
+// 검색 결과에서 들어왔을 때: 검색어가 들어간 줄(인첸트 이름 먼저)로 스크롤하고 잠깐 강조
+export function highlightTerm(container, term) {
+  const words = [term, ...term.split(/\s+/)].map(norm).filter(Boolean);
+  for (const q of words) {
+    const byName = [...container.querySelectorAll('table.ench tbody tr')].find((tr) => textMatches(tr.querySelector('.ench-name')?.textContent || '', q));
+    const el = byName || [...container.querySelectorAll('tbody tr, li, p, h2, h3, h4, blockquote')].find((x) => norm(x.textContent).includes(q));
+    if (!el) continue;
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    el.classList.add('pw-hit');
+    setTimeout(() => el.classList.remove('pw-hit'), 2600);
+    return true;
+  }
+  return false;
 }
 
 // 글 사이·표 칸 안에 들어간 그림(아이템 아이콘 등)은 "글줄 그림"으로 표시합니다.

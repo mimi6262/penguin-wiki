@@ -76,11 +76,12 @@
   const TREE_KEY = 'pw_tree_open';
   let treeOpen = {};
   try { treeOpen = JSON.parse(localStorage.getItem(TREE_KEY) || '{}') || {}; } catch {}
-  const urlState = (u) => ({ slug: u.searchParams.get('p'), sec: u.searchParams.get('s'), q: (u.searchParams.get('q') || '').trim().toLowerCase() });
+  const urlState = (u) => ({ slug: u.searchParams.get('p'), sec: u.searchParams.get('s'), q: (u.searchParams.get('q') || '').trim().toLowerCase(), hl: (u.searchParams.get('hl') || '').trim() });
   let at = urlState(new URL(location.href));
   let data = null;   // { sections, pages, extra } 지금 그린 목차 · 문서
   let editor = null; // 로그인 확인 전에는 null
   let fresh = false; // 서버에서 받은 데이터로 그렸는지
+  let hlDone = '';  // 검색어 줄로 이미 옮겨 준 문서
   let shown = null;  // 본문에 그린 문서 (같으면 다시 그리지 않음)
   let treeHtml = '';
   let md = null;
@@ -215,6 +216,8 @@
       $('#toc').innerHTML = '<span class="label">목차</span>' + toc.map((t) => `<a class="${t.level === 3 ? 'h3' : ''}" href="#${t.id}">${esc(t.text)}</a>`).join('');
       shown = { id: current.id, text };
     }
+    // 검색 결과에서 왔으면(?hl=검색어) 그 줄로 한 번만 이동
+    if (at.hl && hlDone !== current.id + '|' + at.hl && md.highlightTerm($('#content'), at.hl)) hlDone = current.id + '|' + at.hl;
     $('#btn-edit').href = `admin/editor.html?p=${encodeURIComponent(current.id)}`;
     $('#btn-history').href = `admin/index.html#history:${encodeURIComponent(current.id)}`;
     $('#btn-history').style.display = '';
@@ -268,7 +271,7 @@
     paint();
     if (push) {
       if (u.hash) document.getElementById(decodeURIComponent(u.hash.slice(1)))?.scrollIntoView();
-      else scrollTo(0, 0);
+      else if (!at.hl) scrollTo(0, 0);
     }
     if ($('#tree').classList.contains('open')) setTreeOpen(false); // 휴대폰에서 목차를 열고 골랐으면 닫기
   };
