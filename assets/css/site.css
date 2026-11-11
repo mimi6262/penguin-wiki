@@ -1365,7 +1365,7 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 .toc { max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; }
 /* 왼쪽 목차가 화면보다 길면 목차 안에서 스크롤 (본문을 끝까지 내리지 않아도 아래 항목이 보이게) */
 @media (min-width: 1025px) {
-  .tree { max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  .tree { max-height: var(--tree-max, calc(100vh - 32px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 }
 @media (min-width: 1280px) {
   .container.guide-layout { grid-template-columns: 232px minmax(0, 1fr) 220px; }

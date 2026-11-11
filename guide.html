@@ -234,8 +234,19 @@
     const current = pick(v);
     renderTree(v, current);
     renderBody(v, current);
+    fitTree();
     revealActive();
   }
+
+  // 목차 칸 높이 = 화면에서 목차가 실제로 차지할 수 있는 높이
+  // (맨 위에서는 머리말 아래부터 화면 끝까지, 내려가서 붙으면 화면 높이 - 여백)
+  function fitTree() {
+    const tree = $('#tree');
+    const top = Math.max(tree.getBoundingClientRect().top, 16);
+    tree.style.setProperty('--tree-max', Math.max(240, innerHeight - top - 16) + 'px');
+  }
+  addEventListener('scroll', fitTree, { passive: true });
+  addEventListener('resize', fitTree);
 
   // 왼쪽 목차가 길 때: 지금 보는 문서가 목차 칸 안에 보이도록 목차만 스크롤 (창은 그대로)
   let revealed = null;
