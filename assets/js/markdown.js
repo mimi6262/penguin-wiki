@@ -53,8 +53,74 @@ function labelTableCells(html) {
   tpl.content.querySelectorAll('table').forEach((t) => {
     const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
     t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => { if (heads[i]) td.dataset.label = heads[i]; }));
+    t.querySelectorAll('td').forEach(levelChips);
+    if (['인첸트', '적용 장비', '최대 레벨'].every((h) => heads.includes(h))) enchantTable(t, heads);
   });
   return tpl.innerHTML;
+}
+
+// 「I 15% · II 25% · III 35%」 같은 칸 → 레벨마다 칩 하나 (줄은 칩 사이에서만 바뀜, 마지막 레벨은 강조)
+// 앞에 「쿨타임:」 같은 짧은 이름표가 있으면 칩 앞에 따로 둠. 모양이 다르면 손대지 않음
+const ROMAN = /^(?=[IVX])(X|IX|IV|V?I{0,3})$/;
+function levelChips(td) {
+  const m = td.textContent.trim().match(/^(?:([^:·]{1,12}):\s*)?(.+)$/);
+  if (!m) return;
+  const parts = m[2].split(/\s*·\s*/).map((s) => s.match(/^(\S+)\s+(.+)$/));
+  let chips;
+  if (parts.every((p) => p && ROMAN.test(p[1]))) chips = parts.map((p) => [p[1], p[2]]);
+  else {
+    // 「I·II·III 상시 적용」 처럼 여러 레벨이 한 값을 같이 쓰는 경우 → 칩 하나
+    const one = m[2].match(/^((?:X|IX|IV|V?I{0,3})(?:\s*·\s*(?:X|IX|IV|V?I{0,3}))+)\s+(.+)$/);
+    if (!one) return;
+    chips = [[one[1].replace(/\s*·\s*/g, '·'), one[2]]];
+  }
+  const list = document.createElement('span'); // 휴대폰 카드에서 칩들이 한 칸 안에 같이 있도록 한 덩어리로
+  list.className = 'lv-list';
+  if (m[1]) list.append(Object.assign(document.createElement('span'), { className: 'lv-label', textContent: m[1] }));
+  chips.forEach(([lv, val], i) => {
+    const c = document.createElement('span');
+    c.className = 'lv-chip' + (i === chips.length - 1 && chips.length > 1 ? ' max' : '');
+    c.append(Object.assign(document.createElement('b'), { textContent: lv }), val);
+    list.append(c);
+  });
+  td.textContent = '';
+  td.append(list);
+}
+
+// 인첸트 표: 장비를 이름 아래 태그로 합치고, 최대 레벨은 배지로, 바로 위 제목(🔵 엘리트 …)의 등급 색을 입힘
+function enchantTable(t, heads) {
+  const eq = heads.indexOf('적용 장비');
+  const mx = heads.indexOf('최대 레벨');
+  t.classList.add('ench');
+  const h2 = t.closest('.table-wrap')?.previousElementSibling;
+  const title = h2 && /^H[2-4]$/.test(h2.tagName) ? h2.textContent : '';
+  const tier = /레전더리|🟡/.test(title) ? 'legend' : /유니크|🟢/.test(title) ? 'unique' : /엘리트|🔵/.test(title) ? 'elite' : '';
+  if (tier) t.classList.add('tier-' + tier);
+  t.querySelectorAll('tr').forEach((tr) => {
+    const cells = [...tr.children];
+    const first = cells[0], eqCell = cells[eq], mxCell = cells[mx];
+    if (!eqCell || !first) return;
+    if (tr.parentElement.tagName === 'THEAD') {
+      first.textContent = '인첸트 · 장비';
+      if (mxCell) mxCell.textContent = '최대';
+    } else {
+      const name = document.createElement('div');
+      name.className = 'ench-name';
+      name.append(...first.childNodes);
+      first.append(name);
+      const tags = document.createElement('div');
+      tags.className = 'ench-tags';
+      eqCell.textContent.split(/\s*[·,/]\s*/).filter(Boolean).forEach((s) => tags.append(Object.assign(document.createElement('span'), { className: 'ench-tag', textContent: s })));
+      first.append(tags);
+      if (mxCell && ROMAN.test(mxCell.textContent.trim())) {
+        const v = mxCell.textContent.trim();
+        mxCell.textContent = '';
+        mxCell.append(Object.assign(document.createElement('span'), { className: 'ench-lv', textContent: v }));
+        mxCell.dataset.label = '최대';
+      }
+    }
+    eqCell.remove();
+  });
 }
 
 // 렌더된 컨테이너에 목차 id 부여 + 목차 목록 반환 (업로드 이미지도 여기서 채웁니다)

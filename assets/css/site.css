@@ -1631,3 +1631,37 @@ input::placeholder, textarea::placeholder {
   .cm-catlist { flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .cm-cat-btn { padding: 0 12px; gap: 6px; }
 }
+
+/* ---------- 표: 레벨 칩 · 인첸트 표 (markdown.js levelChips · enchantTable) ---------- */
+.prose .lv-list { display: inline; }
+.prose .lv-label { margin-right: 6px; color: var(--label); font-size: 12px; }
+.prose .lv-chip { display: inline-flex; align-items: baseline; gap: 3px; margin: 2px 3px 2px 0; padding: 1px 7px; border-radius: 999px; background: var(--cream); color: var(--ink); font-size: 13px; line-height: 1.7; white-space: nowrap; }
+.prose .lv-chip b { font-weight: 400; color: var(--label); font-size: 11px; }
+.prose .lv-chip.max { background: var(--tier-wash, var(--mint-wash)); color: var(--tier-ink, var(--accent)); box-shadow: inset 0 0 0 1px var(--tier-line, #c9d7e1); }
+.prose .lv-chip.max b { color: inherit; }
+
+.prose table.ench { --tier-wash: var(--mint-wash); --tier-ink: var(--accent); --tier-line: #c9d7e1; }
+.prose table.ench.tier-elite  { --tier-wash: #e3eef8; --tier-ink: #2c5f8a; --tier-line: #bcd3e8; }
+.prose table.ench.tier-unique { --tier-wash: #e4f1e2; --tier-ink: #3b6b36; --tier-line: #c2dcbd; }
+.prose table.ench.tier-legend { --tier-wash: #f7ecd3; --tier-ink: #8a5c18; --tier-line: #e6d1a3; }
+.prose table.ench { border-top: 3px solid var(--tier-line); }
+.prose table.ench th { background: var(--tier-wash); color: var(--tier-ink); white-space: nowrap; }
+.prose table.ench th:nth-child(1) { width: 16%; }
+.prose table.ench th:nth-child(2) { width: 1%; text-align: center; }
+.prose table.ench th:nth-child(3) { width: 42%; }
+.prose table.ench td { vertical-align: middle; line-height: 1.6; }
+.prose table.ench td:nth-child(2) { text-align: center; }
+.prose table.ench td:last-child { color: var(--label); font-size: 13.5px; }
+.prose table.ench tbody tr:nth-child(even) td { background: #faf7ee; }
+.prose table.ench tbody tr:hover td { background: var(--tier-wash); }
+.prose .ench-name { font-size: 15px; color: var(--wood-dark); }
+.prose .ench-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.prose .ench-tag { padding: 0 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--label); font-size: 11.5px; line-height: 1.7; white-space: nowrap; }
+.prose .ench-lv { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 7px; background: var(--tier-wash); color: var(--tier-ink); box-shadow: inset 0 0 0 1px var(--tier-line); font-size: 12px; }
+@media (max-width:760px) {
+  .prose table.ench td:nth-child(2) { text-align: left; }
+  .prose table.ench td:last-child { font-size: 14px; }
+  .prose .ench-name { font-size: 16px; }
+  .prose .ench-tags { margin: 4px 0 2px; }
+  .prose .ench-lv { justify-self: start; }
+}
