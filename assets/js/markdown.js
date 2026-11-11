@@ -37,8 +37,28 @@ function transformUploadedImages(md) {
     `<img data-pw-img="${id}" alt="${esc(alt)}">`);
 }
 
+// 「**100%**여도」 · 「가**(괄호)**」 처럼 굵게 표시의 안쪽 끝이 문장부호이고 바깥에 글자가 바로 붙으면
+// 마크다운 규칙상 굵게가 닫히지 않아 ** 가 그대로 보임 (한글은 조사가 붙어 자주 생김) → 그런 경우만 <strong> 으로 바꿈
+// 「**`/길라잡이`**를」 처럼 인라인 코드를 굵게 감싼 경우도 같음 (코드 끝 ` 가 문장부호라서)
+// 코드 블록(```) · 인라인 코드(`…`) 안은 건드리지 않음 — 인라인 코드는 잠시 자리표(\u0001n\u0002)로 바꿔 두고 끝나면 되돌림
+const PUNCT = /[\p{P}\p{S}\u0001\u0002]/u, WORD = /[\p{L}\p{N}]/u;
+function fixTightBold(md) {
+  let fence = false;
+  return (md || '').split('\n').map((line) => {
+    if (/^\s*(```|~~~)/.test(line)) { fence = !fence; return line; }
+    if (fence || !line.includes('**')) return line;
+    const codes = [];
+    const safe = line.replace(/`[^`]*`/g, (c) => `\u0001${codes.push(c) - 1}\u0002`);
+    return safe.replace(/\*\*(?=\S)([^*\n]*?\S)\*\*/g, (m, inner, at, s) => {
+      const before = s[at - 1] || '', after = s[at + m.length] || '';
+      const tight = (PUNCT.test(inner.slice(-1)) && WORD.test(after)) || (PUNCT.test(inner[0]) && WORD.test(before));
+      return tight ? `<strong>${inner}</strong>` : m;
+    }).replace(/\u0001(\d+)\u0002/g, (m, n) => codes[n]);
+  }).join('\n');
+}
+
 export function renderMarkdown(md) {
-  const raw = marked.parse(transformUploadedImages(md));
+  const raw = marked.parse(transformUploadedImages(fixTightBold(md)));
   // 표는 감싸는 상자 안에서만 가로 스크롤 (표 자체는 본문 폭을 꽉 채움)
   const html = transformCommands(transformCallouts(raw)).replace(/<table>/g, '<div class="table-wrap"><table>').replace(/<\/table>/g, '</table></div>');
   const clean = DOMPurify.sanitize(html, { ADD_ATTR: ['data-cmd', 'data-pw-img', 'target'] });
