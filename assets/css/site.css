@@ -1646,12 +1646,12 @@ input::placeholder, textarea::placeholder {
 .prose table.ench.tier-legend { --tier-wash: #f7ecd3; --tier-ink: #8a5c18; --tier-line: #e6d1a3; }
 .prose table.ench { border-top: 3px solid var(--tier-line); }
 .prose table.ench th { background: var(--tier-wash); color: var(--tier-ink); white-space: nowrap; }
-.prose table.ench th:nth-child(1) { width: 16%; }
-.prose table.ench th:nth-child(2) { width: 1%; text-align: center; }
-.prose table.ench th:nth-child(3) { width: 42%; }
+.prose table.ench:not(.ench-pool) th:nth-child(1) { width: 16%; }
+.prose table.ench:not(.ench-pool) th:nth-child(2) { width: 1%; text-align: center; }
+.prose table.ench:not(.ench-pool) th:nth-child(3) { width: 42%; }
 .prose table.ench td { vertical-align: middle; line-height: 1.6; }
-.prose table.ench td:nth-child(2) { text-align: center; }
-.prose table.ench td:last-child { color: var(--label); font-size: 13.5px; }
+.prose table.ench:not(.ench-pool) td:nth-child(2) { text-align: center; }
+.prose table.ench:not(.ench-pool) td:last-child { color: var(--label); font-size: 13.5px; }
 .prose table.ench tbody tr:nth-child(even) td { background: #faf7ee; }
 .prose table.ench tbody tr:hover td { background: var(--tier-wash); }
 .prose .ench-name { font-size: 17px; line-height: 1.35; color: #1f2f3a; letter-spacing: -0.2px; }
@@ -1659,8 +1659,8 @@ input::placeholder, textarea::placeholder {
 .prose .ench-tag { padding: 0 6px; border: 1px solid var(--line-faint); border-radius: 5px; background: transparent; color: #7d93a2; font-size: 11px; line-height: 1.6; white-space: nowrap; }
 .prose .ench-lv { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 7px; background: var(--tier-wash); color: var(--tier-ink); box-shadow: inset 0 0 0 1px var(--tier-line); font-size: 12px; }
 @media (max-width:760px) {
-  .prose table.ench td:nth-child(2) { text-align: left; }
-  .prose table.ench td:last-child { font-size: 14px; }
+  .prose table.ench:not(.ench-pool) td:nth-child(2) { text-align: left; }
+  .prose table.ench:not(.ench-pool) td:last-child { font-size: 14px; }
   .prose .ench-name { font-size: 18px; }
   .prose .ench-tags { margin: 4px 0 2px; }
   .prose .ench-lv { justify-self: start; }
@@ -1679,3 +1679,29 @@ input::placeholder, textarea::placeholder {
 @keyframes pw-hit { 0%, 55% { background-color: #f6e7b8; } 100% { background-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .prose .pw-hit, .prose .pw-hit > td { animation: none; background-color: #f6e7b8; } }
 @media (max-width:760px) { .prose .ench-filter { top: 8px; height: 46px; } .prose .ench-filter input { font-size: 16px; } }
+
+/* 바닐라 「장비 | 후보 인첸트」 표 (markdown.js poolTable) */
+.prose table.ench-pool th:nth-child(1) { width: 24%; }
+.prose .ench-picks { display: flex; flex-wrap: wrap; gap: 4px 5px; }
+.prose .ench-pick { padding: 1px 9px; border-radius: 999px; background: var(--cream); color: var(--ink); font-size: 13px; line-height: 1.7; white-space: nowrap; }
+.prose .ench-pick.hit { background: #f6e7b8; color: #6b4a12; box-shadow: inset 0 0 0 1px #e3c97d; }
+
+/* 장비별 등급 칩 (markdown.js enchantFilter) */
+.prose .ench-equip { margin: -8px 0 22px; padding: 12px 14px; border: 1px solid var(--line-faint); border-radius: 12px; background: #fbf8f0; }
+.prose .eq-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin-bottom: 9px; font-size: 13px; color: var(--label); }
+.prose .eq-legend { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.prose .eq-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; }
+.prose .eq-dot.elite { background: #5b8fbf; }
+.prose .eq-dot.unique { background: #6aa463; }
+.prose .eq-dot.legend { background: #d0a14a; }
+.prose .eq-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.prose .eq-chip { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 6px 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.prose .eq-chip:hover { border-color: var(--accent); }
+.prose .eq-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--mint-wash); box-shadow: inset 0 0 0 1px var(--accent); }
+.prose .eq-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.prose .eq-name { margin-right: 2px; }
+.prose .eq-n { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 999px; font-size: 11px; line-height: 1; }
+.prose .eq-n.elite { background: #d3e4f4; color: #2c5f8a; }
+.prose .eq-n.unique { background: #d5ead0; color: #3b6b36; }
+.prose .eq-n.legend { background: #f1dfb4; color: #8a5c18; }
+@media (max-width:760px) { .prose table.ench-pool .ench-name { font-size: 15px; } .prose table.ench-pool th:nth-child(1) { width: 28%; } }

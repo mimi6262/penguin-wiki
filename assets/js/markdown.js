@@ -55,6 +55,7 @@ function labelTableCells(html) {
     t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => { if (heads[i]) td.dataset.label = heads[i]; }));
     t.querySelectorAll('td').forEach(levelChips);
     if (['인첸트', '적용 장비', '최대 레벨'].every((h) => heads.includes(h))) enchantTable(t, heads);
+    else if (heads.length === 2 && heads[0] === '장비' && /인첸트|인챈트/.test(heads[1])) poolTable(t);
   });
   return tpl.innerHTML;
 }
@@ -123,6 +124,25 @@ function enchantTable(t, heads) {
   });
 }
 
+// 바닐라 「장비 | 후보 인첸트」 표: 장비 이름은 크게, 후보 인첸트는 하나씩 칩으로
+function poolTable(t) {
+  t.classList.add('ench', 'ench-pool');
+  t.querySelectorAll('tbody tr').forEach((tr) => {
+    const [first, list] = tr.children;
+    if (!first || !list) return;
+    const name = document.createElement('div');
+    name.className = 'ench-name';
+    name.textContent = first.textContent.trim().split(/\s*·\s*/).join(' · ');
+    first.textContent = '';
+    first.append(name);
+    const picks = document.createElement('div');
+    picks.className = 'ench-picks';
+    list.textContent.split(/\s*[·,]\s*/).map((s) => s.trim()).filter(Boolean).forEach((s) => picks.append(Object.assign(document.createElement('span'), { className: 'ench-pick', textContent: s })));
+    list.textContent = '';
+    list.append(picks);
+  });
+}
+
 // 렌더된 컨테이너에 목차 id 부여 + 목차 목록 반환 (업로드 이미지도 여기서 채웁니다)
 export function decorate(container) {
   const used = new Set();
@@ -151,40 +171,94 @@ function textMatches(text, q) {
 }
 
 // 인첸트 표가 있는 문서: 첫 표 위에 찾기 칸 — 이름 · 장비로 줄을 걸러 냄 (맞는 줄이 없는 표는 제목과 함께 숨김)
+// 등급별 커스텀 인첸트 표면 찾기 칸 아래에 「장비별 등급」 칩: 장비마다 어느 등급에 몇 개 있는지 보여 주고, 누르면 그 장비로 거름
+const TIERS = [['elite', '엘리트'], ['unique', '유니크'], ['legend', '레전더리']];
+// 「방어구」 태그는 네 부위 모두에 붙는 인첸트 — 장비별로 셀 때는 부위마다 하나씩 셈
+const EQUIP_GROUP = { 방어구: ['투구', '흉갑', '각반', '부츠'] };
 function enchantFilter(container) {
   const tables = [...container.querySelectorAll('table.ench')];
   if (!tables.length) return;
+  const pool = tables.every((t) => t.classList.contains('ench-pool'));
   const groups = tables.map((t) => {
     const wrap = t.closest('.table-wrap') || t;
     const head = wrap.previousElementSibling && /^H[2-4]$/.test(wrap.previousElementSibling.tagName) ? wrap.previousElementSibling : null;
-    const rows = [...t.querySelectorAll('tbody tr')].map((tr) => ({
-      tr,
-      keys: [tr.querySelector('.ench-name')?.textContent || tr.children[0]?.textContent || '', ...[...tr.querySelectorAll('.ench-tag')].map((x) => x.textContent)],
-    }));
-    return { wrap, head, rows };
+    const tier = (TIERS.find(([k]) => t.classList.contains('tier-' + k)) || [''])[0];
+    const rows = [...t.querySelectorAll('tbody tr')].map((tr) => {
+      const name = tr.querySelector('.ench-name')?.textContent || tr.children[0]?.textContent || '';
+      const equip = t.classList.contains('ench-pool') ? name.split(/\s*·\s*/) : [...new Set([...tr.querySelectorAll('.ench-tag')].flatMap((x) => EQUIP_GROUP[x.textContent] || [x.textContent]))];
+      const picks = [...tr.querySelectorAll('.ench-pick')];
+      const tags = [...equip, ...[...tr.querySelectorAll('.ench-tag')].map((x) => x.textContent)]; // 글자로 찾을 때는 「방어구」 그대로도
+      return { tr, name, equip, tags, picks };
+    });
+    return { wrap, head, tier, rows };
   });
+
   const box = document.createElement('div');
   box.className = 'ench-filter';
   box.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'
-    + '<input type="search" placeholder="인첸트 이름 · 장비로 찾기 (초성도 돼요: ㄴㄹ)" aria-label="인첸트 찾기" autocomplete="off" enterkeyhint="search">'
+    + `<input type="search" placeholder="${pool ? '장비 · 인첸트 찾기 (초성 OK: ㅎㅇ)' : '인첸트 · 장비 찾기 (초성 OK: ㄴㄹ)'}" aria-label="인첸트 찾기" autocomplete="off" enterkeyhint="search">`
     + '<span class="ench-count" aria-live="polite"></span>';
   const first = groups[0];
   (first.head || first.wrap).before(box);
   const input = box.querySelector('input'), count = box.querySelector('.ench-count');
   const empty = Object.assign(document.createElement('p'), { className: 'ench-empty', textContent: '찾는 인첸트가 없어요. 이름을 조금만 써 보세요.', hidden: true });
-  box.after(empty);
+
+  // 장비별 등급 칩
+  let equipSel = '';
+  let bar = null;
+  if (groups.some((g) => g.tier)) {
+    const byEquip = new Map();
+    groups.forEach((g) => g.rows.forEach((r) => r.equip.forEach((e) => {
+      if (!byEquip.has(e)) byEquip.set(e, {});
+      const c = byEquip.get(e);
+      c[g.tier] = (c[g.tier] || 0) + 1;
+    })));
+    bar = document.createElement('div');
+    bar.className = 'ench-equip';
+    bar.innerHTML = `<div class="eq-head"><span>장비별 등급</span><span class="eq-legend">${TIERS.map(([k, n]) => `<i class="eq-dot ${k}"></i>${n}`).join('')}</span></div><div class="eq-list"></div>`;
+    const list = bar.querySelector('.eq-list');
+    byEquip.forEach((c, e) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'eq-chip';
+      b.dataset.equip = e;
+      b.setAttribute('aria-pressed', 'false');
+      b.title = TIERS.filter(([k]) => c[k]).map(([k, n]) => `${n} ${c[k]}개`).join(' · ');
+      b.append(Object.assign(document.createElement('span'), { className: 'eq-name', textContent: e }));
+      TIERS.forEach(([k]) => { if (c[k]) b.append(Object.assign(document.createElement('span'), { className: 'eq-n ' + k, textContent: c[k] })); });
+      list.append(b);
+    });
+    list.addEventListener('click', (ev) => {
+      const b = ev.target.closest('.eq-chip');
+      if (!b) return;
+      equipSel = equipSel === b.dataset.equip ? '' : b.dataset.equip;
+      list.querySelectorAll('.eq-chip').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.equip === equipSel)));
+      run();
+    });
+    box.after(bar);
+  }
+  (bar || box).after(empty);
+
   const run = () => {
     const q = norm(input.value);
     let total = 0;
     groups.forEach((g) => {
       let n = 0;
-      g.rows.forEach((r) => { const ok = !q || r.keys.some((k) => textMatches(k, q)); r.tr.hidden = !ok; if (ok) n++; });
-      g.wrap.hidden = !!q && !n;
-      if (g.head) g.head.hidden = !!q && !n;
+      g.rows.forEach((r) => {
+        const pickHit = r.picks.map((p) => !!q && textMatches(p.textContent, q));
+        r.picks.forEach((p, i) => p.classList.toggle('hit', pickHit[i]));
+        const ok = (!q || textMatches(r.name, q) || r.tags.some((e) => textMatches(e, q)) || pickHit.some(Boolean))
+          && (!equipSel || r.equip.includes(equipSel));
+        r.tr.hidden = !ok;
+        if (ok) n++;
+      });
+      const filtering = !!q || !!equipSel;
+      g.wrap.hidden = filtering && !n;
+      if (g.head) g.head.hidden = filtering && !n;
       total += n;
     });
-    count.textContent = q ? `${total}개` : '';
-    empty.hidden = !q || total > 0;
+    count.textContent = q || equipSel ? `${total}개` : '';
+    empty.hidden = !(q || equipSel) || total > 0;
   };
   input.addEventListener('input', run);
   input.addEventListener('keydown', (e) => { if (e.key === 'Escape' && input.value) { input.value = ''; run(); } });
