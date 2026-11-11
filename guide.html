@@ -18,8 +18,9 @@
     <div style="display: contents">
     <button type="button" class="btn sm secondary tree-toggle" id="tree-toggle" aria-expanded="false" aria-controls="tree">목차 보기</button>
     <aside class="card tree" aria-label="컨텐츠 목차" id="tree">
-      <div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠</div>
-      <div class="loading">목차를 불러오는 중입니다</div>
+      <div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠<span id="tree-qtag"></span></div>
+      <label class="tree-find"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="tree-find" placeholder="문서 찾기 (초성 OK)" aria-label="목차에서 문서 찾기" autocomplete="off" enterkeyhint="search"></label>
+      <div id="tree-list"><div class="loading">목차를 불러오는 중입니다</div></div>
     </aside>
     </div>
 
@@ -73,9 +74,11 @@
   //  2) 목차 · 이전/다음 · 본문 속 링크로 다른 문서를 열 때는 페이지를 다시 불러오지 않고 본문만 바꿉니다
   //     (주소는 그대로 바뀌어 뒤로 가기 · 새로고침 · 주소 공유가 됩니다)
   const DATA_KEY = 'pw_guide_v1';
-  const TREE_KEY = 'pw_tree_open';
+  // 섹션 펼침은 지금 보는 문서에서만 기억 (다른 문서로 가면 그 문서가 든 섹션만 펼친 상태로 돌아감)
   let treeOpen = {};
-  try { treeOpen = JSON.parse(localStorage.getItem(TREE_KEY) || '{}') || {}; } catch {}
+  let treeDoc;      // treeOpen 이 어느 문서에서 만든 것인지
+  let findQ = '';   // 목차 찾기 칸에 쓴 글자
+  try { localStorage.removeItem('pw_tree_open'); } catch {} // 예전에 기억해 두던 펼침 상태는 지움
   const urlState = (u) => ({ slug: u.searchParams.get('p'), sec: u.searchParams.get('s'), q: (u.searchParams.get('q') || '').trim().toLowerCase(), hl: (u.searchParams.get('hl') || '').trim() });
   let at = urlState(new URL(location.href));
   let data = null;   // { sections, pages, extra } 지금 그린 목차 · 문서
@@ -103,36 +106,53 @@
   };
 
   // ---- 목차 ----
-  // 펼침 상태는 브라우저에 기억합니다 — 접은 섹션은 다른 문서로 옮겨도 접힌 채로. 지금 보는 문서가 든 섹션만은 늘 펼칩니다
+  // 지금 보는 문서가 든 섹션만 펼칩니다 (직접 펼친 섹션은 이 문서를 보는 동안만 펼친 채로)
+  // 문서가 1개뿐인 섹션은 접고 펴는 줄 없이 바로 그 문서로 가는 줄 하나로 보여 줍니다
   function renderTree(v, current) {
     const { q } = at;
+    const docKey = current ? current.id : '';
+    if (docKey !== treeDoc) { treeOpen = {}; treeDoc = docKey; }
+    const filtering = !!q || !!findQ;
     const pageLink = (p, secName = '') => {
       const name = treeTitle(p.title, secName);
       return `<a class="page${current && p.id === current.id ? ' active' : ''}" href="guide.html?p=${encodeURIComponent(p.id)}"${name !== p.title ? ` title="${esc(p.title)}"` : ''}><span class="page-name">${esc(name)}</span>${p.public === false ? '<span class="tag gray draft">비공개</span>' : ''}</a>`;
     };
-    const matches = (p) => !q || (p.title || '').toLowerCase().includes(q);
+    // 찾기 칸: 문서 제목이나 그 문서가 든 섹션(상위 섹션 포함) 이름이 맞으면 보여 줌
+    const secOf = (id) => data.sections.find((x) => x.id === id);
+    const findHit = (p) => {
+      if (!findQ || md.nameMatches(p.title, findQ)) return true;
+      const sec = secOf(p.sectionId), parent = sec && sec.parentId ? secOf(sec.parentId) : null;
+      return [sec, parent].some((x) => x && md.nameMatches(x.name, findQ));
+    };
+    const matches = (p) => (!q || (p.title || '').toLowerCase().includes(q)) && findHit(p);
     const openId = current ? current.sectionId : at.sec;
-    const isOpen = (id, hasCurrent) => !!q || hasCurrent || treeOpen[id] === 1;
+    const isOpen = (id, hasCurrent) => filtering || hasCurrent || treeOpen[id] === 1;
+    // 문서 1개짜리 섹션: 섹션 아이콘 · 이름 줄을 누르면 바로 그 문서로
+    const soloLink = (s, p, level) => `<a class="sec ${level} solo${current && p.id === current.id ? ' active' : ''}" href="guide.html?p=${encodeURIComponent(p.id)}"${p.title !== s.name ? ` title="${esc(p.title)}"` : ''}><span class="chev-gap" aria-hidden="true"></span>${level === 'top' ? `<span class="sec-ico" aria-hidden="true">${guideIllustration(s.name, s.icon)}</span>` : ''}<span class="sec-name">${esc(s.name)}</span>${p.public === false ? '<span class="tag gray draft">비공개</span>' : ''}</a>`;
     // 섹션 줄: 펼침 화살표 · (최상위만) 홈 카드와 같은 아이콘 · 이름 · 문서 수
     const secHead = (s, level, count, open) => `<div class="sec ${level}${open ? ' open' : ''}" data-toggle data-sec="${esc(s.id)}" role="button" tabindex="0" aria-expanded="${open}" aria-label="${esc(s.name)} (문서 ${count}개)">${CHEV}${level === 'top' ? `<span class="sec-ico" aria-hidden="true">${guideIllustration(s.name, s.icon)}</span>` : ''}<span class="sec-name">${esc(s.name)}</span><span class="cnt" aria-hidden="true">${count}</span></div>`;
-    let html = `<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠${q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : ''}</div>`;
+    $('#tree-qtag').innerHTML = q ? ` <span class="tag" style="margin-left:auto">검색: ${esc(q)}</span>` : '';
+    let html = '';
     v.tree.forEach((t) => {
       const own = t.pages.filter(matches);
       let kidCount = 0;
       const kids = t.children.map((c) => {
         const cPages = c.pages.filter(matches);
-        if (q && !cPages.length) return '';
+        if (filtering && !cPages.length) return '';
         kidCount += cPages.length;
+        if (c.pages.length === 1 && cPages.length === 1) return soloLink(c.section, cPages[0], 'sub');
         const open = isOpen(c.section.id, c.section.id === openId);
         return secHead(c.section, 'sub', cPages.length, open) + `<div class="children"${open ? '' : ' hidden'}>${cPages.map((p) => pageLink(p, c.section.name)).join('')}</div>`;
       }).join('');
-      if (q && !own.length && !kidCount) return;
+      if (filtering && !own.length && !kidCount) return;
+      if (!t.children.length && t.pages.length === 1 && own.length === 1) { html += soloLink(t.section, own[0], 'top'); return; }
       const open = isOpen(t.section.id, t.section.id === openId || t.children.some((c) => c.section.id === openId));
       html += secHead(t.section, 'top', own.length + kidCount, open) + `<div class="children"${open ? '' : ' hidden'}>${own.map((p) => pageLink(p, t.section.name)).join('')}${kids}</div>`;
     });
     if (v.orphans.length) html += `<div class="children loose">${v.orphans.filter(matches).map((p) => pageLink(p)).join('')}</div>`;
     if (!v.tree.length && !v.orphans.length) html += '<div class="empty">아직 문서가 없습니다.</div>';
-    if (html !== treeHtml) { $('#tree').innerHTML = html; treeHtml = html; }
+    else if (filtering && !html.includes('href=')) html += '<div class="empty">찾는 문서가 없어요.</div>';
+    if (html !== treeHtml) { $('#tree-list').innerHTML = html; treeHtml = html; }
   }
   const toggleSec = (sec) => {
     const open = sec.classList.toggle('open');
@@ -140,10 +160,13 @@
     const ch = sec.nextElementSibling;
     if (ch) ch.hidden = !open;
     treeHtml = ''; // 직접 바꾼 화면이라 다음엔 새로 그림
-    if (at.q) return; // 검색 중 펼침은 기억하지 않음
+    if (at.q || findQ) return; // 찾는 중 펼침은 기억하지 않음
     treeOpen[sec.dataset.sec] = open ? 1 : 0;
-    try { localStorage.setItem(TREE_KEY, JSON.stringify(treeOpen)); } catch {}
   };
+  // 목차 찾기 칸: 쓰는 대로 제목으로 거름 (띄어쓰기 무시 · 초성 가능), Esc 로 지움
+  const runFind = () => { findQ = $('#tree-find').value.trim(); if (data && md) renderTree(viewOf(), pick(viewOf())); };
+  $('#tree-find').addEventListener('input', runFind);
+  $('#tree-find').addEventListener('keydown', (e) => { if (e.key === 'Escape' && e.target.value) { e.target.value = ''; runFind(); } });
   $('#tree').addEventListener('click', (e) => { const sec = e.target.closest('[data-toggle]'); if (sec) toggleSec(sec); });
   $('#tree').addEventListener('keydown', (e) => {
     const sec = e.target.closest('[data-toggle]');
@@ -255,7 +278,7 @@
   let revealed = null;
   function revealActive() {
     const tree = $('#tree');
-    const a = tree.querySelector('.page.active');
+    const a = tree.querySelector('.page.active, .solo.active');
     if (!a || a.getAttribute('href') === revealed || tree.scrollHeight <= tree.clientHeight) return;
     revealed = a.getAttribute('href');
     const t = tree.getBoundingClientRect(), r = a.getBoundingClientRect();
@@ -325,7 +348,7 @@
   } catch (e) {
     console.warn(e);
     if (!data) {
-      $('#tree').innerHTML = '<div class="head"><span class="seal sm" aria-hidden="true"></span>컨텐츠</div><div class="empty">목차를 불러오지 못했습니다.</div>';
+      $('#tree-list').innerHTML = '<div class="empty">목차를 불러오지 못했습니다.</div>';
       $('#content').innerHTML = '<p>문서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
     }
   }

@@ -1707,3 +1707,15 @@ input::placeholder, textarea::placeholder {
 @media (max-width:760px) { .prose table.ench-pool .ench-name { font-size: 15px; } .prose table.ench-pool th:nth-child(1) { width: 28%; } }
 .prose .eq-chip.eq-all { padding-left: 12px; }
 .prose .eq-chip.eq-all .eq-name { color: var(--wood-dark); }
+
+/* ---------- 왼쪽 목차: 찾기 칸 · 문서 1개짜리 섹션 (guide.html renderTree) ---------- */
+#tree-list { display: flex; flex-direction: column; gap: 2px; }
+.tree .tree-find { position: sticky; top: -19px; z-index: 2; display: flex; align-items: center; gap: 7px; margin: -2px 0 8px; padding: 0 10px; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); box-shadow: 0 6px 8px -6px rgba(45, 64, 76, .12); cursor: text; }
+.tree .tree-find:focus-within { border-color: var(--accent); }
+.tree .tree-find svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--label); }
+.tree .tree-find input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); }
+.tree .tree-find input::placeholder { color: #97a8b4; }
+.tree a.sec.solo { text-decoration: none; }
+.tree .sec .chev-gap { width: 12px; flex-shrink: 0; }
+.tree a.sec.solo.active { background: var(--mint-wash); color: var(--accent); box-shadow: rgb(114, 158, 188) 3px 0 0 inset; }
+@media (max-width:760px) { .tree .tree-find { position: static; } .tree .tree-find input { font-size: 16px; } }

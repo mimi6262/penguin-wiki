@@ -185,6 +185,8 @@ export function decorate(container) {
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, '');
 const chosung = (s) => [...s].map((ch) => { const c = ch.charCodeAt(0) - 0xAC00; return c >= 0 && c < 11172 ? CHO[Math.floor(c / 588)] : ch; }).join('');
+// 다른 곳(목차 찾기 칸)에서 쓰는 이름 찾기: 띄어쓰기 · 대소문자 무시, 초성만 써도 됨
+export function nameMatches(text, raw) { const q = norm(raw); return !q || textMatches(text || '', q); }
 function textMatches(text, q) {
   const t = norm(text);
   return t.includes(q) || (/^[ㄱ-ㅎ]+$/.test(q) && chosung(t).includes(q));
