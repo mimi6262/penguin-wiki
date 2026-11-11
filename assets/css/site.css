@@ -1705,3 +1705,5 @@ input::placeholder, textarea::placeholder {
 .prose .eq-n.unique { background: #d5ead0; color: #3b6b36; }
 .prose .eq-n.legend { background: #f1dfb4; color: #8a5c18; }
 @media (max-width:760px) { .prose table.ench-pool .ench-name { font-size: 15px; } .prose table.ench-pool th:nth-child(1) { width: 28%; } }
+.prose .eq-chip.eq-all { padding-left: 12px; }
+.prose .eq-chip.eq-all .eq-name { color: var(--wood-dark); }

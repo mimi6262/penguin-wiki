@@ -217,6 +217,15 @@ function enchantFilter(container) {
     bar.className = 'ench-equip';
     bar.innerHTML = `<div class="eq-head"><span>장비별 등급</span><span class="eq-legend">${TIERS.map(([k, n]) => `<i class="eq-dot ${k}"></i>${n}`).join('')}</span></div><div class="eq-list"></div>`;
     const list = bar.querySelector('.eq-list');
+    // 맨 앞 「전체」: 장비 거르기를 풀고 모두 보기 (처음엔 눌린 상태)
+    const all = document.createElement('button');
+    all.type = 'button';
+    all.className = 'eq-chip eq-all';
+    all.dataset.equip = '';
+    all.setAttribute('aria-pressed', 'true');
+    all.append(Object.assign(document.createElement('span'), { className: 'eq-name', textContent: '전체' }));
+    TIERS.forEach(([k]) => { const n = groups.filter((g) => g.tier === k).reduce((s, g) => s + g.rows.length, 0); if (n) all.append(Object.assign(document.createElement('span'), { className: 'eq-n ' + k, textContent: n })); });
+    list.append(all);
     byEquip.forEach((c, e) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -231,7 +240,7 @@ function enchantFilter(container) {
     list.addEventListener('click', (ev) => {
       const b = ev.target.closest('.eq-chip');
       if (!b) return;
-      equipSel = equipSel === b.dataset.equip ? '' : b.dataset.equip;
+      equipSel = b.dataset.equip && equipSel !== b.dataset.equip ? b.dataset.equip : '';
       list.querySelectorAll('.eq-chip').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.equip === equipSel)));
       run();
     });
