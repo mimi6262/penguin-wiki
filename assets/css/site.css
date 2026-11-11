@@ -1363,6 +1363,10 @@ body { background: var(--bg); background-image: radial-gradient(#82654b0c .7px,t
 /* ---------- 오른쪽 문서 목차 ----------
    164px 은 제목이 길면 「주세/요」처럼 글자 단위로 끊겨서, 화면이 넓을 땐 칸을 넓히고 낱말 단위로만 줄을 바꿈. 길면 목차 안에서 스크롤 */
 .toc { max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+/* 왼쪽 목차가 화면보다 길면 목차 안에서 스크롤 (본문을 끝까지 내리지 않아도 아래 항목이 보이게) */
+@media (min-width: 1025px) {
+  .tree { max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+}
 @media (min-width: 1280px) {
   .container.guide-layout { grid-template-columns: 232px minmax(0, 1fr) 220px; }
 }

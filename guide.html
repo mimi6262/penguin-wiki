@@ -234,6 +234,19 @@
     const current = pick(v);
     renderTree(v, current);
     renderBody(v, current);
+    revealActive();
+  }
+
+  // 왼쪽 목차가 길 때: 지금 보는 문서가 목차 칸 안에 보이도록 목차만 스크롤 (창은 그대로)
+  let revealed = null;
+  function revealActive() {
+    const tree = $('#tree');
+    const a = tree.querySelector('.page.active');
+    if (!a || a.getAttribute('href') === revealed || tree.scrollHeight <= tree.clientHeight) return;
+    revealed = a.getAttribute('href');
+    const t = tree.getBoundingClientRect(), r = a.getBoundingClientRect();
+    if (r.top >= t.top && r.bottom <= t.bottom) return; // 이미 보이면 그대로
+    tree.scrollTop += (r.top - t.top) - (tree.clientHeight - r.height) / 2;
   }
 
   // ---- 페이지를 다시 불러오지 않고 다른 문서로 ----
