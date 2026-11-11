@@ -1,5 +1,5 @@
 // 관리 화면 2차 패널: 이벤트 · 패치노트(카테고리) · 알림 설정 · 명령어
-import { $, $$, esc, toast, fmtDate } from '../assets/js/ui.js';
+import { $, $$, esc, toast, fmtDate, errText } from '../assets/js/ui.js';
 import * as C from '../assets/js/content.js';
 import * as T from '../assets/js/time.js';
 import * as D from '../assets/js/discord.js';
@@ -424,123 +424,263 @@ export async function renderPopups(ctx) {
 }
 
 // ================= 명령어 관리 =================
-// 표는 분류별로 묶어 보여주고, ▲▼로 분류 안에서 / 분류 묶음끼리 자리를 바꿉니다. 순서 값은 전체를 10, 20, 30…으로 다시 매깁니다.
+// 왼쪽 분류 · 가운데 목록 · 오른쪽 입력 칸(줄을 누르거나 새 명령어를 눌렀을 때만 열림). 한 번에 한 분류만 보여 스크롤을 줄입니다.
+// 순서는 손잡이를 끌어서(또는 손잡이에서 ↑↓ 키) 바꾸고, 명령어를 왼쪽 분류에 놓으면 분류가 바뀝니다. 순서 값은 전체를 10, 20, 30…으로 다시 매깁니다.
+const GRIP = '<svg aria-hidden="true" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="8" r="1.6"/><circle cx="9" cy="8" r="1.6"/><circle cx="3" cy="13" r="1.6"/><circle cx="9" cy="13" r="1.6"/></svg>';
+const CM_ALL = Symbol('전체');
+let cmView = null; // 고른 분류(이름 또는 CM_ALL). 다른 메뉴에 다녀와도 유지
+
 export async function renderCommands(ctx) {
   const { head, me } = ctx;
   let panel = ctx.freshPanel();
   panel.innerHTML = head('명령어 관리') + '<div class="loading">불러오는 중</div>';
-  const cmds = await C.listCommands();
+  const [{ db, doc, writeBatch, serverTimestamp }, firstList] = await Promise.all([import('../assets/js/firebase.js'), C.listCommands()]);
+  let cmds = firstList, groups = [], q = '', editing = null, saving = false;
   // 분류 묶음: 처음 나타나는 순서대로
-  const groups = [];
-  cmds.forEach((c) => { const k = c.category || ''; let g = groups.find((x) => x.name === k); if (!g) { g = { name: k, items: [] }; groups.push(g); } g.items.push(c); });
-  const cats = groups.map((g) => g.name).filter(Boolean);
-  const MOVE = (attr, id, len, idx, small = true) => `
-    <div class="actions" style="gap: 2px">
-      <button type="button" class="icon-btn move" ${attr}="${esc(id)}" data-dir="-1" aria-label="위로" ${idx <= 0 ? 'disabled' : ''}>▲</button>
-      <button type="button" class="icon-btn move" ${attr}="${esc(id)}" data-dir="1" aria-label="아래로" ${idx >= len - 1 ? 'disabled' : ''}>▼</button>
-    </div>`;
-  const COLS = 'minmax(0,1fr) minmax(0,1.3fr) 80px 56px 72px';
+  const regroup = () => {
+    groups = [];
+    cmds.forEach((c) => { const k = c.category || ''; let g = groups.find((x) => x.name === k); if (!g) { g = { name: k, items: [] }; groups.push(g); } g.items.push(c); });
+  };
+  regroup();
+
   panel = ctx.freshPanel();
-  panel.innerHTML = head('명령어 관리', `명령어 ${cmds.length}개 · 분류 ${cats.length}개`, '<button type="button" class="btn primary" id="cm-new">새 명령어</button>') + `
-    <div class="admin-split">
-      <div class="stack" style="gap: 8px">
-        <div class="subtitle" style="font-size: 12px">명령어 페이지에 보이는 순서 그대로입니다. 분류 줄의 ▲▼는 분류 묶음째, 명령어 줄의 ▲▼는 그 분류 안에서 자리를 바꿉니다.</div>
-        <div class="card plain table" style="--tmin: 620px">
-          <div class="thead" style="grid-template-columns: ${COLS}"><span>명령어</span><span>설명</span><span>권한</span><span>이동</span><span></span></div>
-          ${groups.map((g, gi) => `
-            <div class="tr" style="grid-template-columns: minmax(0,1fr) 56px 72px; min-height: 40px; background: var(--cream)">
-              <span style="font-family: var(--font-head); color: var(--wood)">${g.name ? esc(g.name) : '<span style="color: var(--muted)">분류 없음</span>'} <span style="font-family: var(--font-body); font-size: 12px; color: var(--muted)">${g.items.length}개</span></span>
-              ${MOVE('data-move-group', g.name, groups.length, gi)}
-              <span></span>
-            </div>
-            ${g.items.map((c, i) => `
-            <div class="tr" style="grid-template-columns: ${COLS}">
-              <div class="stack" style="gap: 2px; align-items: flex-start; padding: 8px 0"><code class="cmd-chip" title="${esc(c.command)}">${esc(c.command)}</code>${c.aliases ? `<span style="font-size: 11px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">별칭 ${esc(c.aliases)}</span>` : ''}</div>
-              <span style="font-size: 13px" title="${esc(c.desc || '')}">${esc(c.desc || '')}</span>
-              <span>${c.permission ? `<span class="tag">${esc(c.permission)}</span>` : ''}</span>
-              ${MOVE('data-move-cmd', c.id, g.items.length, i)}
-              <div class="actions">
-                <button type="button" class="icon-btn" data-edit="${c.id}" aria-label="편집">${EDIT}</button>
-                <button type="button" class="icon-btn danger" data-del="${c.id}" aria-label="삭제">${TRASH}</button>
-              </div>
-            </div>`).join('')}`).join('') || '<div class="empty">명령어가 없습니다.</div>'}
+  panel.innerHTML = head('명령어 관리', '<span id="cm-count"></span>', '<button type="button" class="btn primary" id="cm-new">새 명령어</button>') + `
+    <div class="cm-layout" id="cm-layout">
+      <nav class="card plain cm-cats" aria-label="분류">
+        <div class="cm-cats-label">분류</div>
+        <div class="cm-catlist" id="cm-catlist"></div>
+        <p class="cm-cats-tip">명령어를 여기로 끌어 놓으면 분류가 바뀝니다.</p>
+      </nav>
+      <section class="card plain cm-main" aria-label="명령어 목록">
+        <div class="cm-tools">
+          <label class="cm-search">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input type="search" id="cm-q" aria-label="명령어 검색" placeholder="명령어 · 별칭 · 설명 검색 (전체 분류)" autocomplete="off">
+          </label>
+          <span class="cm-hint" id="cm-hint" aria-live="polite"></span>
         </div>
-      </div>
-      <form class="card plain form-card" id="cm-form">
-        <div class="row-between"><h2 style="font-size: 20px" id="cm-form-title">새 명령어</h2><button type="button" class="btn xs ghost" id="cm-reset">새로</button></div>
-        <input type="hidden" id="cm-id">
+        <div id="cm-list"></div>
+      </section>
+      <form class="card plain form-card cm-form" id="cm-form" hidden>
+        <div class="row-between"><h2 style="font-size: 20px" id="cm-form-title">새 명령어</h2><button type="button" class="btn xs ghost" id="cm-close">닫기</button></div>
         ${F('cm-command', '명령어', '', { ph: '/명령어 [인자]', extra: 'style="font-family: var(--font-mono)"' })}
         ${F('cm-aliases', '별칭 (쉼표로 구분)', '', { ph: '/짧은명령, /alias' })}
-        ${F('cm-desc', '설명', '')}
+        <div class="field"><label for="cm-desc">설명</label><textarea class="textarea" id="cm-desc" rows="3"></textarea></div>
         <div class="form-row">
-          <div class="field"><label for="cm-category">분류</label><input class="input" id="cm-category" list="cm-cats" placeholder="예: 기본"><datalist id="cm-cats">${cats.map((c) => `<option value="${esc(c)}">`).join('')}</datalist></div>
+          <div class="field"><label for="cm-category">분류</label><input class="input" id="cm-category" list="cm-cats" placeholder="예: 기본"><datalist id="cm-cats"></datalist></div>
           ${F('cm-permission', '권한', '', { ph: '예: 전체 / VIP / 운영자' })}
         </div>
-        <div class="notice-box" style="font-size: 12px">새 명령어는 그 분류 맨 아래에 놓입니다. 자리는 표의 ▲▼로 옮기세요.</div>
-        <button type="submit" class="btn primary">저장</button>
+        <button type="submit" class="btn primary" id="cm-save">저장</button>
+        <button type="button" class="btn ghost cm-del" id="cm-del" hidden>이 명령어 삭제</button>
       </form>
     </div>`;
   const f = (id) => $('#' + id, panel);
-  let editing = null;
-  const fill = (c) => {
-    editing = c || null;
-    f('cm-id').value = c?.id || ''; f('cm-command').value = c?.command || ''; f('cm-aliases').value = c?.aliases || ''; f('cm-desc').value = c?.desc || '';
-    f('cm-category').value = c?.category || ''; f('cm-permission').value = c?.permission || '';
-    f('cm-form-title').textContent = c ? '명령어 편집' : '새 명령어';
+  const handle = (name) => `<button type="button" class="drag-handle" aria-label="${esc(name)} 순서 옮기기 (끌거나 ↑ ↓ 키)" title="끌어서 순서 바꾸기">${GRIP}</button>`;
+
+  // ---- 그리기 ----
+  const drawCats = () => {
+    f('cm-count').textContent = `명령어 ${cmds.length}개 · 분류 ${groups.filter((g) => g.name).length}개`;
+    f('cm-cats').innerHTML = groups.filter((g) => g.name).map((g) => `<option value="${esc(g.name)}">`).join('');
+    f('cm-catlist').innerHTML = `
+      <div class="cm-cat${!q && cmView === CM_ALL ? ' on' : ''}" data-all>
+        <span class="cm-grip-gap"></span>
+        <button type="button" class="cm-cat-btn" data-pick-all><span class="nm">전체</span><span class="cnt">${cmds.length}</span></button>
+      </div>` + groups.map((g) => `
+      <div class="cm-cat${!q && cmView === g.name ? ' on' : ''}" data-cat="${esc(g.name)}">
+        ${handle(g.name || '분류 없음')}
+        <button type="button" class="cm-cat-btn" data-pick="${esc(g.name)}"><span class="nm">${g.name ? esc(g.name) : '분류 없음'}</span><span class="cnt">${g.items.length}</span></button>
+      </div>`).join('');
   };
-  // 전체 순서를 묶음 순서대로 다시 매기고 바뀐 것만 저장
-  const { db, doc, writeBatch } = await import('../assets/js/firebase.js');
-  const renumber = async () => {
+  const row = (c, canDrag) => `
+    <div class="cm-row${editing?.id === c.id ? ' on' : ''}" data-id="${esc(c.id)}">
+      ${canDrag ? handle(c.command) : '<span class="cm-grip-gap"></span>'}
+      <button type="button" class="cm-row-main" data-edit="${esc(c.id)}" title="${esc(c.desc || c.command)}">
+        <span class="cm-c"><code class="cmd-chip">${esc(c.command)}</code></span>
+        <span class="cm-a">${esc(c.aliases || '')}</span>
+        <span class="cm-d">${esc(c.desc || '')}</span>
+        <span class="cm-p">${c.permission ? `<span class="tag">${esc(c.permission)}</span>` : ''}</span>
+      </button>
+    </div>`;
+  const drawList = () => {
+    const needle = q.toLowerCase();
+    const hit = (c) => `${c.command} ${c.aliases || ''} ${c.desc || ''}`.toLowerCase().includes(needle);
+    const single = !q && cmView !== CM_ALL;
+    const shown = (single ? groups.filter((g) => g.name === cmView) : groups)
+      .map((g) => ({ name: g.name, items: q ? g.items.filter(hit) : g.items })).filter((g) => g.items.length);
+    const total = shown.reduce((n, g) => n + g.items.length, 0);
+    f('cm-hint').textContent = q ? `검색 결과 ${total}개 · 순서는 검색을 지우면 바꿀 수 있어요` : `${single ? (cmView || '분류 없음') : '전체'} ${total}개 · 왼쪽 손잡이를 끌어 순서 변경`;
+    f('cm-list').innerHTML = !total ? `<div class="empty">${q ? '검색 결과가 없습니다.' : '명령어가 없습니다.'}</div>` : `
+      <div class="cm-head"><span class="cm-c">명령어</span><span class="cm-a">별칭</span><span class="cm-d">설명</span><span class="cm-p">권한</span></div>
+      ${shown.map((g) => `${single ? '' : `<div class="cm-ghead">${g.name ? esc(g.name) : '분류 없음'} <span>${g.items.length}개</span></div>`}
+        <div class="cm-rows" data-group="${esc(g.name)}">${g.items.map((c) => row(c, !q)).join('')}</div>`).join('')}`;
+  };
+  const draw = () => {
+    if (cmView === null || (cmView !== CM_ALL && !groups.some((g) => g.name === cmView))) cmView = groups[0]?.name ?? CM_ALL;
+    drawCats(); drawList();
+  };
+
+  // ---- 입력 칸 ----
+  const openForm = (c) => {
+    editing = c || null;
+    f('cm-form').hidden = false; f('cm-layout').classList.add('editing');
+    f('cm-command').value = c?.command || ''; f('cm-aliases').value = c?.aliases || ''; f('cm-desc').value = c?.desc || '';
+    f('cm-category').value = c ? c.category || '' : (cmView === CM_ALL ? '' : cmView || ''); f('cm-permission').value = c?.permission || '';
+    f('cm-form-title').textContent = c ? '명령어 편집' : '새 명령어';
+    f('cm-del').hidden = !c;
+    drawList();
+    f('cm-form').scrollIntoView({ block: 'nearest' });
+    f('cm-command').focus({ preventScroll: true });
+  };
+  const closeForm = () => { editing = null; f('cm-form').hidden = true; f('cm-layout').classList.remove('editing'); drawList(); };
+
+  // ---- 저장: 전체 순서를 묶음 순서대로 다시 매기고 바뀐 것만 씁니다 ----
+  const renumber = async (prep) => {
     const batch = writeBatch(db);
-    let n = 0, changed = 0;
+    let changed = 0, n = 0;
+    if (prep) { prep(batch); changed++; }
     groups.forEach((g) => g.items.forEach((c) => { n += 10; if ((c.order ?? 0) !== n) { batch.update(doc(db, 'commands', c.id), { order: n }); c.order = n; changed++; } }));
     if (changed) await batch.commit();
   };
-  const swap = (arr, i, j) => { [arr[i], arr[j]] = [arr[j], arr[i]]; };
-  f('cm-new').addEventListener('click', () => { fill(null); f('cm-command').focus(); });
-  f('cm-reset').addEventListener('click', () => fill(null));
+  const reload = async ({ tidy = true } = {}) => { cmds = await C.listCommands(); regroup(); if (tidy) await renumber(); };
+  const failed = async (what, err) => { toast(`${what} 저장하지 못했습니다 — ${errText(err)}`, { timeout: 6000 }); await reload({ tidy: false }); draw(); };
+  const saveOrder = async () => {
+    try { await renumber(); toast('순서를 바꿨습니다'); } catch (err) { await failed('순서를', err); }
+  };
+  const moveToCat = async (id, name) => {
+    const from = groups.find((g) => g.items.some((c) => c.id === id)), to = groups.find((g) => g.name === name);
+    if (!from || !to || from === to) return;
+    const c = from.items.find((x) => x.id === id);
+    from.items = from.items.filter((x) => x !== c); to.items.push(c); c.category = name;
+    if (!from.items.length) groups = groups.filter((g) => g !== from);
+    if (editing?.id === id) f('cm-category').value = name;
+    draw();
+    try {
+      await renumber((batch) => batch.update(doc(db, 'commands', id), { category: name, updatedAt: serverTimestamp(), updatedBy: me.name }));
+      toast(`${c.command} → ${name || '분류 없음'}(으)로 옮겼습니다`);
+    } catch (err) { await failed('분류를', err); }
+  };
+  // 화면에서 바뀐 자리를 묶음 데이터에 옮겨 적습니다
+  const applyOrder = (el, box) => {
+    if (el.matches('.cm-cat')) {
+      groups = [...box.children].filter((x) => x.matches('.cm-cat[data-cat]')).map((x) => groups.find((g) => g.name === x.dataset.cat));
+      drawList();
+    } else {
+      const g = groups.find((x) => x.name === box.dataset.group);
+      g.items = [...box.children].map((x) => g.items.find((c) => c.id === x.dataset.id));
+    }
+  };
+
+  // ---- 끌어서 옮기기. 끄는 줄은 DOM 에서 떼지 않고 이웃을 옮깁니다(떼면 포인터를 놓칩니다) ----
+  let drag = null;
+  const mid = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+  const catAt = (x, y) => [...panel.querySelectorAll('.cm-cat[data-cat]')].find((c) => { const r = c.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }) || null;
+  const keyOf = (box) => [...box.children].map((x) => x.dataset.id ?? x.dataset.cat ?? '').join('\n');
+  const follow = () => {
+    const { el, sel, x, y, group } = drag;
+    let over = group !== undefined ? catAt(x, y) : null;
+    if (over && over.dataset.cat === group) over = null;
+    if (over !== drag.over) { drag.over?.classList.remove('drop'); over?.classList.add('drop'); drag.over = over; }
+    if (!over) {
+      let p; while ((p = el.previousElementSibling) && p.matches(sel) && y < mid(p)) el.after(p);
+      let n; while ((n = el.nextElementSibling) && n.matches(sel) && y > mid(n)) el.before(n);
+    }
+    el.style.transform = '';
+    el.style.transform = `translateY(${y - drag.off - el.getBoundingClientRect().top}px)`;
+  };
+  const tick = () => {
+    if (!drag) return;
+    const edge = 70, y = drag.y; // 화면 위 · 아래 끝에 가까우면 저절로 스크롤
+    if (y < edge) scrollBy(0, -Math.ceil((edge - y) / 6));
+    else if (y > innerHeight - edge) scrollBy(0, Math.ceil((y - innerHeight + edge) / 6));
+    follow();
+    drag.raf = requestAnimationFrame(tick);
+  };
+  panel.addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('.drag-handle');
+    if (!h || e.button > 0) return;
+    const el = h.closest('.cm-row, .cm-cat'), box = el.parentElement, isRow = el.matches('.cm-row');
+    e.preventDefault();
+    h.setPointerCapture(e.pointerId);
+    el.classList.add('dragging'); box.classList.add('sorting');
+    drag = { el, box, sel: isRow ? '.cm-row' : '.cm-cat[data-cat]', group: isRow ? box.dataset.group : undefined, x: e.clientX, y: e.clientY, off: e.clientY - el.getBoundingClientRect().top, before: keyOf(box), over: null };
+    drag.raf = requestAnimationFrame(tick);
+  });
+  panel.addEventListener('pointermove', (e) => { if (drag) { drag.x = e.clientX; drag.y = e.clientY; } });
+  const endDrag = async () => {
+    if (!drag) return;
+    const { el, box, before, over, raf } = drag;
+    drag = null;
+    cancelAnimationFrame(raf);
+    el.style.transform = ''; el.classList.remove('dragging'); box.classList.remove('sorting'); over?.classList.remove('drop');
+    if (over) return moveToCat(el.dataset.id, over.dataset.cat);
+    if (keyOf(box) !== before) { applyOrder(el, box); await saveOrder(); }
+  };
+  panel.addEventListener('pointerup', endDrag);
+  panel.addEventListener('pointercancel', endDrag);
+  panel.addEventListener('keydown', async (e) => {
+    const h = e.target.closest('.drag-handle');
+    if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const el = h.closest('.cm-row, .cm-cat'), sel = el.matches('.cm-row') ? '.cm-row' : '.cm-cat[data-cat]';
+    const sib = e.key === 'ArrowUp' ? el.previousElementSibling : el.nextElementSibling;
+    if (!sib || !sib.matches(sel)) return;
+    if (e.key === 'ArrowUp') el.after(sib); else el.before(sib);
+    applyOrder(el, el.parentElement);
+    await saveOrder();
+  });
+
+  // ---- 누르기 · 입력 ----
+  const clearSearch = () => { q = ''; f('cm-q').value = ''; };
+  panel.addEventListener('click', (e) => {
+    if (e.target.closest('[data-pick-all]')) { cmView = CM_ALL; clearSearch(); draw(); return; }
+    const p = e.target.closest('[data-pick]');
+    if (p) { cmView = p.dataset.pick; clearSearch(); draw(); return; }
+    const ed = e.target.closest('[data-edit]');
+    if (ed) openForm(cmds.find((x) => x.id === ed.dataset.edit));
+  });
+  f('cm-q').addEventListener('input', (e) => { q = e.target.value.trim(); drawCats(); drawList(); });
+  f('cm-new').addEventListener('click', () => openForm(null));
+  f('cm-close').addEventListener('click', closeForm);
+  f('cm-form').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeForm();
+    if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'cm-desc') { e.preventDefault(); f('cm-form').requestSubmit(); }
+  });
   f('cm-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (saving) return;
     const command = f('cm-command').value.trim();
     if (!command) return toast('명령어를 입력해 주세요');
     const category = f('cm-category').value.trim();
+    const wasNew = !editing;
     // 같은 분류면 자리 유지, 분류를 바꾸거나 새 명령어면 그 분류 맨 아래 (없는 분류면 전체 맨 아래)
     let order;
     if (editing && (editing.category || '') === category) order = editing.order ?? 0;
     else {
       const g = groups.find((x) => x.name === category);
       const last = g ? Math.max(...g.items.map((c) => c.order ?? 0)) : Math.max(0, ...cmds.map((c) => c.order ?? 0));
-      order = last + 5; // 같은 분류의 마지막 바로 뒤 (다음 renumber 때 10 단위로 정리됨)
+      order = last + 5; // 그 분류의 마지막 바로 뒤 (바로 아래 reload 에서 10 단위로 정리됨)
     }
-    await C.saveCommand(f('cm-id').value || null, {
-      command, aliases: f('cm-aliases').value.trim(), desc: f('cm-desc').value.trim(),
-      category, permission: f('cm-permission').value.trim(), order,
-    }, me.name);
-    toast('저장했습니다'); renderCommands(ctx);
+    saving = true; f('cm-save').disabled = true;
+    try {
+      await C.saveCommand(editing?.id || null, {
+        command, aliases: f('cm-aliases').value.trim(), desc: f('cm-desc').value.trim(),
+        category, permission: f('cm-permission').value.trim(), order,
+      }, me.name);
+      await reload();
+      if (cmView !== CM_ALL) cmView = category;
+      draw();
+      toast('저장했습니다');
+      if (wasNew) { openForm(null); f('cm-category').value = category; } else closeForm(); // 새 명령어는 이어서 입력할 수 있게 열어 둠
+    } finally { saving = false; f('cm-save').disabled = false; }
   });
-  panel.addEventListener('click', async (e) => {
-    const mg = e.target.closest('[data-move-group]');
-    if (mg) {
-      const i = groups.findIndex((g) => g.name === mg.dataset.moveGroup), j = i + Number(mg.dataset.dir);
-      if (i < 0 || j < 0 || j >= groups.length) return;
-      swap(groups, i, j); await renumber(); renderCommands(ctx); return;
-    }
-    const mc = e.target.closest('[data-move-cmd]');
-    if (mc) {
-      const g = groups.find((x) => x.items.some((c) => c.id === mc.dataset.moveCmd));
-      const i = g.items.findIndex((c) => c.id === mc.dataset.moveCmd), j = i + Number(mc.dataset.dir);
-      if (i < 0 || j < 0 || j >= g.items.length) return;
-      swap(g.items, i, j); await renumber(); renderCommands(ctx); return;
-    }
-    const ed = e.target.closest('[data-edit]'); if (ed) { fill(cmds.find((x) => x.id === ed.dataset.edit)); f('cm-command').focus(); return; }
-    const dl = e.target.closest('[data-del]');
-    if (dl) {
-      const c = cmds.find((x) => x.id === dl.dataset.del);
-      if (!confirm(`"${c.command}" 를 삭제할까요?`)) return;
-      await C.deleteCommand(c.id); toast('삭제했습니다'); renderCommands(ctx);
-    }
+  f('cm-del').addEventListener('click', async () => {
+    if (!editing || !confirm(`"${editing.command}" 를 삭제할까요?`)) return;
+    await C.deleteCommand(editing.id);
+    toast('삭제했습니다');
+    await reload({ tidy: false });
+    closeForm(); draw();
   });
-  fill(null);
+  draw();
 }
 
 // ================= 시세 데이터 =================
