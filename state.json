@@ -1,0 +1,7 @@
+{
+ "up": false,
+ "address": "penguins.kr",
+ "checked": "2026-11-22T00:27:51.746890+09:00",
+ "since": "2026-11-22T00:27:51.746890+09:00",
+ "error": "BrokenPipeError: [Errno 32] Broken pipe"
+}
