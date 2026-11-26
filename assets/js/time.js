@@ -116,6 +116,32 @@ export function popupActive(ev, now = new Date()) {
   return true;
 }
 
+// 지금 진행 중인 회차의 시작·종료 (기간 / 매주 반복). 진행 중이 아니거나 상시면 null
+export function eventOccurrence(ev, now = new Date()) {
+  if (eventStatus(ev, now) !== 'active') return null;
+  if (ev.kind === 'weekly') {
+    const next = weeklyNextStart(ev, now).getTime();
+    const minute = now.getTime() - (now.getTime() % 60000);
+    return { start: new Date(next === minute ? next : next - WEEK_MIN * 60000), end: weeklyNextEnd(ev, now) };
+  }
+  return { start: parseKST(ev.startAt), end: parseKST(ev.endAt) };
+}
+
+// 팝업 방식 popupMode: 'during'(진행 중 계속, 기본) | 'edges'(시작·종료 알림)
+export const POPUP_START_HOURS = 3, POPUP_END_HOURS = 2;
+const hours = (v, d) => { const n = Number(v); return v === '' || v == null || !(n > 0) ? d : n; };
+
+// 지금 띄울 팝업 단계: 'during' | 'start' | 'end' | null
+export function popupPhase(ev, now = new Date()) {
+  if (ev.popupMode !== 'edges' || ev.kind === 'always') return popupActive(ev, now) ? 'during' : null;
+  if (!ev.popup) return null;
+  const occ = eventOccurrence(ev, now);
+  if (!occ) return null;
+  if (occ.end && occ.end - now <= hours(ev.popupEndHours, POPUP_END_HOURS) * 3600000) return 'end';
+  if (occ.start && now - occ.start < hours(ev.popupStartHours, POPUP_START_HOURS) * 3600000) return 'start';
+  return null;
+}
+
 // 팝업 카운트다운 기준 시각
 export function popupEndsAt(ev, now = new Date()) {
   if (ev.kind === 'always') return ev.dailyEnd ? windowEnd(ev.dailyStart, ev.dailyEnd, now) : null;

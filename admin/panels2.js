@@ -95,6 +95,20 @@ export async function renderEvents(ctx) {
         ${F('ev-note', '한 줄 메모 (목록에 표시)', '', { ph: '예: 보상은 우편함으로 지급' })}
         <div class="stack" style="gap: 10px; padding: 14px 16px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 12px">
           <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; cursor: pointer">팝업 알림 노출 ${toggle(true, 'id="ev-popup"')}</label>
+          <div id="ev-popup-mode" class="stack" style="gap: 6px; font-size: 12px; color: var(--wood)">
+            <span>팝업 방식</span>
+            <div class="filter-row">
+              <button type="button" class="btn sm dark" data-pmode="during">진행 중 계속</button>
+              <button type="button" class="btn sm ghost" data-pmode="edges">시작·종료 알림</button>
+            </div>
+          </div>
+          <div id="ev-popup-edges" class="stack" style="gap: 6px; font-size: 12px; color: var(--wood)" hidden>
+            <span>시작 직후와 종료 직전에만 한 번씩 띄웁니다. 닫으면 그 회차 동안 다시 안 뜹니다.</span>
+            <div style="display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px">
+              <label style="display: grid; gap: 4px">시작 후 (시간)<input class="input" id="ev-psh" type="number" min="0.5" step="0.5" placeholder="${T.POPUP_START_HOURS}" style="height: 32px; padding: 0 10px; font-size: 12px; background: var(--card)"></label>
+              <label style="display: grid; gap: 4px">종료 전 (시간)<input class="input" id="ev-peh" type="number" min="0.5" step="0.5" placeholder="${T.POPUP_END_HOURS}" style="height: 32px; padding: 0 10px; font-size: 12px; background: var(--card)"></label>
+            </div>
+          </div>
           <div id="ev-popup-window" class="stack" style="gap: 6px; font-size: 12px; color: var(--wood)">
             <span>노출 시간 <span style="color: var(--muted)">(비우면 진행 중인 동안 계속)</span></span>
             <div style="display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 6px">
@@ -111,13 +125,20 @@ export async function renderEvents(ctx) {
   bindToggles(panel);
 
   const f = (id) => $('#' + id, panel);
-  let kind = 'period';
+  let kind = 'period', pmode = 'during';
+  const syncPopup = () => {
+    panel.querySelectorAll('[data-pmode]').forEach((b) => { b.className = `btn sm ${b.dataset.pmode === pmode ? 'dark' : 'ghost'}`; });
+    f('ev-popup-mode').hidden = kind === 'always';
+    f('ev-popup-edges').hidden = kind === 'always' || pmode !== 'edges';
+    f('ev-popup-window').hidden = kind === 'always' || pmode === 'edges';
+  };
   const setKind = (k) => {
     kind = k;
     panel.querySelectorAll('[data-kind]').forEach((b) => { b.className = `btn sm ${b.dataset.kind === k ? 'dark' : 'ghost'}`; });
     f('ev-period').hidden = k !== 'period'; f('ev-always').hidden = k !== 'always'; f('ev-weekly').hidden = k !== 'weekly';
-    f('ev-popup-window').hidden = k === 'always';
+    syncPopup();
   };
+  const setPmode = (m) => { pmode = m === 'edges' ? 'edges' : 'during'; syncPopup(); };
   const fill = (ev) => {
     f('ev-id').value = ev?.id || ''; f('ev-name').value = ev?.name || '';
     f('ev-start').value = ev?.startAt || ''; f('ev-end').value = ev?.endAt || '';
@@ -126,12 +147,15 @@ export async function renderEvents(ctx) {
     f('ev-weday').value = ev?.weekEndDay ?? '1'; f('ev-wend').value = ev?.weekEnd || '';
     f('ev-link').value = ev?.link || ''; f('ev-note').value = ev?.note || '';
     f('ev-pstart').value = ev?.popupStart || ''; f('ev-pend').value = ev?.popupEnd || '';
+    f('ev-psh').value = ev?.popupStartHours ?? ''; f('ev-peh').value = ev?.popupEndHours ?? '';
+    setPmode(ev?.popupMode);
     const t = f('ev-popup'); t.classList.toggle('on', ev ? ev.popup !== false : true); t.setAttribute('aria-checked', String(isOn(t)));
     setKind(ev?.kind || 'period');
     f('ev-form-title').textContent = ev ? '이벤트 편집' : '새 이벤트';
     f('ev-form-sub').textContent = ev?.updatedAt ? `마지막 저장 ${fmtDate(ev.updatedAt, true)}` : '';
   };
   panel.querySelector('[data-kind]').parentElement.addEventListener('click', (e) => { const b = e.target.closest('[data-kind]'); if (b) setKind(b.dataset.kind); });
+  panel.querySelector('[data-pmode]').parentElement.addEventListener('click', (e) => { const b = e.target.closest('[data-pmode]'); if (b) setPmode(b.dataset.pmode); });
   f('ev-new').addEventListener('click', () => { fill(null); f('ev-name').focus(); });
   f('ev-reset').addEventListener('click', () => fill(null));
   f('ev-form').addEventListener('submit', async (e) => {
@@ -145,7 +169,10 @@ export async function renderEvents(ctx) {
       dailyStart: kind === 'always' ? f('ev-dstart').value : '', dailyEnd: kind === 'always' ? f('ev-dend').value : '',
       weekStartDay: kind === 'weekly' ? Number(f('ev-wsday').value) : '', weekStart: kind === 'weekly' ? f('ev-wstart').value : '',
       weekEndDay: kind === 'weekly' ? Number(f('ev-weday').value) : '', weekEnd: kind === 'weekly' ? f('ev-wend').value : '',
-      popupStart: kind !== 'always' ? f('ev-pstart').value : '', popupEnd: kind !== 'always' ? f('ev-pend').value : '',
+      popupMode: kind !== 'always' ? pmode : 'during',
+      popupStart: kind !== 'always' && pmode === 'during' ? f('ev-pstart').value : '', popupEnd: kind !== 'always' && pmode === 'during' ? f('ev-pend').value : '',
+      popupStartHours: kind !== 'always' && pmode === 'edges' && f('ev-psh').value ? Number(f('ev-psh').value) : '',
+      popupEndHours: kind !== 'always' && pmode === 'edges' && f('ev-peh').value ? Number(f('ev-peh').value) : '',
     };
     if (kind === 'period' && data.startAt && data.endAt && data.endAt < data.startAt) return toast('종료가 시작보다 빠릅니다');
     if (kind === 'always' && (!data.dailyStart || !data.dailyEnd)) return toast('상시 이벤트는 매일 시작·종료 시각이 필요합니다');
@@ -411,6 +438,7 @@ export async function renderPopups(ctx) {
           <li>유저가 하트를 하나도 안 눌렀으면 진행 중인 이벤트 전부, 하트를 눌렀으면 누른 것만 뜹니다</li>
           <li>닫으면 그날은 다시 뜨지 않습니다. 한 번에 최대 3개까지 표시합니다</li>
           <li>상시 이벤트는 매일 시작~종료 시각 안에서만 뜨고, 종료까지 남은 시간을 셉니다</li>
+          <li>팝업 방식이 「시작·종료 알림」인 이벤트는 시작 직후(기본 ${T.POPUP_START_HOURS}시간)와 종료 직전(기본 ${T.POPUP_END_HOURS}시간)에만 뜨고, 닫으면 그 회차 동안 다시 안 뜹니다</li>
         </ul>
         <a class="btn sm secondary" href="#events" style="align-self: flex-start">이벤트 관리로</a>
       </div>
