@@ -130,7 +130,7 @@ export function renderPatchBody(body, categories = []) {
 }
 
 // ---------- 이벤트 ----------
-// events/{id}: { name, kind:'period'|'always', startAt, endAt, dailyStart, dailyEnd, link, popup, popupStart, popupEnd, note }
+// events/{id}: { name, kind:'period'|'always'|'weekly', startAt, endAt, dailyStart, dailyEnd, weekStartDay(0=일~6=토), weekStart, weekEndDay, weekEnd, link, popup, popupStart, popupEnd, note }
 export async function listEvents() {
   return rows(await getDocs(query(collection(db, 'events'), orderBy('createdAt', 'desc'))));
 }

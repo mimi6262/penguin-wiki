@@ -16,6 +16,8 @@ const bindToggles = (root) => root.querySelectorAll('.toggle').forEach((t) => {
 });
 const F = (id, label, val = '', { type = 'text', ph = '', extra = '' } = {}) =>
   `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(val ?? '')}" placeholder="${esc(ph)}" ${extra}></div>`;
+const DAY = (id, label) =>
+  `<div class="field"><label for="${id}">${label}</label><select class="input" id="${id}">${T.WEEKDAYS.map((d, i) => `<option value="${i}">${d}요일</option>`).join('')}</select></div>`;
 
 // ================= 이벤트 관리 =================
 export async function renderEvents(ctx) {
@@ -29,7 +31,7 @@ export async function renderEvents(ctx) {
   const BADGE = { active: 'fill', always: 'green', upcoming: 'blue', ended: 'gray' };
   // 기간은 두 줄(시작 / ~종료)로 보여 칸을 좁게 유지
   const periodCell = (ev) => {
-    if (ev.kind === 'always') return esc(T.eventPeriodText(ev));
+    if (ev.kind === 'always' || ev.kind === 'weekly') return esc(T.eventPeriodText(ev));
     const s = ev.startAt ? T.fmtKST(ev.startAt) : '', e = ev.endAt ? T.fmtKST(ev.endAt) : '';
     if (!s && !e) return '';
     return `${esc(s)}<br>~ ${esc(e)}`;
@@ -61,6 +63,7 @@ export async function renderEvents(ctx) {
           <div class="filter-row">
             <button type="button" class="btn sm dark" data-kind="period">기간 이벤트</button>
             <button type="button" class="btn sm ghost" data-kind="always">상시 (매일 반복)</button>
+            <button type="button" class="btn sm ghost" data-kind="weekly">매주 반복</button>
           </div>
         </div>
         <div id="ev-period">
@@ -73,6 +76,19 @@ export async function renderEvents(ctx) {
           <div class="form-row">
             ${F('ev-dstart', '매일 시작 시각', '', { type: 'time' })}
             ${F('ev-dend', '매일 종료 시각', '', { type: 'time' })}
+          </div>
+        </div>
+        <div id="ev-weekly" hidden>
+          <div class="stack" style="gap: 12px">
+            <div class="form-row">
+              ${DAY('ev-wsday', '매주 시작 요일')}
+              ${F('ev-wstart', '시작 시각', '', { type: 'time' })}
+            </div>
+            <div class="form-row">
+              ${DAY('ev-weday', '매주 종료 요일')}
+              ${F('ev-wend', '종료 시각', '', { type: 'time' })}
+            </div>
+            <span style="font-size: 12px; color: var(--muted)">예: 금 18:00 ~ 월 01:00 → 매주 그 시간에만 「진행 중」, 나머지는 「예정」으로 보입니다.</span>
           </div>
         </div>
         ${F('ev-link', '상세 링크', '', { ph: 'guide.html?p=슬러그 또는 https://…' })}
@@ -99,13 +115,15 @@ export async function renderEvents(ctx) {
   const setKind = (k) => {
     kind = k;
     panel.querySelectorAll('[data-kind]').forEach((b) => { b.className = `btn sm ${b.dataset.kind === k ? 'dark' : 'ghost'}`; });
-    f('ev-period').hidden = k !== 'period'; f('ev-always').hidden = k !== 'always';
+    f('ev-period').hidden = k !== 'period'; f('ev-always').hidden = k !== 'always'; f('ev-weekly').hidden = k !== 'weekly';
     f('ev-popup-window').hidden = k === 'always';
   };
   const fill = (ev) => {
     f('ev-id').value = ev?.id || ''; f('ev-name').value = ev?.name || '';
     f('ev-start').value = ev?.startAt || ''; f('ev-end').value = ev?.endAt || '';
     f('ev-dstart').value = ev?.dailyStart || ''; f('ev-dend').value = ev?.dailyEnd || '';
+    f('ev-wsday').value = ev?.weekStartDay ?? '5'; f('ev-wstart').value = ev?.weekStart || '';
+    f('ev-weday').value = ev?.weekEndDay ?? '1'; f('ev-wend').value = ev?.weekEnd || '';
     f('ev-link').value = ev?.link || ''; f('ev-note').value = ev?.note || '';
     f('ev-pstart').value = ev?.popupStart || ''; f('ev-pend').value = ev?.popupEnd || '';
     const t = f('ev-popup'); t.classList.toggle('on', ev ? ev.popup !== false : true); t.setAttribute('aria-checked', String(isOn(t)));
@@ -125,10 +143,14 @@ export async function renderEvents(ctx) {
       popup: isOn(f('ev-popup')),
       startAt: kind === 'period' ? f('ev-start').value : '', endAt: kind === 'period' ? f('ev-end').value : '',
       dailyStart: kind === 'always' ? f('ev-dstart').value : '', dailyEnd: kind === 'always' ? f('ev-dend').value : '',
-      popupStart: kind === 'period' ? f('ev-pstart').value : '', popupEnd: kind === 'period' ? f('ev-pend').value : '',
+      weekStartDay: kind === 'weekly' ? Number(f('ev-wsday').value) : '', weekStart: kind === 'weekly' ? f('ev-wstart').value : '',
+      weekEndDay: kind === 'weekly' ? Number(f('ev-weday').value) : '', weekEnd: kind === 'weekly' ? f('ev-wend').value : '',
+      popupStart: kind !== 'always' ? f('ev-pstart').value : '', popupEnd: kind !== 'always' ? f('ev-pend').value : '',
     };
     if (kind === 'period' && data.startAt && data.endAt && data.endAt < data.startAt) return toast('종료가 시작보다 빠릅니다');
     if (kind === 'always' && (!data.dailyStart || !data.dailyEnd)) return toast('상시 이벤트는 매일 시작·종료 시각이 필요합니다');
+    if (kind === 'weekly' && (!data.weekStart || !data.weekEnd)) return toast('매주 반복 이벤트는 시작·종료 시각이 필요합니다');
+    if (kind === 'weekly' && data.weekStartDay === data.weekEndDay && data.weekStart === data.weekEnd) return toast('시작과 종료가 같습니다');
     await C.saveEvent(f('ev-id').value || null, data, me.name);
     toast('저장했습니다');
     const st = T.eventStatus(data, new Date());

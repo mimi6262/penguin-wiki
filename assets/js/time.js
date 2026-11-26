@@ -63,10 +63,40 @@ export function fmtRemaining(ms) {
   return `${p(h)}:${p(m)}:${p(sec)}`;
 }
 
+// ---------- 매주 반복 ----------
+// ev.weekStartDay / weekEndDay: 0(일)~6(토), ev.weekStart / weekEnd: 'HH:MM' (KST)
+export const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const WEEK_MIN = 7 * 1440;
+
+// 이번 주(일요일 0시 KST 기준) 몇 분째인지
+function kstWeekMinutes(now = new Date()) {
+  const p = kstParts(now);
+  const [y, m, d] = p.date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() * 1440 + p.minutes;
+}
+const weekPoint = (day, time) => Number(day) * 1440 + toMin(time);
+const hasWeekly = (ev) => ev.weekStartDay !== '' && ev.weekStartDay != null && ev.weekEndDay !== '' && ev.weekEndDay != null && !!ev.weekStart && !!ev.weekEnd;
+
+// 지금이 매주 창 안인지 (토→일처럼 주를 넘는 창도 처리, 종료 시각은 포함하지 않음)
+export function inWeeklyWindow(ev, now = new Date()) {
+  if (!hasWeekly(ev)) return false;
+  const n = kstWeekMinutes(now), s = weekPoint(ev.weekStartDay, ev.weekStart), e = weekPoint(ev.weekEndDay, ev.weekEnd);
+  return s <= e ? (n >= s && n < e) : (n >= s || n < e);
+}
+
+// 다음에 오는 (요일, 시각)의 Date. 지금이 바로 그 분이면 지금
+function nextWeekPoint(day, time, now = new Date()) {
+  const diff = (weekPoint(day, time) - kstWeekMinutes(now) + WEEK_MIN) % WEEK_MIN;
+  return new Date(now.getTime() - (now.getTime() % 60000) + diff * 60000);
+}
+export const weeklyNextStart = (ev, now = new Date()) => nextWeekPoint(ev.weekStartDay, ev.weekStart, now);
+export const weeklyNextEnd = (ev, now = new Date()) => nextWeekPoint(ev.weekEndDay, ev.weekEnd, now);
+
 // ---------- 이벤트 상태 ----------
-// ev: { kind: 'period'|'always', startAt, endAt, dailyStart, dailyEnd, popup, popupStart, popupEnd }
+// ev: { kind: 'period'|'always'|'weekly', startAt, endAt, dailyStart, dailyEnd, weekStartDay, weekStart, weekEndDay, weekEnd, popup, popupStart, popupEnd }
 export function eventStatus(ev, now = new Date()) {
   if (ev.kind === 'always') return 'always';
+  if (ev.kind === 'weekly') return inWeeklyWindow(ev, now) ? 'active' : 'upcoming';
   const s = parseKST(ev.startAt), e = parseKST(ev.endAt);
   if (s && now < s) return 'upcoming';
   if (e && now > e) return 'ended';
@@ -89,7 +119,7 @@ export function popupActive(ev, now = new Date()) {
 // 팝업 카운트다운 기준 시각
 export function popupEndsAt(ev, now = new Date()) {
   if (ev.kind === 'always') return ev.dailyEnd ? windowEnd(ev.dailyStart, ev.dailyEnd, now) : null;
-  const end = parseKST(ev.endAt);
+  const end = ev.kind === 'weekly' ? weeklyNextEnd(ev, now) : parseKST(ev.endAt);
   if (ev.popupStart && ev.popupEnd) {
     const w = windowEnd(ev.popupStart, ev.popupEnd, now);
     return end && end < w ? end : w;
@@ -100,6 +130,7 @@ export function popupEndsAt(ev, now = new Date()) {
 // 목록에 표시할 남은 시간 문구
 export function eventRemainingText(ev, now = new Date()) {
   const st = eventStatus(ev, now);
+  if (ev.kind === 'weekly') return st === 'active' ? `종료까지 ${fmtRemaining(weeklyNextEnd(ev, now) - now)}` : `시작까지 ${fmtRemaining(weeklyNextStart(ev, now) - now)}`;
   if (st === 'upcoming') { const s = parseKST(ev.startAt); return s ? `시작까지 ${fmtRemaining(s - now)}` : ''; }
   if (st === 'active') { const e = parseKST(ev.endAt); return e ? `종료까지 ${fmtRemaining(e - now)}` : '기간 미정'; }
   if (st === 'always') {
@@ -111,6 +142,7 @@ export function eventRemainingText(ev, now = new Date()) {
 
 export function eventPeriodText(ev) {
   if (ev.kind === 'always') return ev.dailyStart && ev.dailyEnd ? `매일 ${ev.dailyStart} ~ ${ev.dailyEnd}` : '매일';
+  if (ev.kind === 'weekly') return hasWeekly(ev) ? `매주 ${WEEKDAYS[ev.weekStartDay]} ${ev.weekStart} ~ ${WEEKDAYS[ev.weekEndDay]} ${ev.weekEnd}` : '매주';
   const s = ev.startAt ? fmtKST(ev.startAt) : '', e = ev.endAt ? fmtKST(ev.endAt) : '';
   return s || e ? `${s} ~ ${e}` : '';
 }
