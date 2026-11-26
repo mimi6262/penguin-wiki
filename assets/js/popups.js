@@ -4,15 +4,17 @@
 //  - 닫으면 그날은 다시 안 뜸 (브라우저 저장)
 //  - 마인리스트: 설정한 시간대에만, 추천하기/닫기 후 다음 날 다시
 import { listEvents, getPopupSettings, getHearts, popupWindows } from './content.js';
-import { popupActive, popupEndsAt, inDailyWindow, fmtRemaining, todayKST, fmtKST } from './time.js';
+import { popupPhase, eventOccurrence, popupEndsAt, inDailyWindow, fmtRemaining, todayKST, fmtKST, WEEKDAYS } from './time.js';
 import { esc, ROOT, safeUrl } from './ui.js';
 
 const STAR = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#BA7517" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>';
 const FLAME = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A63A2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 0-6 1-9z"/></svg>';
-const CLOSE = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const CLOCK = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A63A2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>';
+const CLOSE ='<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
-const dismissed = (key) => { try { return localStorage.getItem(`pw_dismiss_${key}`) === todayKST(); } catch { return false; } };
-const dismiss = (key) => { try { localStorage.setItem(`pw_dismiss_${key}`, todayKST()); } catch {} };
+// token: 같은 값이 저장돼 있으면 닫힌 것. 기본은 오늘 날짜(그날만 숨김), 시작·종료 알림은 회차(그 회차 동안 숨김)
+const dismissed = (key, token = todayKST()) => { try { return localStorage.getItem(`pw_dismiss_${key}`) === token; } catch { return false; } };
+const dismiss = (key, token = todayKST()) => { try { localStorage.setItem(`pw_dismiss_${key}`, token); } catch {} };
 
 function stack() {
   let s = document.getElementById('popup-stack');
@@ -37,21 +39,35 @@ export async function initPopups() {
   const timers = [];
 
   // 이벤트 팝업
-  const candidates = events.filter((ev) => popupActive(ev) && !dismissed(`ev_${ev.id}`) && (hearts.size === 0 || hearts.has(ev.id)));
-  candidates.slice(0, 3).forEach((ev) => {
+  // 시작·종료 알림은 「이벤트id + 단계」를 키로, 회차 시작 시각을 토큰으로 써서 그 회차 동안만 숨깁니다
+  const now = new Date();
+  const candidates = events
+    .map((ev) => {
+      const phase = popupPhase(ev, now);
+      if (!phase) return null;
+      const edge = phase === 'start' || phase === 'end';
+      const occ = edge ? eventOccurrence(ev, now) : null;
+      return { ev, phase, key: edge ? `ev_${ev.id}_${phase}` : `ev_${ev.id}`, token: edge ? String(occ?.start?.getTime() ?? occ?.end?.getTime() ?? '') : undefined };
+    })
+    .filter((c) => c && !dismissed(c.key, c.token) && (hearts.size === 0 || hearts.has(c.ev.id)));
+  candidates.slice(0, 3).forEach(({ ev, phase, key, token }) => {
     const el = document.createElement('div');
     el.className = 'toast';
     el.setAttribute('role', 'status');
     const endsAt = popupEndsAt(ev);
     const link = safeUrl(ev.link ? (ev.link.startsWith('http') ? ev.link : `${ROOT}${ev.link}`) : '') || `${ROOT}events.html`;
-    el.innerHTML = `${FLAME}
+    const endText = endsAt ? `${ev.kind === 'weekly' ? `${WEEKDAYS[ev.weekEndDay]} ` : ''}${fmtKST(endsAt).slice(11)} 종료` : '';
+    const sub = phase === 'start' ? `시작했어요${endText ? ` · ${endText}` : ''}`
+      : phase === 'end' ? `곧 끝나요${endText ? ` · ${endText}` : ''}`
+      : endText || '진행 중';
+    el.innerHTML = `${phase === 'end' ? CLOCK : FLAME}
       <div class="grow">
         <a href="${esc(link)}" style="text-decoration:none; color:inherit; font-size:14px">${esc(ev.name)}</a>
-        <div class="sub">${endsAt ? `${fmtKST(endsAt).slice(11)} 종료` : '진행 중'}</div>
+        <div class="sub">${esc(sub)}</div>
       </div>
       <span class="count" data-count></span>
       <button type="button" class="close" aria-label="알림 닫기">${CLOSE}</button>`;
-    el.querySelector('.close').addEventListener('click', () => { dismiss(`ev_${ev.id}`); el.remove(); });
+    el.querySelector('.close').addEventListener('click', () => { dismiss(key, token); el.remove(); });
     stack().appendChild(el);
     const countEl = el.querySelector('[data-count]');
     const tick = () => {
