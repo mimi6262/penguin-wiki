@@ -16,6 +16,11 @@ const bindToggles = (root) => root.querySelectorAll('.toggle').forEach((t) => {
 });
 const F = (id, label, val = '', { type = 'text', ph = '', extra = '' } = {}) =>
   `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" type="${type}" value="${esc(val ?? '')}" placeholder="${esc(ph)}" ${extra}></div>`;
+// '7:30, 10:30 13:30' → ['07:30', '10:30', '13:30'] (잘못된 값은 버리고 중복 제거 · 시간순)
+const parseTimes = (s) => [...new Set((s || '').split(/[\s,·/]+/).map((t) => {
+  const m = t.match(/^(\d{1,2}):(\d{2})$/); if (!m || +m[1] > 23 || +m[2] > 59) return null;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}).filter(Boolean))].sort();
 const DAY = (id, label) =>
   `<div class="field"><label for="${id}">${label}</label><select class="input" id="${id}">${T.WEEKDAYS.map((d, i) => `<option value="${i}">${d}요일</option>`).join('')}</select></div>`;
 
@@ -76,6 +81,12 @@ export async function renderEvents(ctx) {
           <div class="form-row">
             ${F('ev-dstart', '매일 시작 시각', '', { type: 'time' })}
             ${F('ev-dend', '매일 종료 시각', '', { type: 'time' })}
+          </div>
+          <div class="stack" style="gap: 8px; margin-top: 12px; padding: 12px 14px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 12px">
+            <span style="font-size: 13px; color: var(--label)">하루 여러 번 열리는 이벤트 <span style="color: var(--muted)">(채우면 위 시작·종료 대신 사용)</span></span>
+            ${F('ev-dtimes', '시작 시각들 (쉼표로 구분)', '', { ph: '예: 07:30, 10:30, 13:30' })}
+            ${F('ev-ddur', '1회 진행 시간 (분)', '', { type: 'number', ph: '예: 10', extra: 'min="1" step="1"' })}
+            <span style="font-size: 12px; color: var(--muted)">각 시작 시각부터 진행 시간 동안만 「진행 중」, 그 밖에는 다음 시작 시각과 남은 시간을 보여 줍니다.</span>
           </div>
         </div>
         <div id="ev-weekly" hidden>
@@ -143,6 +154,7 @@ export async function renderEvents(ctx) {
     f('ev-id').value = ev?.id || ''; f('ev-name').value = ev?.name || '';
     f('ev-start').value = ev?.startAt || ''; f('ev-end').value = ev?.endAt || '';
     f('ev-dstart').value = ev?.dailyStart || ''; f('ev-dend').value = ev?.dailyEnd || '';
+    f('ev-dtimes').value = Array.isArray(ev?.dailyTimes) ? ev.dailyTimes.join(', ') : ''; f('ev-ddur').value = ev?.dailyDuration || '';
     f('ev-wsday').value = ev?.weekStartDay ?? '5'; f('ev-wstart').value = ev?.weekStart || '';
     f('ev-weday').value = ev?.weekEndDay ?? '1'; f('ev-wend').value = ev?.weekEnd || '';
     f('ev-link').value = ev?.link || ''; f('ev-note').value = ev?.note || '';
@@ -167,6 +179,7 @@ export async function renderEvents(ctx) {
       popup: isOn(f('ev-popup')),
       startAt: kind === 'period' ? f('ev-start').value : '', endAt: kind === 'period' ? f('ev-end').value : '',
       dailyStart: kind === 'always' ? f('ev-dstart').value : '', dailyEnd: kind === 'always' ? f('ev-dend').value : '',
+      dailyTimes: kind === 'always' ? parseTimes(f('ev-dtimes').value) : [], dailyDuration: kind === 'always' && f('ev-ddur').value ? Number(f('ev-ddur').value) : '',
       weekStartDay: kind === 'weekly' ? Number(f('ev-wsday').value) : '', weekStart: kind === 'weekly' ? f('ev-wstart').value : '',
       weekEndDay: kind === 'weekly' ? Number(f('ev-weday').value) : '', weekEnd: kind === 'weekly' ? f('ev-wend').value : '',
       popupMode: kind !== 'always' ? pmode : 'during',
@@ -175,7 +188,8 @@ export async function renderEvents(ctx) {
       popupEndHours: kind !== 'always' && pmode === 'edges' && f('ev-peh').value ? Number(f('ev-peh').value) : '',
     };
     if (kind === 'period' && data.startAt && data.endAt && data.endAt < data.startAt) return toast('종료가 시작보다 빠릅니다');
-    if (kind === 'always' && (!data.dailyStart || !data.dailyEnd)) return toast('상시 이벤트는 매일 시작·종료 시각이 필요합니다');
+    if (kind === 'always' && data.dailyTimes.length && !(data.dailyDuration > 0)) return toast('1회 진행 시간(분)을 입력해 주세요');
+    if (kind === 'always' && !data.dailyTimes.length && (!data.dailyStart || !data.dailyEnd)) return toast('상시 이벤트는 매일 시작·종료 시각이나 시작 시각들이 필요합니다');
     if (kind === 'weekly' && (!data.weekStart || !data.weekEnd)) return toast('매주 반복 이벤트는 시작·종료 시각이 필요합니다');
     if (kind === 'weekly' && data.weekStartDay === data.weekEndDay && data.weekStart === data.weekEnd) return toast('시작과 종료가 같습니다');
     await C.saveEvent(f('ev-id').value || null, data, me.name);

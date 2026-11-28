@@ -92,8 +92,39 @@ function nextWeekPoint(day, time, now = new Date()) {
 export const weeklyNextStart = (ev, now = new Date()) => nextWeekPoint(ev.weekStartDay, ev.weekStart, now);
 export const weeklyNextEnd = (ev, now = new Date()) => nextWeekPoint(ev.weekEndDay, ev.weekEnd, now);
 
+// ---------- 상시: 하루 여러 번 ----------
+// ev.dailyTimes: ['07:30', '10:30', …] (KST), ev.dailyDuration: 1회 진행 시간(분). dailyTimes가 있으면 dailyStart/dailyEnd 대신 씁니다
+export const hasDailyTimes = (ev) => Array.isArray(ev.dailyTimes) && ev.dailyTimes.length > 0 && Number(ev.dailyDuration) > 0;
+const sortedTimes = (ev) => [...ev.dailyTimes].sort((a, b) => toMin(a) - toMin(b));
+
+// 지금 열려 있는 회차 { start, end } 또는 null (자정을 넘는 회차도 처리)
+export function dailyTimesWindow(ev, now = new Date()) {
+  if (!hasDailyTimes(ev)) return null;
+  const dur = Number(ev.dailyDuration) * 60000;
+  for (const t of sortedTimes(ev)) {
+    for (const off of [0, -1]) {
+      const s = todayAt(t, off, now);
+      if (s && now >= s && now < new Date(s.getTime() + dur)) return { start: s, end: new Date(s.getTime() + dur) };
+    }
+  }
+  return null;
+}
+
+// 다음 회차 시작 시각
+export function dailyTimesNext(ev, now = new Date()) {
+  if (!hasDailyTimes(ev)) return null;
+  let best = null;
+  for (const t of sortedTimes(ev)) {
+    for (const off of [0, 1]) {
+      const s = todayAt(t, off, now);
+      if (s && s > now && (!best || s < best)) best = s;
+    }
+  }
+  return best;
+}
+
 // ---------- 이벤트 상태 ----------
-// ev: { kind: 'period'|'always'|'weekly', startAt, endAt, dailyStart, dailyEnd, weekStartDay, weekStart, weekEndDay, weekEnd, popup, popupStart, popupEnd }
+// ev: { kind: 'period'|'always'|'weekly', startAt, endAt, dailyStart, dailyEnd, dailyTimes, dailyDuration, weekStartDay, weekStart, weekEndDay, weekEnd, popup, popupStart, popupEnd }
 export function eventStatus(ev, now = new Date()) {
   if (ev.kind === 'always') return 'always';
   if (ev.kind === 'weekly') return inWeeklyWindow(ev, now) ? 'active' : 'upcoming';
@@ -110,7 +141,7 @@ export const STATUS_ORDER = { active: 0, always: 1, upcoming: 2, ended: 3 };
 export function popupActive(ev, now = new Date()) {
   if (!ev.popup) return false;
   const st = eventStatus(ev, now);
-  if (st === 'always') return inDailyWindow(ev.dailyStart, ev.dailyEnd, now);
+  if (st === 'always') return hasDailyTimes(ev) ? !!dailyTimesWindow(ev, now) : inDailyWindow(ev.dailyStart, ev.dailyEnd, now);
   if (st !== 'active') return false;
   if (ev.popupStart && ev.popupEnd) return inDailyWindow(ev.popupStart, ev.popupEnd, now);
   return true;
@@ -144,7 +175,10 @@ export function popupPhase(ev, now = new Date()) {
 
 // 팝업 카운트다운 기준 시각
 export function popupEndsAt(ev, now = new Date()) {
-  if (ev.kind === 'always') return ev.dailyEnd ? windowEnd(ev.dailyStart, ev.dailyEnd, now) : null;
+  if (ev.kind === 'always') {
+    if (hasDailyTimes(ev)) return dailyTimesWindow(ev, now)?.end || null;
+    return ev.dailyEnd ? windowEnd(ev.dailyStart, ev.dailyEnd, now) : null;
+  }
   const end = ev.kind === 'weekly' ? weeklyNextEnd(ev, now) : parseKST(ev.endAt);
   if (ev.popupStart && ev.popupEnd) {
     const w = windowEnd(ev.popupStart, ev.popupEnd, now);
@@ -160,6 +194,12 @@ export function eventRemainingText(ev, now = new Date()) {
   if (st === 'upcoming') { const s = parseKST(ev.startAt); return s ? `시작까지 ${fmtRemaining(s - now)}` : ''; }
   if (st === 'active') { const e = parseKST(ev.endAt); return e ? `종료까지 ${fmtRemaining(e - now)}` : '기간 미정'; }
   if (st === 'always') {
+    if (hasDailyTimes(ev)) {
+      const w = dailyTimesWindow(ev, now);
+      if (w) return `진행 중 · 종료까지 ${fmtRemaining(w.end - now)}`;
+      const next = dailyTimesNext(ev, now);
+      return next ? `다음 ${kstParts(next).time} 시작 · ${fmtRemaining(next - now)}` : '매일';
+    }
     if (!ev.dailyStart || !ev.dailyEnd) return '매일';
     return inDailyWindow(ev.dailyStart, ev.dailyEnd, now) ? `종료까지 ${fmtRemaining(windowEnd(ev.dailyStart, ev.dailyEnd, now) - now)}` : `매일 ${ev.dailyStart} 시작`;
   }
@@ -167,7 +207,10 @@ export function eventRemainingText(ev, now = new Date()) {
 }
 
 export function eventPeriodText(ev) {
-  if (ev.kind === 'always') return ev.dailyStart && ev.dailyEnd ? `매일 ${ev.dailyStart} ~ ${ev.dailyEnd}` : '매일';
+  if (ev.kind === 'always') {
+    if (hasDailyTimes(ev)) return `매일 ${sortedTimes(ev).join(' · ')} (${ev.dailyDuration}분)`;
+    return ev.dailyStart && ev.dailyEnd ? `매일 ${ev.dailyStart} ~ ${ev.dailyEnd}` : '매일';
+  }
   if (ev.kind === 'weekly') return hasWeekly(ev) ? `매주 ${WEEKDAYS[ev.weekStartDay]} ${ev.weekStart} ~ ${WEEKDAYS[ev.weekEndDay]} ${ev.weekEnd}` : '매주';
   const s = ev.startAt ? fmtKST(ev.startAt) : '', e = ev.endAt ? fmtKST(ev.endAt) : '';
   return s || e ? `${s} ~ ${e}` : '';
